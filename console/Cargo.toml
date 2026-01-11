@@ -13,4 +13,5 @@ categories = ["no-std"]
 
 [dependencies]
 log = "0.4.17"
+riscv = "0.10.1"
 spin = "0.9"

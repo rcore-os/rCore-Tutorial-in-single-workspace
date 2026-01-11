@@ -6,6 +6,7 @@
 use core::{
     fmt::{self, Write},
     str::FromStr,
+    time::Duration,
 };
 use spin::Once;
 
@@ -96,7 +97,7 @@ struct Logger;
 impl Write for Logger {
     #[inline]
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        let _ = CONSOLE.get().unwrap().put_str(s);
+        CONSOLE.get().unwrap().put_str(s);
         Ok(())
     }
 }
@@ -118,8 +119,11 @@ impl log::Log for Logger {
             Debug => 32,
             Trace => 90,
         };
+        let time = Duration::from_nanos(riscv::register::time::read64() * 100);
         println!(
-            "\x1b[{color_code}m[{:>5}] {}\x1b[0m",
+            "\x1b[{color_code}m[{:>3}.{:03}s] [{:>5}] {}\x1b[0m",
+            time.as_secs(),
+            time.subsec_millis(),
             record.level(),
             record.args(),
         );
