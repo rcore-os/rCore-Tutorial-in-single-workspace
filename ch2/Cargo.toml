@@ -4,10 +4,16 @@ version = "0.0.1"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
 
+[features]
+default = []
+nobios = [
+    "sbi/nobios",
+]
+
 [dependencies]
-sbi-rt = { version = "0.0.2", features = ["legacy"] }
 riscv = "0.10.1"
 
+sbi = { path = "../sbi" }
 linker = { path = "../linker" }
 rcore-console = { path = "../console" }
 kernel-context = { path = "../kernel-context" }

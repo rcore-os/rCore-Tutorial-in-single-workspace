@@ -5,7 +5,7 @@
 #[macro_use]
 extern crate rcore_console;
 
-use sbi_rt::*;
+use sbi;
 
 /// Supervisor 汇编入口。
 ///
@@ -39,8 +39,7 @@ extern "C" fn rust_main() -> ! {
     // 测试各种打印
     rcore_console::test_log();
 
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    sbi::shutdown(false)
 }
 
 /// 将传给 `console` 的控制台对象。
@@ -51,8 +50,7 @@ struct Console;
 /// 为 `Console` 实现 `console::Console` trait。
 impl rcore_console::Console for Console {
     fn put_char(&self, c: u8) {
-        #[allow(deprecated)]
-        legacy::console_putchar(c as _);
+        sbi::console_putchar(c);
     }
 }
 
@@ -60,6 +58,5 @@ impl rcore_console::Console for Console {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    sbi::shutdown(true)
 }

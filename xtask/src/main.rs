@@ -55,6 +55,12 @@ struct BuildArgs {
     /// lab or not
     #[clap(long)]
     lab: bool,
+    /// exercise mode (load exercise test cases)
+    #[clap(long)]
+    exercise: bool,
+    /// ci or not
+    #[clap(long)]
+    ci: bool,
     /// features
     #[clap(short, long)]
     features: Option<String>,
@@ -64,15 +70,25 @@ struct BuildArgs {
     /// build in release mode
     #[clap(long)]
     release: bool,
+    /// build for no-bios mode (kernel at 0x80000000)
+    #[clap(long)]
+    nobios: bool,
 }
 
 impl BuildArgs {
+    fn check(&self) {
+        if self.ci && !self.exercise {
+            eprintln!("need `--exercise` when `ci` is set");
+            std::process::exit(1);
+        }
+    }
     fn make(&self) -> PathBuf {
+        self.check();
         let mut env: HashMap<&str, OsString> = HashMap::new();
         let package = match self.ch {
             1 => if self.lab { "ch1-lab" } else { "ch1" }.to_string(),
             2..=8 => {
-                user::build_for(self.ch, false);
+                user::build_for(self.ch, false, self.exercise, self.ci);
                 env.insert(
                     "APP_ASM",
                     TARGET
@@ -86,11 +102,19 @@ impl BuildArgs {
             _ => unreachable!(),
         };
         // 生成
+        let mut all_features = Vec::new();
+        if let Some(features) = &self.features {
+            all_features.extend(features.split_whitespace());
+        }
+        if self.nobios {
+            all_features.push("nobios");
+        }
+        
         let mut build = Cargo::build();
         build
             .package(&package)
-            .optional(&self.features, |cargo, features| {
-                cargo.features(false, features.split_whitespace());
+            .conditional(!all_features.is_empty(), |cargo| {
+                cargo.features(false, all_features.iter().copied());
             })
             .optional(&self.log, |cargo, log| {
                 cargo.env("LOG", log);
@@ -153,10 +177,17 @@ impl QemuArgs {
         }
         let mut qemu = Qemu::system("riscv64");
         qemu.args(&["-machine", "virt"])
-            .arg("-nographic")
-            .arg("-bios")
-            .arg(PROJECT.join("rustsbi-qemu.bin"))
-            .arg("-kernel")
+            .arg("-nographic");
+
+        if self.build.nobios {
+            // No BIOS mode: kernel is loaded at 0x80000000
+            qemu.args(&["-bios", "none"]);
+        } else {
+            // SBI mode: use RustSBI, kernel is loaded at 0x80200000
+            qemu.arg("-bios").arg(PROJECT.join("rustsbi-qemu.bin"));
+        }
+
+        qemu.arg("-kernel")
             .arg(objcopy(elf, true))
             .args(&["-smp", &self.smp.unwrap_or(1).to_string()])
             .args(&["-m", "64M"])

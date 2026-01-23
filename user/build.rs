@@ -4,6 +4,11 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=LOG");
     println!("cargo:rerun-if-env-changed=BASE_ADDRESS");
+    println!("cargo:rerun-if-env-changed=CHAPTER");
+
+    if let Ok(chapter) = env::var("CHAPTER") {
+        println!("cargo:rustc-env=CHAPTER={chapter}");
+    }
 
     if let Some(base) = env::var("BASE_ADDRESS")
         .ok()

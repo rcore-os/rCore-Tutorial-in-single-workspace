@@ -1,4 +1,4 @@
-﻿[ch2]
+[ch2]
 base = 0x8040_0000
 step = 0
 cases = [
@@ -121,4 +121,110 @@ cases = [
     "sync_sem",
     "race_adder_mutex_blocking",
     "test_condvar",
+]
+
+[ch3_exercise]
+base = 0x8040_0000
+step = 0x0020_0000
+cases = [
+    "ch3_sleep",
+    "ch3_sleep1",
+    "ch3_trace",
+]
+
+[ch4_exercise]
+cases = [
+    "ch4_mmap",
+    "ch4_mmap1",
+    "ch4_mmap2",
+    "ch4_mmap3",
+    "ch4_unmap",
+    "ch4_unmap2",
+    "ch4_trace",
+]
+
+[ch5_exercise]
+cases = [
+    "00hello_world",
+    "08power_3",
+    "09power_5",
+    "10power_7",
+    "ch3_sleep",
+    "ch3_sleep1",
+    "ch4_mmap",
+    "ch4_mmap1",
+    "ch4_mmap2",
+    "ch4_mmap3",
+    "ch4_unmap",
+    "ch4_unmap2",
+    "ch5_getpid",
+    "ch5_exit0",
+    "ch5_exit1",
+    "ch5_spawn0",
+    "ch5_spawn1",
+    "ch5_setprio",
+    "ch5_stride",
+    "ch5_stride0",
+    "ch5_stride1",
+    "ch5_stride2",
+    "ch5_stride3",
+    "ch5_stride4",
+    "ch5_stride5",
+    "ch5_usertest",
+    "user_shell",
+    "initproc",
+]
+
+[ch6_exercise]
+cases = [
+    "00hello_world",
+    "08power_3",
+    "09power_5",
+    "10power_7",
+    "ch3_sleep",
+    "ch3_sleep1",
+    "ch4_mmap",
+    "ch4_mmap1",
+    "ch4_mmap2",
+    "ch4_mmap3",
+    "ch4_unmap",
+    "ch4_unmap2",
+    "ch5_getpid",
+    "ch5_exit0",
+    "ch5_exit1",
+    "ch5_spawn0",
+    "ch5_spawn1",
+    "12forktest",
+    "14forktest2",
+    "filetest_simple",
+    "ch6_file0",
+    "ch6_file1",
+    "ch6_file2",
+    "ch6_file3",
+    "ch6_usertest",
+    "user_shell",
+    "initproc",
+]
+
+[ch8_exercise]
+cases = [
+    "00hello_world",
+    "08power_3",
+    "09power_5",
+    "10power_7",
+    "12forktest",
+    "14forktest2",
+    "filetest_simple",
+    "threads",
+    "threads_arg",
+    "mpsc_sem",
+    "sync_sem",
+    "race_adder_mutex_blocking",
+    "test_condvar",
+    "ch8_deadlock_mutex1",
+    "ch8_deadlock_sem1",
+    "ch8_deadlock_sem2",
+    "ch8_usertest",
+    "user_shell",
+    "initproc",
 ]

@@ -23,6 +23,7 @@ members = [
     "signal",
     "signal-impl",
     "sync",
+    "sbi",
 ]
 default-members = ["xtask"]
 resolver = "2"

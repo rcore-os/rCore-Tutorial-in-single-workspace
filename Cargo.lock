@@ -80,7 +80,7 @@ checksum = "2fd1289c04a9ea8cb22300a459a72a385d7c73d3259e2ed7dcb2af674838cfa9"
 name = "ch1"
 version = "0.0.1"
 dependencies = [
- "sbi-rt",
+ "sbi",
 ]
 
 [[package]]
@@ -88,7 +88,7 @@ name = "ch1-lab"
 version = "0.0.1"
 dependencies = [
  "rcore-console",
- "sbi-rt",
+ "sbi",
 ]
 
 [[package]]
@@ -99,7 +99,7 @@ dependencies = [
  "linker",
  "rcore-console",
  "riscv",
- "sbi-rt",
+ "sbi",
  "syscall",
 ]
 
@@ -111,7 +111,7 @@ dependencies = [
  "linker",
  "rcore-console",
  "riscv",
- "sbi-rt",
+ "sbi",
  "syscall",
 ]
 
@@ -125,7 +125,7 @@ dependencies = [
  "linker",
  "rcore-console",
  "riscv",
- "sbi-rt",
+ "sbi",
  "syscall",
  "xmas-elf",
 ]
@@ -141,7 +141,7 @@ dependencies = [
  "rcore-console",
  "rcore-task-manage",
  "riscv",
- "sbi-rt",
+ "sbi",
  "spin 0.9.8",
  "syscall",
  "xmas-elf",
@@ -159,7 +159,7 @@ dependencies = [
  "rcore-console",
  "rcore-task-manage",
  "riscv",
- "sbi-rt",
+ "sbi",
  "spin 0.9.8",
  "syscall",
  "virtio-drivers",
@@ -178,7 +178,7 @@ dependencies = [
  "rcore-console",
  "rcore-task-manage",
  "riscv",
- "sbi-rt",
+ "sbi",
  "signal",
  "signal-impl",
  "spin 0.9.8",
@@ -199,7 +199,7 @@ dependencies = [
  "rcore-console",
  "rcore-task-manage",
  "riscv",
- "sbi-rt",
+ "sbi",
  "signal",
  "signal-impl",
  "spin 0.9.8",
@@ -469,22 +469,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "sbi-rt"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c113c53291db8ac141e01f43224ed488b8d6001ab66737b82e04695a43a42b7"
-dependencies = [
- "sbi-spec",
-]
-
-[[package]]
-name = "sbi-spec"
-version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d4027cf9bb591a9fd0fc0e283be6165c5abe96cb73e9f0e24738c227f425377"
-dependencies = [
- "static_assertions",
-]
+name = "sbi"
+version = "0.0.1"
 
 [[package]]
 name = "scopeguard"

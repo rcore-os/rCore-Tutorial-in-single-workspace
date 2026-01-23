@@ -17,7 +17,7 @@ unsafe fn f() -> isize {
     let mut t = 2usize;
     for _ in 0..PER_THREAD {
         mutex_lock(0);
-        let a = &mut A as *mut usize;
+        let a = &raw mut A as *mut usize;
         let cur = a.read_volatile();
         for _ in 0..500 {
             t = t * t % 10007;

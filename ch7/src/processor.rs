@@ -1,8 +1,28 @@
 use crate::process::Process;
 use alloc::collections::{BTreeMap, VecDeque};
+use core::cell::UnsafeCell;
 use rcore_task_manage::{Manage, PManager, ProcId, Schedule};
 
-pub static mut PROCESSOR: PManager<Process, ProcManager> = PManager::new();
+pub struct Processor {
+    inner: UnsafeCell<PManager<Process, ProcManager>>,
+}
+
+unsafe impl Sync for Processor {}
+
+impl Processor {
+    pub const fn new() -> Self {
+        Self {
+            inner: UnsafeCell::new(PManager::new()),
+        }
+    }
+
+    #[inline]
+    pub fn get_mut(&self) -> &mut PManager<Process, ProcManager> {
+        unsafe { &mut (*self.inner.get()) }
+    }
+}
+
+pub static PROCESSOR: Processor = Processor::new();
 
 /// 任务管理器
 /// `tasks` 中保存所有的任务实体

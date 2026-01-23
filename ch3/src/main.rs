@@ -10,7 +10,7 @@ extern crate rcore_console;
 use impls::{Console, SyscallContext};
 use rcore_console::log;
 use riscv::register::*;
-use sbi_rt::*;
+use sbi;
 use task::TaskControlBlock;
 
 // 应用程序内联进来。
@@ -32,6 +32,7 @@ extern "C" fn rust_main() -> ! {
     syscall::init_process(&SyscallContext);
     syscall::init_scheduling(&SyscallContext);
     syscall::init_clock(&SyscallContext);
+    syscall::init_trace(&SyscallContext);
     // 任务控制块
     let mut tcbs = [TaskControlBlock::ZERO; APP_CAPACITY];
     let mut index_mod = 0;
@@ -53,13 +54,13 @@ extern "C" fn rust_main() -> ! {
         if !tcb.finish {
             loop {
                 #[cfg(not(feature = "coop"))]
-                sbi_rt::set_timer(time::read64() + 12500);
+                sbi::set_timer(time::read64() + 12500);
                 unsafe { tcb.execute() };
 
                 use scause::*;
                 let finish = match scause::read().cause() {
                     Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                        sbi_rt::set_timer(u64::MAX);
+                        sbi::set_timer(u64::MAX);
                         log::trace!("app{i} timeout");
                         false
                     }
@@ -99,16 +100,14 @@ extern "C" fn rust_main() -> ! {
         }
         i = (i + 1) % index_mod;
     }
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    sbi::shutdown(true)
 }
 
 /// 各种接口库的实现
@@ -120,8 +119,7 @@ mod impls {
     impl rcore_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            #[allow(deprecated)]
-            sbi_rt::legacy::console_putchar(c as _);
+            sbi::console_putchar(c);
         }
     }
 
@@ -176,6 +174,15 @@ mod impls {
                 }
                 _ => -1,
             }
+        }
+    }
+
+    impl Trace for SyscallContext {
+        // TODO: 实现 trace 系统调用
+        #[inline]
+        fn trace(&self, _caller: syscall::Caller, _trace_request: usize, _id: usize, _data: usize) -> isize {
+            rcore_console::log::info!("trace: not implemented");
+            -1
         }
     }
 }

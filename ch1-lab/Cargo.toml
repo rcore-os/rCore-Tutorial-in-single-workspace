@@ -4,6 +4,12 @@ version = "0.0.1"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
 
+[features]
+default = []
+nobios = [
+    "sbi/nobios",
+]
+
 [dependencies]
-sbi-rt = { version = "0.0.2", features = ["legacy"] }
+sbi = { path = "../sbi" }
 rcore-console = { path = "../console" }

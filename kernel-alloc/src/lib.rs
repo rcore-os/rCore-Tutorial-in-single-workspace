@@ -1,7 +1,6 @@
 //! 内存分配。
 
 #![no_std]
-// #![deny(warnings)]
 #![deny(missing_docs)]
 
 extern crate alloc;
@@ -9,6 +8,7 @@ extern crate alloc;
 use alloc::alloc::handle_alloc_error;
 use core::{
     alloc::{GlobalAlloc, Layout},
+    cell::UnsafeCell,
     ptr::NonNull,
 };
 use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
@@ -18,12 +18,10 @@ use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
 /// 参数 `base_address` 表示动态内存区域的起始位置。
 #[inline]
 pub fn init(base_address: usize) {
-    unsafe {
-        HEAP.init(
-            core::mem::size_of::<usize>().trailing_zeros() as _,
-            NonNull::new(base_address as *mut u8).unwrap(),
-        )
-    };
+    heap_mut().init(
+        core::mem::size_of::<usize>().trailing_zeros() as _,
+        NonNull::new(base_address as *mut u8).unwrap(),
+    );
 }
 
 /// 将一个内存块托管到内存分配器。
@@ -35,14 +33,39 @@ pub fn init(base_address: usize) {
 #[inline]
 pub unsafe fn transfer(region: &'static mut [u8]) {
     let ptr = NonNull::new(region.as_mut_ptr()).unwrap();
-    HEAP.transfer(ptr, region.len());
+    heap_mut().transfer(ptr, region.len());
 }
 
 /// 堆分配器。
 ///
 /// 最大容量：6 + 21 + 3 = 30 -> 1 GiB。
 /// 不考虑并发使用，因此没有加锁。
-static mut HEAP: BuddyAllocator<21, UsizeBuddy, LinkedListBuddy> = BuddyAllocator::new();
+struct StaticCell<T> {
+    inner: UnsafeCell<T>,
+}
+
+unsafe impl<T> Sync for StaticCell<T> {}
+
+impl<T> StaticCell<T> {
+    const fn new(value: T) -> Self {
+        Self {
+            inner: UnsafeCell::new(value),
+        }
+    }
+
+    #[inline]
+    fn get(&self) -> *mut T {
+        self.inner.get()
+    }
+}
+
+static HEAP: StaticCell<BuddyAllocator<21, UsizeBuddy, LinkedListBuddy>> =
+    StaticCell::new(BuddyAllocator::new());
+
+#[inline]
+fn heap_mut() -> &'static mut BuddyAllocator<21, UsizeBuddy, LinkedListBuddy> {
+    unsafe { &mut *HEAP.get() }
+}
 
 struct Global;
 
@@ -52,7 +75,7 @@ static GLOBAL: Global = Global;
 unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if let Ok((ptr, _)) = HEAP.allocate_layout::<u8>(layout) {
+        if let Ok((ptr, _)) = heap_mut().allocate_layout::<u8>(layout) {
             ptr.as_ptr()
         } else {
             handle_alloc_error(layout)
@@ -61,6 +84,6 @@ unsafe impl GlobalAlloc for Global {
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        HEAP.deallocate_layout(NonNull::new(ptr).unwrap(), layout)
+        heap_mut().deallocate_layout(NonNull::new(ptr).unwrap(), layout)
     }
 }

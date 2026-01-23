@@ -1,4 +1,4 @@
-use crate::{ClockId, SignalAction, SignalNo, SyscallId, TimeSpec};
+use crate::{ClockId, SignalAction, SignalNo, Stat, SyscallId, TimeSpec};
 use bitflags::*;
 use native::*;
 
@@ -37,6 +37,34 @@ pub fn open(path: &str, flags: OpenFlags) -> isize {
 #[inline]
 pub fn close(fd: usize) -> isize {
     unsafe { syscall1(SyscallId::CLOSE, fd) }
+}
+
+pub fn link(oldpath: &str, newpath: &str) -> isize {
+    unsafe {
+        syscall5(
+            SyscallId::LINKAT,
+            -100isize as usize, // AT_FDCWD
+            oldpath.as_ptr() as usize,
+            -100isize as usize, // AT_FDCWD
+            newpath.as_ptr() as usize,
+            0,
+        )
+    }
+}
+
+pub fn unlink(path: &str) -> isize {
+    unsafe {
+        syscall3(
+            SyscallId::UNLINKAT,
+            -100isize as usize, // AT_FDCWD
+            path.as_ptr() as usize,
+            0,
+        )
+    }
+}
+
+pub fn fstat(fd: usize, st: &mut Stat) -> isize {
+    unsafe { syscall2(SyscallId::FSTAT, fd, st as *const _ as usize) }
 }
 
 /// see <https://man7.org/linux/man-pages/man2/exit.2.html>.
@@ -89,6 +117,14 @@ pub fn waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 
 pub fn getpid() -> isize {
     unsafe { syscall0(SyscallId::GETPID) }
+}
+
+pub fn spawn(path: &str) -> isize {
+    unsafe { syscall2(SyscallId::SPAWN, path.as_ptr() as usize, path.len()) }
+}
+
+pub fn set_priority(prio: isize) -> isize {
+    unsafe { syscall1(SyscallId::SETPRIORITY, prio as usize) }
 }
 
 #[inline]
@@ -187,6 +223,46 @@ pub fn condvar_signal(condvar_id: usize) -> isize {
 #[inline]
 pub fn condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
     unsafe { syscall2(SyscallId::CONDVAR_WAIT, condvar_id, mutex_id) }
+}
+
+#[inline]
+pub fn enable_deadlock_detect(is_enable: bool) -> isize {
+    unsafe { syscall1(SyscallId::ENABLE_DEADLOCK_DETECT, is_enable as usize) }
+}
+
+#[inline]
+pub fn trace(trace_request: usize, id: usize, data: usize) -> isize {
+    unsafe { syscall3(SyscallId::TRACE, trace_request, id, data) }
+}
+
+#[inline]
+pub fn trace_read(ptr: *const u8) -> Option<u8> {
+    let ret = trace(0, ptr as usize, 0);
+    if ret >= 0 && ret <= 255 {
+        Some(ret as u8)
+    } else {
+        None
+    }
+}
+
+#[inline]
+pub fn trace_write(ptr: *const u8, value: u8) -> isize {
+    trace(1, ptr as usize, value as usize)
+}
+
+#[inline]
+pub fn count_syscall(syscall_id: usize) -> isize {
+    trace(2, syscall_id, 0)
+}
+
+#[inline]
+pub fn mmap(start: usize, len: usize, prot: usize) -> isize {
+    unsafe { syscall6(SyscallId::MMAP, start, len, prot, 0, 0, 0) }
+}
+
+#[inline]
+pub fn munmap(start: usize, len: usize) -> isize {
+    unsafe { syscall2(SyscallId::MUNMAP, start, len) }
 }
 
 /// 这个模块包含调用系统调用的最小封装，用户可以直接使用这些函数调用自定义的系统调用。

@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-// #![deny(warnings)]
 
 mod fs;
 mod process;
@@ -20,7 +19,7 @@ use crate::{
     processor::ProcManager,
 };
 use alloc::alloc::alloc;
-use core::{alloc::Layout, mem::MaybeUninit};
+use core::{alloc::Layout, cell::UnsafeCell, mem::MaybeUninit};
 use easy_fs::{FSManager, OpenFlags};
 use impls::Console;
 use kernel_context::foreign::MultislotPortal;
@@ -30,9 +29,9 @@ use kernel_vm::{
 };
 pub use processor::PROCESSOR;
 use rcore_console::log;
-use rcore_task_manage::ProcId;
+use rcore_task_manage::{PManager, ProcId};
 use riscv::register::*;
-use sbi_rt::*;
+use sbi;
 use signal::SignalResult;
 use syscall::Caller;
 use xmas_elf::ElfFile;
@@ -43,8 +42,30 @@ linker::boot0!(rust_main; stack = 32 * 4096);
 const MEMORY: usize = 48 << 20;
 // 传送门所在虚页。
 const PROTAL_TRANSIT: VPN<Sv39> = VPN::MAX;
+struct KernelSpace {
+    inner: UnsafeCell<MaybeUninit<AddressSpace<Sv39, Sv39Manager>>>,
+}
+
+unsafe impl Sync for KernelSpace {}
+
+impl KernelSpace {
+    const fn new() -> Self {
+        Self {
+            inner: UnsafeCell::new(MaybeUninit::uninit()),
+        }
+    }
+
+    unsafe fn write(&self, space: AddressSpace<Sv39, Sv39Manager>) {
+        *self.inner.get() = MaybeUninit::new(space);
+    }
+
+    unsafe fn assume_init_ref(&self) -> &AddressSpace<Sv39, Sv39Manager> {
+        &*(*self.inner.get()).as_ptr()
+    }
+}
+
 // 内核地址空间。
-static mut KERNEL_SPACE: MaybeUninit<AddressSpace<Sv39, Sv39Manager>> = MaybeUninit::uninit();
+static KERNEL_SPACE: KernelSpace = KernelSpace::new();
 
 extern "C" fn rust_main() -> ! {
     let layout = linker::KernelLayout::locate();
@@ -79,13 +100,14 @@ extern "C" fn rust_main() -> ! {
     syscall::init_signal(&SyscallContext);
     let initproc = read_all(FS.open("initproc", OpenFlags::RDONLY).unwrap());
     if let Some(process) = Process::from_elf(ElfFile::new(initproc.as_slice()).unwrap()) {
-        unsafe {
-            PROCESSOR.set_manager(ProcManager::new());
-            PROCESSOR.add(process.pid, process, ProcId::from_usize(usize::MAX));
-        }
+        PROCESSOR.get_mut().set_manager(ProcManager::new());
+        PROCESSOR
+            .get_mut()
+            .add(process.pid, process, ProcId::from_usize(usize::MAX));
     }
     loop {
-        if let Some(task) = unsafe { PROCESSOR.find_next() } {
+        let processor: *mut PManager<Process, ProcManager> = PROCESSOR.get_mut() as *mut _;
+        if let Some(task) = unsafe { (*processor).find_next() } {
             unsafe { task.context.execute(portal, ()) };
             match scause::read().cause() {
                 scause::Trap::Exception(scause::Exception::UserEnvCall) => {
@@ -105,27 +127,27 @@ extern "C" fn rust_main() -> ! {
                     match task.signal.handle_signals(ctx) {
                         // 进程应该结束执行
                         SignalResult::ProcessKilled(exit_code) => unsafe {
-                            PROCESSOR.make_current_exited(exit_code as _)
+                            (*processor).make_current_exited(exit_code as _)
                         },
                         _ => match syscall_ret {
                             Ret::Done(ret) => match id {
-                                Id::EXIT => unsafe { PROCESSOR.make_current_exited(ret) },
+                                Id::EXIT => unsafe { (*processor).make_current_exited(ret) },
                                 _ => {
                                     let ctx = &mut task.context.context;
                                     *ctx.a_mut(0) = ret as _;
-                                    unsafe { PROCESSOR.make_current_suspend() };
+                                    unsafe { (*processor).make_current_suspend() };
                                 }
                             },
                             Ret::Unsupported(_) => {
                                 log::info!("id = {id:?}");
-                                unsafe { PROCESSOR.make_current_exited(-2) };
+                                unsafe { (*processor).make_current_exited(-2) };
                             }
                         },
                     }
                 }
                 e => {
                     log::error!("unsupported trap: {e:?}");
-                    unsafe { PROCESSOR.make_current_exited(-3) };
+                    unsafe { (*processor).make_current_exited(-3) };
                 }
             }
         } else {
@@ -134,16 +156,14 @@ extern "C" fn rust_main() -> ! {
         }
     }
 
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    sbi::shutdown(true)
 }
 
 pub const MMIO: &[(usize, usize)] = &[
@@ -196,7 +216,7 @@ fn kernel_space(layout: linker::KernelLayout, memory: usize, portal: usize) {
     }
 
     unsafe { satp::set(satp::Mode::Sv39, 0, space.root_ppn().val()) };
-    unsafe { KERNEL_SPACE = MaybeUninit::new(space) };
+    unsafe { KERNEL_SPACE.write(space) };
 }
 
 /// 映射异界传送门。
@@ -209,6 +229,8 @@ fn map_portal(space: &AddressSpace<Sv39, Sv39Manager>) {
 mod impls {
     use crate::{
         fs::{read_all, FS},
+        process::Process as ProcStruct,
+        processor::ProcManager,
         PROCESSOR,
     };
     use alloc::{alloc::alloc_zeroed, string::String, vec::Vec};
@@ -220,7 +242,7 @@ mod impls {
         PageManager,
     };
     use rcore_console::log;
-    use rcore_task_manage::ProcId;
+    use rcore_task_manage::{PManager, ProcId};
     use signal::SignalNo;
     use spin::Mutex;
     use syscall::*;
@@ -295,8 +317,7 @@ mod impls {
     impl rcore_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            #[allow(deprecated)]
-            sbi_rt::legacy::console_putchar(c as _);
+            sbi::console_putchar(c);
         }
     }
 
@@ -306,7 +327,7 @@ mod impls {
 
     impl IO for SyscallContext {
         fn write(&self, _caller: Caller, fd: usize, buf: usize, count: usize) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             if let Some(ptr) = current.address_space.translate(VAddr::new(buf), READABLE) {
                 if fd == STDOUT || fd == STDDEBUG {
                     print!("{}", unsafe {
@@ -337,14 +358,13 @@ mod impls {
         }
 
         fn read(&self, _caller: Caller, fd: usize, buf: usize, count: usize) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             if let Some(ptr) = current.address_space.translate(VAddr::new(buf), WRITEABLE) {
                 if fd == STDIN {
                     let mut ptr = ptr.as_ptr();
                     for _ in 0..count {
-                        #[allow(deprecated)]
                         unsafe {
-                            *ptr = sbi_rt::legacy::console_getchar() as u8;
+                            *ptr = sbi::console_getchar() as u8;
                             ptr = ptr.add(1);
                         }
                     }
@@ -371,7 +391,7 @@ mod impls {
 
         fn open(&self, _caller: Caller, path: usize, flags: usize) -> isize {
             // FS.open(, flags)
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             if let Some(ptr) = current.address_space.translate(VAddr::new(path), READABLE) {
                 let mut string = String::new();
                 let mut raw_ptr: *mut u8 = ptr.as_ptr();
@@ -403,7 +423,7 @@ mod impls {
 
         #[inline]
         fn close(&self, _caller: Caller, fd: usize) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             if fd >= current.fd_table.len() || current.fd_table[fd].is_none() {
                 return -1;
             }
@@ -419,20 +439,21 @@ mod impls {
         }
 
         fn fork(&self, _caller: Caller) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let processor: *mut PManager<ProcStruct, ProcManager> = PROCESSOR.get_mut() as *mut _;
+            let current = unsafe { (*processor).current().unwrap() };
             let mut child_proc = current.fork().unwrap();
             let pid = child_proc.pid;
             let context = &mut child_proc.context.context;
             *context.a_mut(0) = 0 as _;
             unsafe {
-                PROCESSOR.add(pid, child_proc, current.pid);
+                (*processor).add(pid, child_proc, current.pid);
             }
             pid.get_usize() as isize
         }
 
         fn exec(&self, _caller: Caller, path: usize, count: usize) -> isize {
             const READABLE: VmFlags<Sv39> = VmFlags::build_from_str("RV");
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             current
                 .address_space
                 .translate(VAddr::new(path), READABLE)
@@ -458,18 +479,19 @@ mod impls {
         }
 
         fn wait(&self, _caller: Caller, pid: isize, exit_code_ptr: usize) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let processor: *mut PManager<ProcStruct, ProcManager> = PROCESSOR.get_mut() as *mut _;
+            let current = unsafe { (*processor).current().unwrap() };
             const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
             if let Some((dead_pid, exit_code)) =
-                unsafe { PROCESSOR.wait(ProcId::from_usize(pid as usize)) }
+                unsafe { (*processor).wait(ProcId::from_usize(pid as usize)) }
             {
                 if let Some(mut ptr) = current
                     .address_space
-                    .translate(VAddr::new(exit_code_ptr), WRITABLE)
+                    .translate::<i32>(VAddr::new(exit_code_ptr), WRITABLE)
                 {
-                    unsafe { *ptr.as_mut() = exit_code };
+                    unsafe { *ptr.as_mut() = exit_code as i32 };
                 }
-                return dead_pid.get_usize() as _;
+                return dead_pid.get_usize() as isize;
             } else {
                 // 等待的子进程不存在
                 return -1;
@@ -477,7 +499,7 @@ mod impls {
         }
 
         fn getpid(&self, _caller: Caller) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             current.pid.get_usize() as _
         }
     }
@@ -495,7 +517,7 @@ mod impls {
             const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
             match clock_id {
                 ClockId::CLOCK_MONOTONIC => {
-                    if let Some(mut ptr) = unsafe { PROCESSOR.current().unwrap() }
+                    if let Some(mut ptr) = PROCESSOR.get_mut().current().unwrap()
                         .address_space
                         .translate(VAddr::new(tp), WRITABLE)
                     {
@@ -518,7 +540,7 @@ mod impls {
     impl Signal for SyscallContext {
         fn kill(&self, _caller: Caller, pid: isize, signum: u8) -> isize {
             if let Some(target_task) =
-                unsafe { PROCESSOR.get_task(ProcId::from_usize(pid as usize)) }
+                PROCESSOR.get_mut().get_task(ProcId::from_usize(pid as usize))
             {
                 if let Ok(signal_no) = SignalNo::try_from(signum) {
                     if signal_no != SignalNo::ERR {
@@ -540,7 +562,7 @@ mod impls {
             if signum as usize > signal::MAX_SIG {
                 return -1;
             }
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             if let Ok(signal_no) = SignalNo::try_from(signum) {
                 if signal_no == SignalNo::ERR {
                     return -1;
@@ -584,12 +606,12 @@ mod impls {
         }
 
         fn sigprocmask(&self, _caller: Caller, mask: usize) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             current.signal.update_mask(mask) as isize
         }
 
         fn sigreturn(&self, _caller: Caller) -> isize {
-            let current = unsafe { PROCESSOR.current().unwrap() };
+            let current = PROCESSOR.get_mut().current().unwrap();
             // 如成功，则需要修改当前用户程序的 LocalContext
             if current.signal.sig_return(&mut current.context.context) {
                 0

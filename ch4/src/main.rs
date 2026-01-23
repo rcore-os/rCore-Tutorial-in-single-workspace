@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-// #![deny(warnings)]
 
 mod process;
 
@@ -14,7 +13,7 @@ use crate::{
     process::Process,
 };
 use alloc::{alloc::alloc, vec::Vec};
-use core::alloc::Layout;
+use core::{alloc::Layout, cell::UnsafeCell};
 use impls::Console;
 use kernel_context::{foreign::MultislotPortal, LocalContext};
 use kernel_vm::{
@@ -23,7 +22,7 @@ use kernel_vm::{
 };
 use rcore_console::log;
 use riscv::register::*;
-use sbi_rt::*;
+use sbi;
 use syscall::Caller;
 use xmas_elf::ElfFile;
 
@@ -36,7 +35,21 @@ const MEMORY: usize = 24 << 20;
 // 传送门所在虚页。
 const PROTAL_TRANSIT: VPN<Sv39> = VPN::MAX;
 // 进程列表。
-static mut PROCESSES: Vec<Process> = Vec::new();
+struct ProcessList(UnsafeCell<Vec<Process>>);
+
+unsafe impl Sync for ProcessList {}
+
+impl ProcessList {
+    const fn new() -> Self {
+        Self(UnsafeCell::new(Vec::new()))
+    }
+
+    unsafe fn get_mut(&self) -> &mut Vec<Process> {
+        &mut *self.0.get()
+    }
+}
+
+static PROCESSES: ProcessList = ProcessList::new();
 
 extern "C" fn rust_main() -> ! {
     let layout = linker::KernelLayout::locate();
@@ -69,7 +82,7 @@ extern "C" fn rust_main() -> ! {
         if let Some(process) = Process::new(ElfFile::new(elf).unwrap()) {
             // 映射异界传送门
             process.address_space.root()[portal_idx] = ks.root()[portal_idx];
-            unsafe { PROCESSES.push(process) };
+            unsafe { PROCESSES.get_mut().push(process) };
         }
     }
 
@@ -99,8 +112,10 @@ extern "C" fn schedule() -> ! {
     syscall::init_process(&SyscallContext);
     syscall::init_scheduling(&SyscallContext);
     syscall::init_clock(&SyscallContext);
-    while !unsafe { PROCESSES.is_empty() } {
-        let ctx = unsafe { &mut PROCESSES[0].context };
+    syscall::init_trace(&SyscallContext);
+    syscall::init_memory(&SyscallContext);
+    while !unsafe { PROCESSES.get_mut().is_empty() } {
+        let ctx = unsafe { &mut PROCESSES.get_mut()[0].context };
         unsafe { ctx.execute(portal, ()) };
         match scause::read().cause() {
             scause::Trap::Exception(scause::Exception::UserEnvCall) => {
@@ -112,7 +127,7 @@ extern "C" fn schedule() -> ! {
                 match syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
                     Ret::Done(ret) => match id {
                         Id::EXIT => unsafe {
-                            PROCESSES.remove(0);
+                            PROCESSES.get_mut().remove(0);
                         },
                         _ => {
                             *ctx.a_mut(0) = ret as _;
@@ -121,7 +136,7 @@ extern "C" fn schedule() -> ! {
                     },
                     Ret::Unsupported(_) => {
                         log::info!("id = {id:?}");
-                        unsafe { PROCESSES.remove(0) };
+                        unsafe { PROCESSES.get_mut().remove(0) };
                     }
                 }
             }
@@ -131,20 +146,18 @@ extern "C" fn schedule() -> ! {
                     stval::read(),
                     ctx.context.pc()
                 );
-                unsafe { PROCESSES.remove(0) };
+                unsafe { PROCESSES.get_mut().remove(0) };
             }
         }
     }
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     log::error!("{info}");
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    sbi::shutdown(true)
 }
 
 fn kernel_space(
@@ -272,8 +285,7 @@ mod impls {
     impl rcore_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            #[allow(deprecated)]
-            sbi_rt::legacy::console_putchar(c as _);
+            sbi::console_putchar(c);
         }
     }
 
@@ -284,7 +296,8 @@ mod impls {
             match fd {
                 STDOUT | STDDEBUG => {
                     const READABLE: VmFlags<Sv39> = VmFlags::build_from_str("RV");
-                    if let Some(ptr) = unsafe { PROCESSES.get_mut(caller.entity) }
+                    if let Some(ptr) = unsafe { PROCESSES.get_mut() }
+                        .get_mut(caller.entity)
                         .unwrap()
                         .address_space
                         .translate(VAddr::new(buf), READABLE)
@@ -329,10 +342,11 @@ mod impls {
             const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
             match clock_id {
                 ClockId::CLOCK_MONOTONIC => {
-                    if let Some(mut ptr) = unsafe { PROCESSES.get(caller.entity) }
+                    if let Some(mut ptr) = unsafe { PROCESSES.get_mut() }
+                        .get_mut(caller.entity)
                         .unwrap()
                         .address_space
-                        .translate(VAddr::new(tp), WRITABLE)
+                        .translate::<TimeSpec>(VAddr::new(tp), WRITABLE)
                     {
                         let time = riscv::register::time::read() * 10000 / 125;
                         *unsafe { ptr.as_mut() } = TimeSpec {
@@ -347,6 +361,29 @@ mod impls {
                 }
                 _ => -1,
             }
+        }
+    }
+
+    impl Trace for SyscallContext {
+        // TODO: 实现 trace 系统调用
+        #[inline]
+        fn trace(&self, _caller: syscall::Caller, _trace_request: usize, _id: usize, _data: usize) -> isize {
+            rcore_console::log::info!("trace: not implemented");
+            -1
+        }
+    }
+
+    impl Memory for SyscallContext {
+        // TODO: 实现 mmap 系统调用
+        fn mmap(&self, _caller: Caller, addr: usize, len: usize, prot: i32, _flags: i32, _fd: i32, _offset: usize) -> isize {
+            rcore_console::log::info!("mmap: addr = {addr:#x}, len = {len}, prot = {prot}, not implemented");
+            -1
+        }
+
+        // TODO: 实现 munmap 系统调用
+        fn munmap(&self, _caller: Caller, addr: usize, len: usize) -> isize {
+            rcore_console::log::info!("munmap: addr = {addr:#x}, len = {len}, not implemented");
+            -1
         }
     }
 }

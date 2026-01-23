@@ -1,7 +1,6 @@
 //! 内核上下文控制。
 
 #![no_std]
-// #![deny(warnings)]
 #![deny(missing_docs)]
 
 /// 不同地址空间的上下文控制。

@@ -31,12 +31,14 @@ unsafe fn first() -> isize {
 unsafe fn second() -> isize {
     println!("Second want to continue,but need to wait A=1");
     mutex_lock(MUTEX_ID);
-    while A == 0 {
-        println!("Second: A is {}", A);
+    while (&raw const A).read_volatile() == 0 {
+        let a = (&raw const A).read_volatile();
+        println!("Second: A is {}", a);
         condvar_wait(CONDVAR_ID, MUTEX_ID);
     }
     mutex_unlock(MUTEX_ID);
-    println!("A is {}, Second can work now", A);
+    let a = (&raw const A).read_volatile();
+    println!("A is {}, Second can work now", a);
     exit(0)
 }
 

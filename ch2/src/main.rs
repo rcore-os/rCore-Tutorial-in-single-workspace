@@ -5,11 +5,12 @@
 #[macro_use]
 extern crate rcore_console;
 
+use sbi;
+
 use impls::{Console, SyscallContext};
 use kernel_context::LocalContext;
 use rcore_console::log;
 use riscv::register::*;
-use sbi_rt::*;
 use syscall::{Caller, SyscallId};
 
 // 用户程序内联进来。
@@ -61,16 +62,14 @@ extern "C" fn rust_main() -> ! {
         println!();
     }
 
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    sbi::shutdown(true)
 }
 
 enum SyscallResult {
@@ -107,8 +106,7 @@ mod impls {
     impl rcore_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            #[allow(deprecated)]
-            sbi_rt::legacy::console_putchar(c as _);
+            sbi::console_putchar(c);
         }
     }
 

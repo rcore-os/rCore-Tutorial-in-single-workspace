@@ -4,7 +4,6 @@ mod heap;
 
 extern crate alloc;
 
-use core::alloc::Layout;
 use rcore_console::log;
 
 pub use rcore_console::{print, println};
@@ -69,4 +68,10 @@ pub fn sleep(period_ms: usize) {
         }
         sched_yield();
     }
+}
+
+pub fn get_time() -> isize {
+    let mut time: TimeSpec = TimeSpec::ZERO;
+    clock_gettime(ClockId::CLOCK_MONOTONIC, &mut time as *mut _ as _);
+    (time.tv_sec * 1000 + time.tv_nsec / 1_000_000) as isize
 }

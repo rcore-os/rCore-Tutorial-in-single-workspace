@@ -30,6 +30,9 @@ pub trait Process: Sync {
     fn getpid(&self, caller: Caller) -> isize {
         unimplemented!()
     }
+    fn spawn(&self, caller: Caller, path: usize, count: usize) -> isize {
+        unimplemented!()
+    }
 }
 
 pub trait IO: Sync {
@@ -43,6 +46,23 @@ pub trait IO: Sync {
         unimplemented!()
     }
     fn close(&self, caller: Caller, fd: usize) -> isize {
+        unimplemented!()
+    }
+    fn linkat(
+        &self,
+        caller: Caller,
+        olddirfd: i32,
+        oldpath: usize,
+        newdirfd: i32,
+        newpath: usize,
+        flags: u32,
+    ) -> isize {
+        unimplemented!()
+    }
+    fn unlinkat(&self, caller: Caller, dirfd: i32, path: usize, flags: u32) -> isize {
+        unimplemented!()
+    }
+    fn fstat(&self, caller: Caller, fd: usize, st: usize) -> isize {
         unimplemented!()
     }
 }
@@ -68,6 +88,9 @@ pub trait Memory: Sync {
 
 pub trait Scheduling: Sync {
     fn sched_yield(&self, caller: Caller) -> isize {
+        unimplemented!()
+    }
+    fn set_priority(&self, caller: Caller, prio: isize) -> isize {
         unimplemented!()
     }
 }
@@ -136,6 +159,15 @@ pub trait SyncMutex: Sync {
     fn condvar_wait(&self, caller: Caller, condvar_id: usize, mutex_id: usize) -> isize {
         unimplemented!()
     }
+    fn enable_deadlock_detect(&self, caller: Caller, is_enable: i32) -> isize {
+        unimplemented!()
+    }
+}
+
+pub trait Trace: Sync {
+    fn trace(&self, caller: Caller, trace_request: usize, id: usize, data: usize) -> isize {
+        unimplemented!()
+    }
 }
 
 static PROCESS: Container<dyn Process> = Container::new();
@@ -146,6 +178,7 @@ static CLOCK: Container<dyn Clock> = Container::new();
 static SIGNAL: Container<dyn Signal> = Container::new();
 static THREAD: Container<dyn Thread> = Container::new();
 static SYNC_MUTEX: Container<dyn SyncMutex> = Container::new();
+static TRACE: Container<dyn Trace> = Container::new();
 
 #[inline]
 pub fn init_process(process: &'static dyn Process) {
@@ -187,6 +220,11 @@ pub fn init_sync_mutex(sync_mutex: &'static dyn SyncMutex) {
     SYNC_MUTEX.init(sync_mutex);
 }
 
+#[inline]
+pub fn init_trace(trace: &'static dyn Trace) {
+    TRACE.init(trace);
+}
+
 pub enum SyscallResult {
     Done(isize),
     Unsupported(SyscallId),
@@ -199,6 +237,11 @@ pub fn handle(caller: Caller, id: SyscallId, args: [usize; 6]) -> SyscallResult 
         Id::READ => IO.call(id, |io| io.read(caller, args[0], args[1], args[2])),
         Id::OPENAT => IO.call(id, |io| io.open(caller, args[0], args[1])),
         Id::CLOSE => IO.call(id, |io| io.close(caller, args[0])),
+        Id::LINKAT => IO.call(id, |io| {
+            io.linkat(caller, args[0] as _, args[1], args[2] as _, args[3], args[4] as _)
+        }),
+        Id::UNLINKAT => IO.call(id, |io| io.unlinkat(caller, args[0] as _, args[1], args[2] as _)),
+        Id::FSTAT => IO.call(id, |io| io.fstat(caller, args[0], args[1])),
         Id::EXIT => PROCESS.call(id, |proc| proc.exit(caller, args[0])),
         Id::CLONE => PROCESS.call(id, |proc| proc.fork(caller)),
         Id::EXECVE => PROCESS.call(id, |proc| proc.exec(caller, args[0], args[1])),
@@ -249,6 +292,12 @@ pub fn handle(caller: Caller, id: SyscallId, args: [usize; 6]) -> SyscallResult 
         Id::CONDVAR_WAIT => SYNC_MUTEX.call(id, |sync_mutex| {
             sync_mutex.condvar_wait(caller, args[0], args[1])
         }),
+        Id::ENABLE_DEADLOCK_DETECT => SYNC_MUTEX.call(id, |sync_mutex| {
+            sync_mutex.enable_deadlock_detect(caller, args[0] as _)
+        }),
+        Id::TRACE => TRACE.call(id, |trace| trace.trace(caller, args[0], args[1], args[2])),
+        Id::SPAWN => PROCESS.call(id, |proc| proc.spawn(caller, args[0], args[1])),
+        Id::SETPRIORITY => SCHEDULING.call(id, |sched| sched.set_priority(caller, args[0] as _)),
         _ => SyscallResult::Unsupported(id),
     }
 }

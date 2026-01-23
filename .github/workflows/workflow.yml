@@ -2,35 +2,61 @@
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "lab" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "lab" ]
+  workflow_dispatch:
 
 jobs:
-  make:
+  fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Build syscall
-        uses: actions-rs/cargo@v1
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          command: build
-          args: --package syscall
+          components: rustfmt
 
       - name: Check format
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all --check
+        run: cargo fmt --all --check
 
-      - name: Make every chapter
+  qemu-exercise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: duskmoon/dev-env:rcore-ci
+    strategy:
+      fail-fast: false
+      matrix:
+        ch: [3, 4, 5, 6, 8]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sanity check toolchain in container
         run: |
-          cargo make --ch 1
-          cargo make --ch 2
-          cargo make --ch 3
-          cargo make --ch 4
-          cargo make --ch 5
-          cargo make --ch 6
-          cargo make --ch 7
-          cargo make --ch 8
+          set -eux
+          qemu-system-riscv64 --version
+          python3 --version
+          rustc --version
+          cargo --version
+          rustup --version
+
+      - name: Mark workspace as safe git directory
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout checker
+        run: |
+          git clone --depth 1 https://github.com/LearningOS/rCore-Tutorial-Checker-2025S.git checker
+
+      - name: Install Rust components/targets
+        run: |
+          set -eux
+          rustup target add riscv64gc-unknown-none-elf
+          rustup component add rust-src llvm-tools-preview
+
+      - name: Run exercise in QEMU and check output (ch${{ matrix.ch }})
+        run: |
+          timeout 3m cargo qemu --ch ${{ matrix.ch }} --exercise --nobios --ci 2>&1 \
+            | python3 checker/check/ch${{ matrix.ch }}.py

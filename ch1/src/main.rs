@@ -2,6 +2,8 @@
 #![no_main]
 #![deny(warnings)]
 
+use sbi;
+
 /// Supervisor 汇编入口。
 ///
 /// 设置栈并跳转到 Rust。
@@ -27,19 +29,14 @@ unsafe extern "C" fn _start() -> ! {
 ///
 /// 打印 `Hello, World!`，然后关机。
 extern "C" fn rust_main() -> ! {
-    use sbi_rt::*;
-    for c in b"Hello, world!" {
-        #[allow(deprecated)]
-        legacy::console_putchar(*c as _);
+    for c in b"Hello, world!\n" {
+        sbi::console_putchar(*c);
     }
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
-    use sbi_rt::*;
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    sbi::shutdown(true)
 }
