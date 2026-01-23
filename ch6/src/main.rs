@@ -418,7 +418,15 @@ mod impls {
         }
 
         // TODO: 实现 linkat 系统调用
-        fn linkat(&self, _caller: Caller, _olddirfd: i32, _oldpath: usize, _newdirfd: i32, _newpath: usize, _flags: u32) -> isize {
+        fn linkat(
+            &self,
+            _caller: Caller,
+            _olddirfd: i32,
+            _oldpath: usize,
+            _newdirfd: i32,
+            _newpath: usize,
+            _flags: u32,
+        ) -> isize {
             rcore_console::log::info!("linkat: not implemented");
             -1
         }
@@ -510,7 +518,10 @@ mod impls {
         // TODO: 实现 spawn 系统调用
         fn spawn(&self, _caller: Caller, _path: usize, _count: usize) -> isize {
             let current = PROCESSOR.get_mut().current().unwrap();
-            rcore_console::log::info!("spawn: parent pid = {}, not implemented", current.pid.get_usize());
+            rcore_console::log::info!(
+                "spawn: parent pid = {}, not implemented",
+                current.pid.get_usize()
+            );
             -1
         }
     }
@@ -524,7 +535,11 @@ mod impls {
         // TODO: 实现 set_priority 系统调用
         fn set_priority(&self, _caller: Caller, prio: isize) -> isize {
             let current = PROCESSOR.get_mut().current().unwrap();
-            rcore_console::log::info!("set_priority: pid = {}, prio = {}, not implemented", current.pid.get_usize(), prio);
+            rcore_console::log::info!(
+                "set_priority: pid = {}, prio = {}, not implemented",
+                current.pid.get_usize(),
+                prio
+            );
             -1
         }
     }
@@ -535,7 +550,10 @@ mod impls {
             const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
             match clock_id {
                 ClockId::CLOCK_MONOTONIC => {
-                    if let Some(mut ptr) = PROCESSOR.get_mut().current().unwrap()
+                    if let Some(mut ptr) = PROCESSOR
+                        .get_mut()
+                        .current()
+                        .unwrap()
                         .address_space
                         .translate(VAddr::new(tp), WRITABLE)
                     {
@@ -557,8 +575,19 @@ mod impls {
 
     impl Memory for SyscallContext {
         // TODO: 实现 mmap 系统调用
-        fn mmap(&self, _caller: Caller, addr: usize, len: usize, prot: i32, _flags: i32, _fd: i32, _offset: usize) -> isize {
-            rcore_console::log::info!("mmap: addr = {addr:#x}, len = {len}, prot = {prot}, not implemented");
+        fn mmap(
+            &self,
+            _caller: Caller,
+            addr: usize,
+            len: usize,
+            prot: i32,
+            _flags: i32,
+            _fd: i32,
+            _offset: usize,
+        ) -> isize {
+            rcore_console::log::info!(
+                "mmap: addr = {addr:#x}, len = {len}, prot = {prot}, not implemented"
+            );
             -1
         }
 

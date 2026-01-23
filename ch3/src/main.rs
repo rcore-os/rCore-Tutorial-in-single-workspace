@@ -180,7 +180,13 @@ mod impls {
     impl Trace for SyscallContext {
         // TODO: 实现 trace 系统调用
         #[inline]
-        fn trace(&self, _caller: syscall::Caller, _trace_request: usize, _id: usize, _data: usize) -> isize {
+        fn trace(
+            &self,
+            _caller: syscall::Caller,
+            _trace_request: usize,
+            _id: usize,
+            _data: usize,
+        ) -> isize {
             rcore_console::log::info!("trace: not implemented");
             -1
         }

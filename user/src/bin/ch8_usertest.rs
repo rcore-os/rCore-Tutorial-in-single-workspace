@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate user_lib;
 
-use user_lib::{fork, exec, waitpid};
+use user_lib::{exec, fork, waitpid};
 
 const TESTS: &[&str] = &[
     "00hello_world",

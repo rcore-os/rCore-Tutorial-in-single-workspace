@@ -35,6 +35,11 @@ fn count_during(prio: isize) -> isize {
 extern "C" fn main() -> i32 {
     let prio = 8;
     let count = count_during(prio);
-    println!("priority = {}, exitcode = {}, ratio = {}", prio, count, count / prio);
+    println!(
+        "priority = {}, exitcode = {}, ratio = {}",
+        prio,
+        count,
+        count / prio
+    );
     0
 }

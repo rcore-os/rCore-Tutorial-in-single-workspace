@@ -132,9 +132,9 @@ extern "C" fn rust_main() -> ! {
                     let current_proc = unsafe { (*processor).get_current_proc().unwrap() };
                     match current_proc.signal.handle_signals(ctx) {
                         // 进程应该结束执行
-                        SignalResult::ProcessKilled(exit_code) => {
-                            unsafe { (*processor).make_current_exited(exit_code as _) }
-                        }
+                        SignalResult::ProcessKilled(exit_code) => unsafe {
+                            (*processor).make_current_exited(exit_code as _)
+                        },
                         _ => match syscall_ret {
                             Ret::Done(ret) => match id {
                                 Id::EXIT => unsafe { (*processor).make_current_exited(ret) },
@@ -558,8 +558,9 @@ mod impls {
 
     impl Signal for SyscallContext {
         fn kill(&self, _caller: Caller, pid: isize, signum: u8) -> isize {
-            if let Some(target_task) =
-                PROCESSOR.get_mut().get_proc(ProcId::from_usize(pid as usize))
+            if let Some(target_task) = PROCESSOR
+                .get_mut()
+                .get_proc(ProcId::from_usize(pid as usize))
             {
                 if let Ok(signal_no) = SignalNo::try_from(signum) {
                     if signal_no != SignalNo::ERR {
@@ -855,7 +856,9 @@ mod impls {
 
         // TODO: 实现 enable_deadlock_detect 系统调用
         fn enable_deadlock_detect(&self, _caller: Caller, is_enable: i32) -> isize {
-            rcore_console::log::info!("enable_deadlock_detect: is_enable = {is_enable}, not implemented");
+            rcore_console::log::info!(
+                "enable_deadlock_detect: is_enable = {is_enable}, not implemented"
+            );
             -1
         }
     }

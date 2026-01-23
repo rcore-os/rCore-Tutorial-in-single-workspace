@@ -16,7 +16,7 @@ extern "C" fn main() -> i32 {
     assert_eq!(0, mmap(start, len, prot));
     assert_eq!(mmap(start - len, len + 1, prot), -1); // 地址未对齐
     assert_eq!(mmap(start + len + 1, len, prot), -1); // 地址未对齐
-    assert_eq!(mmap(start + len, len, 0), -1);        // prot 为 0 无意义
+    assert_eq!(mmap(start + len, len, 0), -1); // prot 为 0 无意义
     assert_eq!(mmap(start + len, len, prot | 8), -1); // prot 其他位非 0
     println!("Test ch4_mmap3 OK!");
     0

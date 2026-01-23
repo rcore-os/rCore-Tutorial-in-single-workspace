@@ -517,7 +517,10 @@ mod impls {
             const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
             match clock_id {
                 ClockId::CLOCK_MONOTONIC => {
-                    if let Some(mut ptr) = PROCESSOR.get_mut().current().unwrap()
+                    if let Some(mut ptr) = PROCESSOR
+                        .get_mut()
+                        .current()
+                        .unwrap()
                         .address_space
                         .translate(VAddr::new(tp), WRITABLE)
                     {
@@ -539,8 +542,9 @@ mod impls {
 
     impl Signal for SyscallContext {
         fn kill(&self, _caller: Caller, pid: isize, signum: u8) -> isize {
-            if let Some(target_task) =
-                PROCESSOR.get_mut().get_task(ProcId::from_usize(pid as usize))
+            if let Some(target_task) = PROCESSOR
+                .get_mut()
+                .get_task(ProcId::from_usize(pid as usize))
             {
                 if let Ok(signal_no) = SignalNo::try_from(signum) {
                     if signal_no != SignalNo::ERR {

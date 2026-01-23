@@ -14,7 +14,7 @@ const UART_BASE: usize = 0x1000_0000;
 mod uart {
     use super::UART_BASE;
 
-    const THR: usize = UART_BASE;     // Transmit Holding Register
+    const THR: usize = UART_BASE; // Transmit Holding Register
     const LSR: usize = UART_BASE + 5; // Line Status Register
 
     /// Check if UART is ready to send
@@ -87,11 +87,17 @@ pub struct SbiRet {
 
 impl SbiRet {
     fn success(value: usize) -> Self {
-        SbiRet { error: error::SUCCESS, value }
+        SbiRet {
+            error: error::SUCCESS,
+            value,
+        }
     }
 
     fn not_supported() -> Self {
-        SbiRet { error: error::ERR_NOT_SUPPORTED, value: 0 }
+        SbiRet {
+            error: error::ERR_NOT_SUPPORTED,
+            value: 0,
+        }
     }
 }
 
@@ -135,16 +141,12 @@ fn handle_system_reset(fid: usize) -> SbiRet {
     const EXIT_RESET: u32 = 0x3333;
 
     match fid {
-        fid::SRST_SHUTDOWN => {
-            unsafe {
-                (VIRT_TEST as *mut u32).write_volatile(EXIT_SUCCESS);
-            }
-        }
-        _ => {
-            unsafe {
-                (VIRT_TEST as *mut u32).write_volatile(EXIT_RESET);
-            }
-        }
+        fid::SRST_SHUTDOWN => unsafe {
+            (VIRT_TEST as *mut u32).write_volatile(EXIT_SUCCESS);
+        },
+        _ => unsafe {
+            (VIRT_TEST as *mut u32).write_volatile(EXIT_RESET);
+        },
     }
     loop {}
 }
@@ -153,7 +155,7 @@ fn handle_system_reset(fid: usize) -> SbiRet {
 fn handle_base(fid: usize) -> SbiRet {
     match fid {
         fid::BASE_GET_SBI_VERSION => SbiRet::success(0x01000000), // SBI v1.0.0
-        fid::BASE_GET_IMPL_ID => SbiRet::success(0xFFFF), // Custom implementation
+        fid::BASE_GET_IMPL_ID => SbiRet::success(0xFFFF),         // Custom implementation
         fid::BASE_GET_IMPL_VERSION => SbiRet::success(1),
         fid::BASE_PROBE_EXTENSION => SbiRet::success(1), // All extensions supported
         fid::BASE_GET_MVENDORID => SbiRet::success(0),

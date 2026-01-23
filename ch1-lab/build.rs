@@ -2,7 +2,15 @@ fn main() {
     use std::{env, fs, path::PathBuf};
 
     let ld = &PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("linker.ld");
-    fs::write(ld, if env::var("CARGO_FEATURE_NOBIOS").is_ok() { NOBIOS_LINKER } else { LINKER }).unwrap();
+    fs::write(
+        ld,
+        if env::var("CARGO_FEATURE_NOBIOS").is_ok() {
+            NOBIOS_LINKER
+        } else {
+            LINKER
+        },
+    )
+    .unwrap();
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_NOBIOS");
     println!("cargo:rustc-link-arg=-T{}", ld.display());
@@ -29,7 +37,6 @@ SECTIONS {
         *(.sbss .sbss.*)
     }
 }";
-
 
 const NOBIOS_LINKER: &[u8] = b"
 OUTPUT_ARCH(riscv)

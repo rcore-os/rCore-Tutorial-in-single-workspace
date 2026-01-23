@@ -109,7 +109,7 @@ impl BuildArgs {
         if self.nobios {
             all_features.push("nobios");
         }
-        
+
         let mut build = Cargo::build();
         build
             .package(&package)
@@ -176,8 +176,7 @@ impl QemuArgs {
             Qemu::search_at(p);
         }
         let mut qemu = Qemu::system("riscv64");
-        qemu.args(&["-machine", "virt"])
-            .arg("-nographic");
+        qemu.args(&["-machine", "virt"]).arg("-nographic");
 
         if self.build.nobios {
             // No BIOS mode: kernel is loaded at 0x80000000

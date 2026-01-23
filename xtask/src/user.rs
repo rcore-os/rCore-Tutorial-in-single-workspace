@@ -25,9 +25,7 @@ impl Cases {
             let cases = names
                 .into_iter()
                 .enumerate()
-                .map(|(i, name)| {
-                    build_one(chapter_env, name, release, base + i as u64 * step)
-                })
+                .map(|(i, name)| build_one(chapter_env, name, release, base + i as u64 * step))
                 .collect();
             CasesInfo {
                 base,

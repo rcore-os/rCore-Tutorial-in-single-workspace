@@ -44,10 +44,9 @@ extern "C" fn main() -> i32 {
     let mut var = 111u8;
     assert_eq!(Some(111), trace_read(&var as *const u8));
     write_const(&var, (t1 ^ t2 ^ t3 ^ t4 ^ t5) as u8);
-    assert_eq!(
-        (t1 ^ t2 ^ t3 ^ t4 ^ t5) as u8,
-        unsafe { core::ptr::read_volatile(&var) }
-    );
+    assert_eq!((t1 ^ t2 ^ t3 ^ t4 ^ t5) as u8, unsafe {
+        core::ptr::read_volatile(&var)
+    });
 
     assert!(trace_read(main as *const _).is_some());
     println!("Test trace OK!");

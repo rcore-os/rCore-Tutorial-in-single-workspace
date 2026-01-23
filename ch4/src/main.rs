@@ -367,7 +367,13 @@ mod impls {
     impl Trace for SyscallContext {
         // TODO: 实现 trace 系统调用
         #[inline]
-        fn trace(&self, _caller: syscall::Caller, _trace_request: usize, _id: usize, _data: usize) -> isize {
+        fn trace(
+            &self,
+            _caller: syscall::Caller,
+            _trace_request: usize,
+            _id: usize,
+            _data: usize,
+        ) -> isize {
             rcore_console::log::info!("trace: not implemented");
             -1
         }
@@ -375,8 +381,19 @@ mod impls {
 
     impl Memory for SyscallContext {
         // TODO: 实现 mmap 系统调用
-        fn mmap(&self, _caller: Caller, addr: usize, len: usize, prot: i32, _flags: i32, _fd: i32, _offset: usize) -> isize {
-            rcore_console::log::info!("mmap: addr = {addr:#x}, len = {len}, prot = {prot}, not implemented");
+        fn mmap(
+            &self,
+            _caller: Caller,
+            addr: usize,
+            len: usize,
+            prot: i32,
+            _flags: i32,
+            _fd: i32,
+            _offset: usize,
+        ) -> isize {
+            rcore_console::log::info!(
+                "mmap: addr = {addr:#x}, len = {len}, prot = {prot}, not implemented"
+            );
             -1
         }
 

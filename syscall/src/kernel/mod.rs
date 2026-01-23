@@ -238,9 +238,18 @@ pub fn handle(caller: Caller, id: SyscallId, args: [usize; 6]) -> SyscallResult 
         Id::OPENAT => IO.call(id, |io| io.open(caller, args[0], args[1])),
         Id::CLOSE => IO.call(id, |io| io.close(caller, args[0])),
         Id::LINKAT => IO.call(id, |io| {
-            io.linkat(caller, args[0] as _, args[1], args[2] as _, args[3], args[4] as _)
+            io.linkat(
+                caller,
+                args[0] as _,
+                args[1],
+                args[2] as _,
+                args[3],
+                args[4] as _,
+            )
         }),
-        Id::UNLINKAT => IO.call(id, |io| io.unlinkat(caller, args[0] as _, args[1], args[2] as _)),
+        Id::UNLINKAT => IO.call(id, |io| {
+            io.unlinkat(caller, args[0] as _, args[1], args[2] as _)
+        }),
         Id::FSTAT => IO.call(id, |io| io.fstat(caller, args[0], args[1])),
         Id::EXIT => PROCESS.call(id, |proc| proc.exit(caller, args[0])),
         Id::CLONE => PROCESS.call(id, |proc| proc.fork(caller)),
