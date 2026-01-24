@@ -17,12 +17,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      
-      - name: Build syscall
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --package syscall
 
       - name: Check format
         run: cargo fmt --all --check

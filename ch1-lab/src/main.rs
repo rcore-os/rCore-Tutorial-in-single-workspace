@@ -3,9 +3,9 @@
 #![deny(warnings)]
 
 #[macro_use]
-extern crate rcore_console;
+extern crate tg_console;
 
-use sbi;
+use tg_sbi;
 
 /// Supervisor 汇编入口。
 ///
@@ -33,13 +33,13 @@ unsafe extern "C" fn _start() -> ! {
 /// 测试各种日志和输出后关机。
 extern "C" fn rust_main() -> ! {
     // 初始化 `console`
-    rcore_console::init_console(&Console);
+    tg_console::init_console(&Console);
     // 设置日志级别
-    rcore_console::set_log_level(option_env!("LOG"));
+    tg_console::set_log_level(option_env!("LOG"));
     // 测试各种打印
-    rcore_console::test_log();
+    tg_console::test_log();
 
-    sbi::shutdown(false)
+    tg_sbi::shutdown(false)
 }
 
 /// 将传给 `console` 的控制台对象。
@@ -48,9 +48,9 @@ extern "C" fn rust_main() -> ! {
 struct Console;
 
 /// 为 `Console` 实现 `console::Console` trait。
-impl rcore_console::Console for Console {
+impl tg_console::Console for Console {
     fn put_char(&self, c: u8) {
-        sbi::console_putchar(c);
+        tg_sbi::console_putchar(c);
     }
 }
 
@@ -58,5 +58,5 @@ impl rcore_console::Console for Console {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    sbi::shutdown(true)
+    tg_sbi::shutdown(true)
 }

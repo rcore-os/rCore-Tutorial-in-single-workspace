@@ -8,3 +8,4 @@
 *.bin
 !/rustsbi-qemu.bin
 !/**/m_entry.asm
+Cargo.lock

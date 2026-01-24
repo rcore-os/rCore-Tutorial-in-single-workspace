@@ -5,39 +5,39 @@
 mod task;
 
 #[macro_use]
-extern crate rcore_console;
+extern crate tg_console;
 
 use impls::{Console, SyscallContext};
-use rcore_console::log;
 use riscv::register::*;
-use sbi;
 use task::TaskControlBlock;
+use tg_console::log;
+use tg_sbi;
 
 // 应用程序内联进来。
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 应用程序数量。
 const APP_CAPACITY: usize = 32;
 // 定义内核入口。
-linker::boot0!(rust_main; stack = (APP_CAPACITY + 2) * 4096);
+tg_linker::boot0!(rust_main; stack = (APP_CAPACITY + 2) * 4096);
 
 extern "C" fn rust_main() -> ! {
     // bss 段清零
-    unsafe { linker::KernelLayout::locate().zero_bss() };
+    unsafe { tg_linker::KernelLayout::locate().zero_bss() };
     // 初始化 `console`
-    rcore_console::init_console(&Console);
-    rcore_console::set_log_level(option_env!("LOG"));
-    rcore_console::test_log();
+    tg_console::init_console(&Console);
+    tg_console::set_log_level(option_env!("LOG"));
+    tg_console::test_log();
     // 初始化 syscall
-    syscall::init_io(&SyscallContext);
-    syscall::init_process(&SyscallContext);
-    syscall::init_scheduling(&SyscallContext);
-    syscall::init_clock(&SyscallContext);
-    syscall::init_trace(&SyscallContext);
+    tg_syscall::init_io(&SyscallContext);
+    tg_syscall::init_process(&SyscallContext);
+    tg_syscall::init_scheduling(&SyscallContext);
+    tg_syscall::init_clock(&SyscallContext);
+    tg_syscall::init_trace(&SyscallContext);
     // 任务控制块
     let mut tcbs = [TaskControlBlock::ZERO; APP_CAPACITY];
     let mut index_mod = 0;
     // 初始化
-    for (i, app) in linker::AppMeta::locate().iter().enumerate() {
+    for (i, app) in tg_linker::AppMeta::locate().iter().enumerate() {
         let entry = app.as_ptr() as usize;
         log::info!("load app{i} to {entry:#x}");
         tcbs[i].init(entry);
@@ -54,13 +54,13 @@ extern "C" fn rust_main() -> ! {
         if !tcb.finish {
             loop {
                 #[cfg(not(feature = "coop"))]
-                sbi::set_timer(time::read64() + 12500);
+                tg_sbi::set_timer(time::read64() + 12500);
                 unsafe { tcb.execute() };
 
                 use scause::*;
                 let finish = match scause::read().cause() {
                     Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                        sbi::set_timer(u64::MAX);
+                        tg_sbi::set_timer(u64::MAX);
                         log::trace!("app{i} timeout");
                         false
                     }
@@ -100,26 +100,26 @@ extern "C" fn rust_main() -> ! {
         }
         i = (i + 1) % index_mod;
     }
-    sbi::shutdown(false)
+    tg_sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    sbi::shutdown(true)
+    tg_sbi::shutdown(true)
 }
 
 /// 各种接口库的实现
 mod impls {
-    use syscall::*;
+    use tg_syscall::*;
 
     pub struct Console;
 
-    impl rcore_console::Console for Console {
+    impl tg_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            sbi::console_putchar(c);
+            tg_sbi::console_putchar(c);
         }
     }
 
@@ -127,7 +127,7 @@ mod impls {
 
     impl IO for SyscallContext {
         #[inline]
-        fn write(&self, _caller: syscall::Caller, fd: usize, buf: usize, count: usize) -> isize {
+        fn write(&self, _caller: tg_syscall::Caller, fd: usize, buf: usize, count: usize) -> isize {
             match fd {
                 STDOUT | STDDEBUG => {
                     print!("{}", unsafe {
@@ -139,7 +139,7 @@ mod impls {
                     count as _
                 }
                 _ => {
-                    rcore_console::log::error!("unsupported fd: {fd}");
+                    tg_console::log::error!("unsupported fd: {fd}");
                     -1
                 }
             }
@@ -148,21 +148,26 @@ mod impls {
 
     impl Process for SyscallContext {
         #[inline]
-        fn exit(&self, _caller: syscall::Caller, _status: usize) -> isize {
+        fn exit(&self, _caller: tg_syscall::Caller, _status: usize) -> isize {
             0
         }
     }
 
     impl Scheduling for SyscallContext {
         #[inline]
-        fn sched_yield(&self, _caller: syscall::Caller) -> isize {
+        fn sched_yield(&self, _caller: tg_syscall::Caller) -> isize {
             0
         }
     }
 
     impl Clock for SyscallContext {
         #[inline]
-        fn clock_gettime(&self, _caller: syscall::Caller, clock_id: ClockId, tp: usize) -> isize {
+        fn clock_gettime(
+            &self,
+            _caller: tg_syscall::Caller,
+            clock_id: ClockId,
+            tp: usize,
+        ) -> isize {
             match clock_id {
                 ClockId::CLOCK_MONOTONIC => {
                     let time = riscv::register::time::read() * 10000 / 125;
@@ -182,12 +187,12 @@ mod impls {
         #[inline]
         fn trace(
             &self,
-            _caller: syscall::Caller,
+            _caller: tg_syscall::Caller,
             _trace_request: usize,
             _id: usize,
             _data: usize,
         ) -> isize {
-            rcore_console::log::info!("trace: not implemented");
+            tg_console::log::info!("trace: not implemented");
             -1
         }
     }

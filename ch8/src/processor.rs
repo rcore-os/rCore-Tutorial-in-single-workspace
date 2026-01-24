@@ -1,7 +1,7 @@
 use crate::process::{Process, Thread};
 use alloc::collections::{BTreeMap, VecDeque};
 use core::cell::UnsafeCell;
-use rcore_task_manage::{Manage, PThreadManager, ProcId, Schedule, ThreadId};
+use tg_task_manage::{Manage, PThreadManager, ProcId, Schedule, ThreadId};
 
 pub type ProcessorInner = PThreadManager<Process, Thread, ThreadManager, ProcManager>;
 

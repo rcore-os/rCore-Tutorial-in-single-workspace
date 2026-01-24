@@ -4,9 +4,9 @@ use alloc::{
     sync::Arc,
 };
 use core::{alloc::Layout, ptr::NonNull};
-use easy_fs::BlockDevice;
-use kernel_vm::page_table::{MmuMeta, Sv39, VAddr, VmFlags};
 use spin::{Lazy, Mutex};
+use tg_easy_fs::BlockDevice;
+use tg_kernel_vm::page_table::{MmuMeta, Sv39, VAddr, VmFlags};
 use virtio_drivers::{Hal, VirtIOBlk, VirtIOHeader};
 
 const VIRTIO0: usize = 0x10001000;

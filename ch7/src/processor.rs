@@ -1,7 +1,7 @@
 use crate::process::Process;
 use alloc::collections::{BTreeMap, VecDeque};
 use core::cell::UnsafeCell;
-use rcore_task_manage::{Manage, PManager, ProcId, Schedule};
+use tg_task_manage::{Manage, PManager, ProcId, Schedule};
 
 pub struct Processor {
     inner: UnsafeCell<PManager<Process, ProcManager>>,

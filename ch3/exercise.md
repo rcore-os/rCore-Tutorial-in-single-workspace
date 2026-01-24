@@ -7,7 +7,7 @@
 在 ch3 中，我们的系统已经能够支持多个任务分时轮流运行，我们希望引入一个新的系统调用 `sys_trace`（ID 为 410）用来追踪当前任务系统调用的历史信息，并做对应的修改。定义如下：
 
 ```rust
-fn trace(&self, _caller: syscall::Caller, _trace_request: usize, _id: usize, _data: usize) -> isize
+fn trace(&self, _caller: tg_syscall::Caller, _trace_request: usize, _id: usize, _data: usize) -> isize
 ```
 
 - 调用规范：

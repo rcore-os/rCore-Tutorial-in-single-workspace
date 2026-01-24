@@ -86,7 +86,7 @@ impl BuildArgs {
         self.check();
         let mut env: HashMap<&str, OsString> = HashMap::new();
         let package = match self.ch {
-            1 => if self.lab { "ch1-lab" } else { "ch1" }.to_string(),
+            1 => if self.lab { "tg-ch1-lab" } else { "tg-ch1" }.to_string(),
             2..=8 => {
                 user::build_for(self.ch, false, self.exercise, self.ci);
                 env.insert(
@@ -97,7 +97,7 @@ impl BuildArgs {
                         .as_os_str()
                         .to_os_string(),
                 );
-                format!("ch{}", self.ch)
+                format!("tg-ch{}", self.ch)
             }
             _ => unreachable!(),
         };
@@ -176,11 +176,11 @@ impl QemuArgs {
             Qemu::search_at(p);
         }
         let mut qemu = Qemu::system("riscv64");
-        qemu.args(&["-machine", "virt"]).arg("-nographic");
+        qemu.args(["-machine", "virt"]).arg("-nographic");
 
         if self.build.nobios {
             // No BIOS mode: kernel is loaded at 0x80000000
-            qemu.args(&["-bios", "none"]);
+            qemu.args(["-bios", "none"]);
         } else {
             // SBI mode: use RustSBI, kernel is loaded at 0x80200000
             qemu.arg("-bios").arg(PROJECT.join("rustsbi-qemu.bin"));
@@ -188,12 +188,12 @@ impl QemuArgs {
 
         qemu.arg("-kernel")
             .arg(objcopy(elf, true))
-            .args(&["-smp", &self.smp.unwrap_or(1).to_string()])
-            .args(&["-m", "64M"])
-            .args(&["-serial", "mon:stdio"]);
+            .args(["-smp", &self.smp.unwrap_or(1).to_string()])
+            .args(["-m", "64M"])
+            .args(["-serial", "mon:stdio"]);
         if self.build.ch > 5 {
             // Add VirtIO Device
-            qemu.args(&[
+            qemu.args([
                 "-drive",
                 format!(
                     "file={},if=none,format=raw,id=x0",
@@ -210,13 +210,13 @@ impl QemuArgs {
                 )
                 .as_str(),
             ])
-            .args(&[
+            .args([
                 "-device",
                 "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
             ]);
         }
         qemu.optional(&self.gdb, |qemu, gdb| {
-            qemu.args(&["-S", "-gdb", &format!("tcp::{gdb}")]);
+            qemu.args(["-S", "-gdb", &format!("tcp::{gdb}")]);
         })
         .invoke();
     }

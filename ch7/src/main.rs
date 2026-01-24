@@ -7,7 +7,7 @@ mod processor;
 mod virtio_block;
 
 #[macro_use]
-extern crate rcore_console;
+extern crate tg_console;
 
 #[macro_use]
 extern crate alloc;
@@ -20,24 +20,24 @@ use crate::{
 };
 use alloc::alloc::alloc;
 use core::{alloc::Layout, cell::UnsafeCell, mem::MaybeUninit};
-use easy_fs::{FSManager, OpenFlags};
 use impls::Console;
-use kernel_context::foreign::MultislotPortal;
-use kernel_vm::{
+pub use processor::PROCESSOR;
+use riscv::register::*;
+use tg_console::log;
+use tg_easy_fs::{FSManager, OpenFlags};
+use tg_kernel_context::foreign::MultislotPortal;
+use tg_kernel_vm::{
     page_table::{MmuMeta, Sv39, VAddr, VmFlags, VmMeta, PPN, VPN},
     AddressSpace,
 };
-pub use processor::PROCESSOR;
-use rcore_console::log;
-use rcore_task_manage::{PManager, ProcId};
-use riscv::register::*;
-use sbi;
-use signal::SignalResult;
-use syscall::Caller;
+use tg_sbi;
+use tg_signal::SignalResult;
+use tg_syscall::Caller;
+use tg_task_manage::{PManager, ProcId};
 use xmas_elf::ElfFile;
 
 // 定义内核入口。
-linker::boot0!(rust_main; stack = 32 * 4096);
+tg_linker::boot0!(rust_main; stack = 32 * 4096);
 // 物理内存容量 = 48 MiB。
 const MEMORY: usize = 48 << 20;
 // 传送门所在虚页。
@@ -68,17 +68,17 @@ impl KernelSpace {
 static KERNEL_SPACE: KernelSpace = KernelSpace::new();
 
 extern "C" fn rust_main() -> ! {
-    let layout = linker::KernelLayout::locate();
+    let layout = tg_linker::KernelLayout::locate();
     // bss 段清零
     unsafe { layout.zero_bss() };
     // 初始化 `console`
-    rcore_console::init_console(&Console);
-    rcore_console::set_log_level(option_env!("LOG"));
-    rcore_console::test_log();
+    tg_console::init_console(&Console);
+    tg_console::set_log_level(option_env!("LOG"));
+    tg_console::test_log();
     // 初始化内核堆
-    kernel_alloc::init(layout.start() as _);
+    tg_kernel_alloc::init(layout.start() as _);
     unsafe {
-        kernel_alloc::transfer(core::slice::from_raw_parts_mut(
+        tg_kernel_alloc::transfer(core::slice::from_raw_parts_mut(
             layout.end() as _,
             MEMORY - layout.len(),
         ))
@@ -93,11 +93,11 @@ extern "C" fn rust_main() -> ! {
     // 初始化异界传送门
     let portal = unsafe { MultislotPortal::init_transit(PROTAL_TRANSIT.base().val(), 1) };
     // 初始化 syscall
-    syscall::init_io(&SyscallContext);
-    syscall::init_process(&SyscallContext);
-    syscall::init_scheduling(&SyscallContext);
-    syscall::init_clock(&SyscallContext);
-    syscall::init_signal(&SyscallContext);
+    tg_syscall::init_io(&SyscallContext);
+    tg_syscall::init_process(&SyscallContext);
+    tg_syscall::init_scheduling(&SyscallContext);
+    tg_syscall::init_clock(&SyscallContext);
+    tg_syscall::init_signal(&SyscallContext);
     let initproc = read_all(FS.open("initproc", OpenFlags::RDONLY).unwrap());
     if let Some(process) = Process::from_elf(ElfFile::new(initproc.as_slice()).unwrap()) {
         PROCESSOR.get_mut().set_manager(ProcManager::new());
@@ -111,12 +111,12 @@ extern "C" fn rust_main() -> ! {
             unsafe { task.context.execute(portal, ()) };
             match scause::read().cause() {
                 scause::Trap::Exception(scause::Exception::UserEnvCall) => {
-                    use syscall::{SyscallId as Id, SyscallResult as Ret};
+                    use tg_syscall::{SyscallId as Id, SyscallResult as Ret};
                     let ctx = &mut task.context.context;
                     ctx.move_next();
                     let id: Id = ctx.a(7).into();
                     let args = [ctx.a(0), ctx.a(1), ctx.a(2), ctx.a(3), ctx.a(4), ctx.a(5)];
-                    let syscall_ret = syscall::handle(Caller { entity: 0, flow: 0 }, id, args);
+                    let syscall_ret = tg_syscall::handle(Caller { entity: 0, flow: 0 }, id, args);
                     // 目前信号处理位置放在 syscall 执行之后，这只是临时的实现。
                     // 正确处理信号的位置应该是在 “trap 中处理异常和中断和异常之后，返回用户态之前”。
                     // 例如发现有访存异常时，应该触发 SIGSEGV 信号然后进行处理。
@@ -156,25 +156,25 @@ extern "C" fn rust_main() -> ! {
         }
     }
 
-    sbi::shutdown(false)
+    tg_sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    sbi::shutdown(true)
+    tg_sbi::shutdown(true)
 }
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x1000_1000, 0x00_1000), // Virtio Block in virt machine
 ];
 
-fn kernel_space(layout: linker::KernelLayout, memory: usize, portal: usize) {
+fn kernel_space(layout: tg_linker::KernelLayout, memory: usize, portal: usize) {
     let mut space = AddressSpace::new();
     for region in layout.iter() {
         log::info!("{region}");
-        use linker::KernelRegionTitle::*;
+        use tg_linker::KernelRegionTitle::*;
         let flags = match region.title {
             Text => "X_RV",
             Rodata => "__RV",
@@ -235,17 +235,17 @@ mod impls {
     };
     use alloc::{alloc::alloc_zeroed, string::String, vec::Vec};
     use core::{alloc::Layout, ptr::NonNull};
-    use easy_fs::UserBuffer;
-    use easy_fs::{FSManager, OpenFlags};
-    use kernel_vm::{
+    use spin::Mutex;
+    use tg_console::log;
+    use tg_easy_fs::UserBuffer;
+    use tg_easy_fs::{FSManager, OpenFlags};
+    use tg_kernel_vm::{
         page_table::{MmuMeta, Pte, Sv39, VAddr, VmFlags, PPN, VPN},
         PageManager,
     };
-    use rcore_console::log;
-    use rcore_task_manage::{PManager, ProcId};
-    use signal::SignalNo;
-    use spin::Mutex;
-    use syscall::*;
+    use tg_signal::SignalNo;
+    use tg_syscall::*;
+    use tg_task_manage::{PManager, ProcId};
     use xmas_elf::ElfFile;
 
     #[repr(transparent)]
@@ -314,10 +314,10 @@ mod impls {
 
     pub struct Console;
 
-    impl rcore_console::Console for Console {
+    impl tg_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            sbi::console_putchar(c);
+            tg_sbi::console_putchar(c);
         }
     }
 
@@ -364,7 +364,7 @@ mod impls {
                     let mut ptr = ptr.as_ptr();
                     for _ in 0..count {
                         unsafe {
-                            *ptr = sbi::console_getchar() as u8;
+                            *ptr = tg_sbi::console_getchar() as u8;
                             ptr = ptr.add(1);
                         }
                     }
@@ -441,12 +441,13 @@ mod impls {
         fn fork(&self, _caller: Caller) -> isize {
             let processor: *mut PManager<ProcStruct, ProcManager> = PROCESSOR.get_mut() as *mut _;
             let current = unsafe { (*processor).current().unwrap() };
+            let parent_pid = current.pid; // 先保存父进程 pid
             let mut child_proc = current.fork().unwrap();
             let pid = child_proc.pid;
             let context = &mut child_proc.context.context;
             *context.a_mut(0) = 0 as _;
             unsafe {
-                (*processor).add(pid, child_proc, current.pid);
+                (*processor).add(pid, child_proc, parent_pid);
             }
             pid.get_usize() as isize
         }
@@ -563,7 +564,7 @@ mod impls {
             action: usize,
             old_action: usize,
         ) -> isize {
-            if signum as usize > signal::MAX_SIG {
+            if signum as usize > tg_signal::MAX_SIG {
                 return -1;
             }
             let current = PROCESSOR.get_mut().current().unwrap();

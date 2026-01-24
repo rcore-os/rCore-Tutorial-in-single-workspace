@@ -9,9 +9,9 @@ fn main() {
     let nobios = env::var("CARGO_FEATURE_NOBIOS").is_ok();
 
     let linker_script = if nobios {
-        linker::NOBIOS_SCRIPT
+        tg_linker::NOBIOS_SCRIPT
     } else {
-        linker::SCRIPT
+        tg_linker::SCRIPT
     };
 
     let ld = &PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("linker.ld");

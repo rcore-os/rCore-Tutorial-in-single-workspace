@@ -1,7 +1,7 @@
-use easy_fs::{BlockDevice, EasyFileSystem};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::{Arc, Mutex};
+use tg_easy_fs::{BlockDevice, EasyFileSystem};
 
 const BLOCK_SZ: usize = 512;
 
@@ -39,7 +39,7 @@ pub fn easy_fs_pack(cases: &Vec<String>, target: &str) -> std::io::Result<()> {
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
     println!("Packing Testcases...");
     for case in cases {
-        println!("{}", format!("{}/{}", target, case));
+        println!("{}/{}", target, case);
         // load app data from host file system
         let mut host_file = File::open(format!("{}/{}", target, case)).unwrap();
         let mut all_data: Vec<u8> = Vec::new();

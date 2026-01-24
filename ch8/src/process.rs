@@ -2,17 +2,17 @@ use crate::{map_portal, processor::ProcessorInner, Sv39Manager, PROCESSOR};
 use alloc::sync::Arc;
 use alloc::{alloc::alloc_zeroed, boxed::Box, vec::Vec};
 use core::{alloc::Layout, str::FromStr};
-use easy_fs::FileHandle;
-use kernel_context::{foreign::ForeignContext, LocalContext};
-use kernel_vm::{
+use spin::Mutex;
+use tg_easy_fs::FileHandle;
+use tg_kernel_context::{foreign::ForeignContext, LocalContext};
+use tg_kernel_vm::{
     page_table::{MmuMeta, Sv39, VAddr, VmFlags, PPN, VPN},
     AddressSpace,
 };
-use rcore_task_manage::{ProcId, ThreadId};
-use signal::Signal;
-use signal_impl::SignalImpl;
-use spin::Mutex;
-use sync::{Condvar, Mutex as MutexTrait, Semaphore};
+use tg_signal::Signal;
+use tg_signal_impl::SignalImpl;
+use tg_sync::{Condvar, Mutex as MutexTrait, Semaphore};
+use tg_task_manage::{ProcId, ThreadId};
 use xmas_elf::{
     header::{self, HeaderPt2, Machine},
     program, ElfFile,

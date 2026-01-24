@@ -2,12 +2,12 @@ use crate::{map_portal, Sv39Manager};
 use alloc::alloc::alloc_zeroed;
 use core::alloc::Layout;
 use core::str::FromStr;
-use kernel_context::{foreign::ForeignContext, LocalContext};
-use kernel_vm::{
+use tg_kernel_context::{foreign::ForeignContext, LocalContext};
+use tg_kernel_vm::{
     page_table::{MmuMeta, Sv39, VAddr, VmFlags, PPN, VPN},
     AddressSpace,
 };
-use rcore_task_manage::ProcId;
+use tg_task_manage::ProcId;
 use xmas_elf::{
     header::{self, HeaderPt2, Machine},
     program, ElfFile,

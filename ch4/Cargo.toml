@@ -1,5 +1,5 @@
 [package]
-name = "ch4"
+name = "tg-ch4"
 version = "0.0.1"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
@@ -7,20 +7,20 @@ authors = ["YdrMaster <ydrml@hotmail.com>"]
 [features]
 default = []
 nobios = [
-    "sbi/nobios",
+    "tg-sbi/nobios",
 ]
 
 [dependencies]
 xmas-elf = "0.8.0"
 riscv = "0.10.1"
 
-sbi = { path = "../sbi" }
-linker = { path = "../linker" }
-rcore-console = { path = "../console" }
-kernel-context = { path = "../kernel-context", features = ["foreign"] }
-kernel-alloc = { path = "../kernel-alloc" }
-kernel-vm = { path = "../kernel-vm" }
-syscall = { path = "../syscall", features = ["kernel"] }
+tg-sbi = { path = "../tg-sbi" }
+tg-linker = { path = "../tg-linker" }
+tg-console = { path = "../tg-console" }
+tg-kernel-context = { path = "../tg-kernel-context", features = ["foreign"] }
+tg-kernel-alloc = { path = "../tg-kernel-alloc" }
+tg-kernel-vm = { path = "../tg-kernel-vm" }
+tg-syscall = { path = "../tg-syscall", features = ["kernel"] }
 
 [build-dependencies]
-linker = { path = "../linker" }
+tg-linker = { path = "../tg-linker" }

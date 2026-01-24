@@ -1,7 +1,7 @@
 use crate::virtio_block::BLOCK_DEVICE;
 use alloc::{string::String, sync::Arc, vec::Vec};
-use easy_fs::{EasyFileSystem, FSManager, FileHandle, Inode, OpenFlags};
 use spin::Lazy;
+use tg_easy_fs::{EasyFileSystem, FSManager, FileHandle, Inode, OpenFlags};
 
 pub static FS: Lazy<FileSystem> = Lazy::new(|| FileSystem {
     root: EasyFileSystem::root_inode(&EasyFileSystem::open(BLOCK_DEVICE.clone())),

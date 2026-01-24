@@ -2,7 +2,7 @@
 #![no_main]
 #![deny(warnings)]
 
-use sbi;
+use tg_sbi;
 
 /// Supervisor 汇编入口。
 ///
@@ -30,13 +30,13 @@ unsafe extern "C" fn _start() -> ! {
 /// 打印 `Hello, World!`，然后关机。
 extern "C" fn rust_main() -> ! {
     for c in b"Hello, world!\n" {
-        sbi::console_putchar(*c);
+        tg_sbi::console_putchar(*c);
     }
-    sbi::shutdown(false)
+    tg_sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
-    sbi::shutdown(true)
+    tg_sbi::shutdown(true)
 }

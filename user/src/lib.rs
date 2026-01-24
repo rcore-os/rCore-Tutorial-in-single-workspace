@@ -4,22 +4,23 @@ mod heap;
 
 extern crate alloc;
 
-use rcore_console::log;
+use tg_console::log;
 
-pub use rcore_console::{print, println};
-pub use syscall::*;
+pub use tg_console::{print, println};
+pub use tg_syscall::*;
 
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() -> ! {
-    rcore_console::init_console(&Console);
-    rcore_console::set_log_level(option_env!("LOG"));
+    tg_console::init_console(&Console);
+    tg_console::set_log_level(option_env!("LOG"));
     heap::init();
 
     extern "C" {
         fn main() -> i32;
     }
 
+    // SAFETY: main 函数由用户程序提供，链接器保证其存在且符合 C ABI
     exit(unsafe { main() });
     unreachable!()
 }
@@ -44,15 +45,15 @@ pub fn getchar() -> u8 {
 
 struct Console;
 
-impl rcore_console::Console for Console {
+impl tg_console::Console for Console {
     #[inline]
     fn put_char(&self, c: u8) {
-        syscall::write(STDOUT, &[c]);
+        tg_syscall::write(STDOUT, &[c]);
     }
 
     #[inline]
     fn put_str(&self, s: &str) {
-        syscall::write(STDOUT, s.as_bytes());
+        tg_syscall::write(STDOUT, s.as_bytes());
     }
 }
 
@@ -74,4 +75,21 @@ pub fn get_time() -> isize {
     let mut time: TimeSpec = TimeSpec::ZERO;
     clock_gettime(ClockId::CLOCK_MONOTONIC, &mut time as *mut _ as _);
     (time.tv_sec * 1000 + time.tv_nsec / 1_000_000) as isize
+}
+
+pub fn trace_read(ptr: *const u8) -> Option<u8> {
+    let ret = trace(0, ptr as usize, 0);
+    if ret >= 0 && ret <= 255 {
+        Some(ret as u8)
+    } else {
+        None
+    }
+}
+
+pub fn trace_write(ptr: *const u8, value: u8) -> isize {
+    trace(1, ptr as usize, value as usize)
+}
+
+pub fn count_syscall(syscall_id: usize) -> isize {
+    trace(2, syscall_id, 0)
 }

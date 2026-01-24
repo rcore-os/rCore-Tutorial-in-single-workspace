@@ -1,5 +1,5 @@
-﻿use kernel_context::LocalContext;
-use syscall::{Caller, SyscallId};
+﻿use tg_kernel_context::LocalContext;
+use tg_syscall::{Caller, SyscallId};
 
 /// 任务控制块。
 ///
@@ -41,7 +41,7 @@ impl TaskControlBlock {
 
     /// 处理系统调用，返回是否应该终止程序。
     pub fn handle_syscall(&mut self) -> SchedulingEvent {
-        use syscall::{SyscallId as Id, SyscallResult as Ret};
+        use tg_syscall::{SyscallId as Id, SyscallResult as Ret};
         use SchedulingEvent as Event;
 
         let id = self.ctx.a(7).into();
@@ -53,7 +53,7 @@ impl TaskControlBlock {
             self.ctx.a(4),
             self.ctx.a(5),
         ];
-        match syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
+        match tg_syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
             Ret::Done(ret) => match id {
                 Id::EXIT => Event::Exit(self.ctx.a(0)),
                 Id::SCHED_YIELD => {

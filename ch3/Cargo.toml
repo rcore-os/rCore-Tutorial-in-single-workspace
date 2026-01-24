@@ -1,5 +1,5 @@
 [package]
-name = "ch3"
+name = "tg-ch3"
 version = "0.0.1"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
@@ -8,17 +8,17 @@ authors = ["YdrMaster <ydrml@hotmail.com>"]
 default = []
 coop = []
 nobios = [
-    "sbi/nobios",
+    "tg-sbi/nobios",
 ]
 
 [dependencies]
 riscv = "0.10.1"
 
-sbi = { path = "../sbi" }
-linker = { path = "../linker" }
-rcore-console = { path = "../console" }
-kernel-context = { path = "../kernel-context" }
-syscall = { path = "../syscall", features = ["kernel"] }
+tg-sbi = { path = "../tg-sbi" }
+tg-linker = { path = "../tg-linker" }
+tg-console = { path = "../tg-console" }
+tg-kernel-context = { path = "../tg-kernel-context" }
+tg-syscall = { path = "../tg-syscall", features = ["kernel"] }
 
 [build-dependencies]
-linker = { path = "../linker" }
+tg-linker = { path = "../tg-linker" }

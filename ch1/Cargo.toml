@@ -1,5 +1,5 @@
 [package]
-name = "ch1"
+name = "tg-ch1"
 version = "0.0.1"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
@@ -7,8 +7,8 @@ authors = ["YdrMaster <ydrml@hotmail.com>"]
 [features]
 default = []
 nobios = [
-    "sbi/nobios",
+    "tg-sbi/nobios",
 ]
 
 [dependencies]
-sbi = { path = "../sbi" }
+tg-sbi = { path = "../tg-sbi" }

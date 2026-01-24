@@ -11,19 +11,52 @@ members = [
     "ch7",
     "ch8",
     "user",
-    "linker",
-    "console",
-    "syscall",
-    "kernel-context",
-    "kernel-alloc",
-    "kernel-vm",
-    "task-manage",
-    "easy-fs",
-    "signal-defs",
-    "signal",
-    "signal-impl",
-    "sync",
-    "sbi",
+    "tg-linker",
+    "tg-console",
+    "tg-syscall",
+    "tg-kernel-context",
+    "tg-kernel-alloc",
+    "tg-kernel-vm",
+    "tg-task-manage",
+    "tg-easy-fs",
+    "tg-signal-defs",
+    "tg-signal",
+    "tg-signal-impl",
+    "tg-sync",
+    "tg-sbi",
 ]
 default-members = ["xtask"]
 resolver = "2"
+
+# 统一的包元数据，子 crate 可通过 `xxx.workspace = true` 继承
+[workspace.package]
+version = "0.1.0-preview.1"
+edition = "2021"
+repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+license = "MIT OR Apache-2.0"
+keywords = ["rcore", "os", "riscv", "tutorial"]
+categories = ["no-std", "embedded"]
+
+# 统一的依赖版本管理
+[workspace.dependencies]
+# 外部依赖
+spin = "0.9"
+bitflags = "1.2"
+log = "0.4"
+riscv = "0.10"
+numeric-enum-macro = "0.2"
+
+# 内部 crate 依赖
+tg-console = { path = "tg-console", version = "0.1.0-preview.1" }
+tg-linker = { path = "tg-linker", version = "0.1.0-preview.2" }
+tg-syscall = { path = "tg-syscall", version = "0.1.0-preview.2" }
+tg-kernel-context = { path = "tg-kernel-context", version = "0.1.0-preview.1" }
+tg-kernel-alloc = { path = "tg-kernel-alloc", version = "0.1.0-preview.2" }
+tg-kernel-vm = { path = "tg-kernel-vm", version = "0.1.0-preview.1" }
+tg-task-manage = { path = "tg-task-manage", version = "0.1.0-preview.1" }
+tg-easy-fs = { path = "tg-easy-fs", version = "0.1.0-preview.1" }
+tg-signal-defs = { path = "tg-signal-defs", version = "0.1.0-preview.1" }
+tg-signal = { path = "tg-signal", version = "0.1.0-preview.1" }
+tg-signal-impl = { path = "tg-signal-impl", version = "0.1.0-preview.1" }
+tg-sync = { path = "tg-sync", version = "0.1.0-preview.1" }
+tg-sbi = { path = "tg-sbi", version = "0.1.0-preview.1" }

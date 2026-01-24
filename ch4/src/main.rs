@@ -4,7 +4,7 @@
 mod process;
 
 #[macro_use]
-extern crate rcore_console;
+extern crate tg_console;
 
 extern crate alloc;
 
@@ -15,21 +15,21 @@ use crate::{
 use alloc::{alloc::alloc, vec::Vec};
 use core::{alloc::Layout, cell::UnsafeCell};
 use impls::Console;
-use kernel_context::{foreign::MultislotPortal, LocalContext};
-use kernel_vm::{
+use riscv::register::*;
+use tg_console::log;
+use tg_kernel_context::{foreign::MultislotPortal, LocalContext};
+use tg_kernel_vm::{
     page_table::{MmuMeta, Sv39, VAddr, VmFlags, VmMeta, PPN, VPN},
     AddressSpace,
 };
-use rcore_console::log;
-use riscv::register::*;
-use sbi;
-use syscall::Caller;
+use tg_sbi;
+use tg_syscall::Caller;
 use xmas_elf::ElfFile;
 
 // 应用程序内联进来。
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 定义内核入口。
-linker::boot0!(rust_main; stack = 6 * 4096);
+tg_linker::boot0!(rust_main; stack = 6 * 4096);
 // 物理内存容量 = 24 MiB。
 const MEMORY: usize = 24 << 20;
 // 传送门所在虚页。
@@ -52,17 +52,17 @@ impl ProcessList {
 static PROCESSES: ProcessList = ProcessList::new();
 
 extern "C" fn rust_main() -> ! {
-    let layout = linker::KernelLayout::locate();
+    let layout = tg_linker::KernelLayout::locate();
     // bss 段清零
     unsafe { layout.zero_bss() };
     // 初始化 `console`
-    rcore_console::init_console(&Console);
-    rcore_console::set_log_level(option_env!("LOG"));
-    rcore_console::test_log();
+    tg_console::init_console(&Console);
+    tg_console::set_log_level(option_env!("LOG"));
+    tg_console::test_log();
     // 初始化内核堆
-    kernel_alloc::init(layout.start() as _);
+    tg_kernel_alloc::init(layout.start() as _);
     unsafe {
-        kernel_alloc::transfer(core::slice::from_raw_parts_mut(
+        tg_kernel_alloc::transfer(core::slice::from_raw_parts_mut(
             layout.end() as _,
             MEMORY - layout.len(),
         ))
@@ -76,7 +76,7 @@ extern "C" fn rust_main() -> ! {
     let mut ks = kernel_space(layout, MEMORY, portal_ptr as _);
     let portal_idx = PROTAL_TRANSIT.index_in(Sv39::MAX_LEVEL);
     // 加载应用程序
-    for (i, elf) in linker::AppMeta::locate().iter().enumerate() {
+    for (i, elf) in tg_linker::AppMeta::locate().iter().enumerate() {
         let base = elf.as_ptr() as usize;
         log::info!("detect app[{i}]: {base:#x}..{:#x}", base + elf.len());
         if let Some(process) = Process::new(ElfFile::new(elf).unwrap()) {
@@ -108,23 +108,23 @@ extern "C" fn schedule() -> ! {
     // 初始化异界传送门
     let portal = unsafe { MultislotPortal::init_transit(PROTAL_TRANSIT.base().val(), 1) };
     // 初始化 syscall
-    syscall::init_io(&SyscallContext);
-    syscall::init_process(&SyscallContext);
-    syscall::init_scheduling(&SyscallContext);
-    syscall::init_clock(&SyscallContext);
-    syscall::init_trace(&SyscallContext);
-    syscall::init_memory(&SyscallContext);
+    tg_syscall::init_io(&SyscallContext);
+    tg_syscall::init_process(&SyscallContext);
+    tg_syscall::init_scheduling(&SyscallContext);
+    tg_syscall::init_clock(&SyscallContext);
+    tg_syscall::init_trace(&SyscallContext);
+    tg_syscall::init_memory(&SyscallContext);
     while !unsafe { PROCESSES.get_mut().is_empty() } {
         let ctx = unsafe { &mut PROCESSES.get_mut()[0].context };
         unsafe { ctx.execute(portal, ()) };
         match scause::read().cause() {
             scause::Trap::Exception(scause::Exception::UserEnvCall) => {
-                use syscall::{SyscallId as Id, SyscallResult as Ret};
+                use tg_syscall::{SyscallId as Id, SyscallResult as Ret};
 
                 let ctx = &mut ctx.context;
                 let id: Id = ctx.a(7).into();
                 let args = [ctx.a(0), ctx.a(1), ctx.a(2), ctx.a(3), ctx.a(4), ctx.a(5)];
-                match syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
+                match tg_syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
                     Ret::Done(ret) => match id {
                         Id::EXIT => unsafe {
                             PROCESSES.get_mut().remove(0);
@@ -150,25 +150,25 @@ extern "C" fn schedule() -> ! {
             }
         }
     }
-    sbi::shutdown(false)
+    tg_sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     log::error!("{info}");
-    sbi::shutdown(true)
+    tg_sbi::shutdown(true)
 }
 
 fn kernel_space(
-    layout: linker::KernelLayout,
+    layout: tg_linker::KernelLayout,
     memory: usize,
     portal: usize,
 ) -> AddressSpace<Sv39, Sv39Manager> {
     let mut space = AddressSpace::<Sv39, Sv39Manager>::new();
     for region in layout.iter() {
         log::info!("{region}");
-        use linker::KernelRegionTitle::*;
+        use tg_linker::KernelRegionTitle::*;
         let flags = match region.title {
             Text => "X_RV",
             Rodata => "__RV",
@@ -209,12 +209,12 @@ mod impls {
     use crate::PROCESSES;
     use alloc::alloc::alloc_zeroed;
     use core::{alloc::Layout, ptr::NonNull};
-    use kernel_vm::{
+    use tg_console::log;
+    use tg_kernel_vm::{
         page_table::{MmuMeta, Pte, Sv39, VAddr, VmFlags, PPN, VPN},
         PageManager,
     };
-    use rcore_console::log;
-    use syscall::*;
+    use tg_syscall::*;
 
     #[repr(transparent)]
     pub struct Sv39Manager(NonNull<Pte<Sv39>>);
@@ -282,10 +282,10 @@ mod impls {
 
     pub struct Console;
 
-    impl rcore_console::Console for Console {
+    impl tg_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            sbi::console_putchar(c);
+            tg_sbi::console_putchar(c);
         }
     }
 
@@ -367,14 +367,8 @@ mod impls {
     impl Trace for SyscallContext {
         // TODO: 实现 trace 系统调用
         #[inline]
-        fn trace(
-            &self,
-            _caller: syscall::Caller,
-            _trace_request: usize,
-            _id: usize,
-            _data: usize,
-        ) -> isize {
-            rcore_console::log::info!("trace: not implemented");
+        fn trace(&self, _caller: Caller, _trace_request: usize, _id: usize, _data: usize) -> isize {
+            tg_console::log::info!("trace: not implemented");
             -1
         }
     }
@@ -391,7 +385,7 @@ mod impls {
             _fd: i32,
             _offset: usize,
         ) -> isize {
-            rcore_console::log::info!(
+            tg_console::log::info!(
                 "mmap: addr = {addr:#x}, len = {len}, prot = {prot}, not implemented"
             );
             -1
@@ -399,7 +393,7 @@ mod impls {
 
         // TODO: 实现 munmap 系统调用
         fn munmap(&self, _caller: Caller, addr: usize, len: usize) -> isize {
-            rcore_console::log::info!("munmap: addr = {addr:#x}, len = {len}, not implemented");
+            tg_console::log::info!("munmap: addr = {addr:#x}, len = {len}, not implemented");
             -1
         }
     }
