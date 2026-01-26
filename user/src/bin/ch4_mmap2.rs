@@ -19,6 +19,6 @@ extern "C" fn main() -> i32 {
     unsafe {
         assert!(*addr != 0); // 尝试读取，应该触发异常
     }
-    println!("Should cause error, Test ch4_mmap2 fail!");
+    println!("Should cause error, Test 04_2 fail!");
     0
 }

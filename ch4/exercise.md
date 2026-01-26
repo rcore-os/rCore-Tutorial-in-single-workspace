@@ -70,11 +70,11 @@ fn munmap(&self, _caller: Caller, addr: usize, len: usize) -> isize
 │   └── src（内核源代码）
 │       ├── main.rs（内核主函数，包括系统调用接口实现）
 │       └── process.rs（进程结构）
-├── kernel-vm（虚拟内存模块）
+├── tg-kernel-vm（虚拟内存模块）
 │   └── src
 │       ├── lib.rs（PageManager trait 定义）
 │       └── space/mod.rs（AddressSpace 实现）
-├── syscall（系统调用模块）
+├── tg-syscall（系统调用模块）
 │   └── src
 │       └── kernel/mod.rs（Memory trait 定义 mmap/munmap 接口，无需修改）
 ├── user（用户程序）

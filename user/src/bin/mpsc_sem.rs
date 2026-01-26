@@ -59,11 +59,11 @@ pub extern "C" fn main() -> i32 {
     let mut threads = Vec::new();
     for i in 0..PRODUCER_COUNT {
         threads.push(thread_create(
-            producer as usize,
+            producer as *const () as usize,
             &ids.as_slice()[i] as *const _ as usize,
         ));
     }
-    threads.push(thread_create(consumer as usize, 0));
+    threads.push(thread_create(consumer as *const () as usize, 0));
     // wait for all threads to complete
     for thread in threads.iter() {
         waittid(*thread as usize);

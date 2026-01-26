@@ -24,6 +24,6 @@ extern "C" fn main() -> i32 {
             assert_eq!(*addr, i as u8);
         }
     }
-    println!("Test ch4_mmap OK!");
+    println!("Test 04_1 OK!");
     0
 }

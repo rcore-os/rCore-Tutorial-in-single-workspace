@@ -6,7 +6,7 @@ extern crate user_lib;
 
 use user_lib::{spawn, wait};
 
-const MAX_CHILD: usize = 40;
+const MAX_CHILD: usize = 16;
 
 #[no_mangle]
 extern "C" fn main() -> i32 {

@@ -210,13 +210,13 @@ impl KernelLayout {
         }
 
         Self {
-            text: __start as _,
-            rodata: __rodata as _,
-            data: __data as _,
-            sbss: __sbss as _,
-            ebss: __ebss as _,
-            boot: __boot as _,
-            end: __end as _,
+            text: __start as *const () as _,
+            rodata: __rodata as *const () as _,
+            data: __data as *const () as _,
+            sbss: __sbss as *const () as _,
+            ebss: __ebss as *const () as _,
+            boot: __boot as *const () as _,
+            end: __end as *const () as _,
         }
     }
 

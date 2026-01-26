@@ -31,7 +31,7 @@ pub extern "C" fn main() -> i32 {
     ];
     for arg in args.iter() {
         v.push(thread_create(
-            thread_print as usize,
+            thread_print as *const () as usize,
             arg as *const _ as usize,
         ));
     }
@@ -40,5 +40,6 @@ pub extern "C" fn main() -> i32 {
         println!("thread#{} exited with code {}", tid, exit_code);
     }
     println!("main thread exited.");
+    println!("threads with arg test passed!");
     0
 }

@@ -18,6 +18,6 @@ extern "C" fn main() -> i32 {
         println!(" [{}/{}]", i + 1, HEIGHT);
         sched_yield();
     }
-    println!("Test write_c OK!");
+    println!("Test write C OK!");
     0
 }

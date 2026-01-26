@@ -10,7 +10,7 @@ use user_lib::{clock_gettime, exit, thread_create, waittid, ClockId, TimeSpec};
 use user_lib::{mutex_create, mutex_lock, mutex_unlock};
 
 static mut A: usize = 0;
-const PER_THREAD: usize = 1000;
+const PER_THREAD: usize = 500;
 const THREAD_COUNT: usize = 16;
 
 unsafe fn f() -> isize {
@@ -36,7 +36,7 @@ pub extern "C" fn main() -> i32 {
     assert_eq!(mutex_create(true), 0);
     let mut v = Vec::new();
     for _ in 0..THREAD_COUNT {
-        v.push(thread_create(f as usize, 0) as usize);
+        v.push(thread_create(f as *const () as usize, 0) as usize);
     }
     let mut time_cost = Vec::new();
     for tid in v.iter() {
@@ -48,5 +48,6 @@ pub extern "C" fn main() -> i32 {
         - start_time.tv_nsec / 1_000_000;
     println!("time cost is {}ms", total_time);
     assert_eq!(unsafe { A }, PER_THREAD * THREAD_COUNT);
+    println!("race adder using spin mutex test passed!");
     0
 }

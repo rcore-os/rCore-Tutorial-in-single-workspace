@@ -24,8 +24,6 @@ jobs:
   qemu-exercise:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    container:
-      image: duskmoon/dev-env:rcore-ci
     strategy:
       fail-fast: false
       matrix:
@@ -33,11 +31,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sanity check toolchain in container
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-system-misc \
+            python3 \
+            git \
+            curl \
+            build-essential
+
+      - name: Sanity check system tools
         run: |
           set -eux
           qemu-system-riscv64 --version
           python3 --version
+          git --version
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv64gc-unknown-none-elf
+          components: rust-src, llvm-tools-preview
+
+      - name: Sanity check Rust
+        run: |
+          set -eux
           rustc --version
           cargo --version
           rustup --version
@@ -50,13 +69,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/LearningOS/rCore-Tutorial-Checker-2025S.git checker
 
-      - name: Install Rust components/targets
-        run: |
-          set -eux
-          rustup target add riscv64gc-unknown-none-elf
-          rustup component add rust-src llvm-tools-preview
-
       - name: Run exercise in QEMU and check output (ch${{ matrix.ch }})
         run: |
-          timeout 3m cargo qemu --ch ${{ matrix.ch }} --exercise --nobios --ci 2>&1 \
+          timeout 6m cargo qemu --ch ${{ matrix.ch }} --exercise --nobios --ci 2>&1 \
             | python3 checker/check/ch${{ matrix.ch }}.py

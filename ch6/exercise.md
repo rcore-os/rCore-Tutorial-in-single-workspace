@@ -107,8 +107,8 @@ bitflags! {
 │       ├── process.rs（进程结构）
 │       ├── processor.rs（进程管理器）
 │       └── virtio_block.rs（VirtIO 块设备实现）
-├── easy-fs（文件系统实现，需要修改以支持硬链接）
-├── syscall（系统调用模块）
+├── tg-easy-fs（文件系统实现，需要修改以支持硬链接）
+├── tg-syscall（系统调用模块）
 │   └── src
 │       ├── kernel/mod.rs（IO trait 定义，无需修改）
 │       └── fs.rs（Stat 结构体和 StatMode 结构体定义，无需修改）

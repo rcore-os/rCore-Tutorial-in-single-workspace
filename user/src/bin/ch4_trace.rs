@@ -38,6 +38,6 @@ extern "C" fn main() -> i32 {
     assert_eq!(None, trace_read(start as *const u8));
     assert_eq!(-1, trace_write(start as *const u8, 0));
 
-    println!("Test ch4_trace OK!");
+    println!("Test trace_1 OK!");
     0
 }

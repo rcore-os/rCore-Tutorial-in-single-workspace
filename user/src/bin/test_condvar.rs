@@ -49,8 +49,8 @@ pub extern "C" fn main() -> i32 {
     assert_eq!(mutex_create(true) as usize, MUTEX_ID);
     // create threads
     let threads = vec![
-        thread_create(first as usize, 0),
-        thread_create(second as usize, 0),
+        thread_create(first as *const () as usize, 0),
+        thread_create(second as *const () as usize, 0),
     ];
     // wait for all threads to complete
     for thread in threads.iter() {

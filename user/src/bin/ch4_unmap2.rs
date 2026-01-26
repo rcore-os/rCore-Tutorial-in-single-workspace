@@ -16,6 +16,6 @@ extern "C" fn main() -> i32 {
     assert_eq!(0, mmap(start, len, prot));
     assert_eq!(munmap(start, len + 1), -1); // 存在未映射的页
     assert_eq!(munmap(start + 1, len - 1), -1); // 地址未对齐
-    println!("Test ch4_unmap2 OK!");
+    println!("Test 04_6 ummap2 OK!");
     0
 }

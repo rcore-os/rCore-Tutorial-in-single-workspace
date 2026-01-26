@@ -40,11 +40,11 @@ fn trace(&self, _caller: tg_syscall::Caller, _trace_request: usize, _id: usize, 
 │   └── src（内核源代码）
 │       ├── main.rs（内核主函数，包括系统调用接口实现）
 │       └── task.rs（任务控制块）
-├── syscall（系统调用模块）
+├── tg-syscall（系统调用模块）
 │   └── src
 │       ├── kernel/mod.rs（内核端系统调用接口定义，无需修改）
 │       ├── user.rs（用户端系统调用，无需修改）
-│       └── syscalls.rs（系统调用号，无需修改）
+│       └── syscall.h.in（系统调用号，无需修改）
 ├── user（用户程序）
 │   └── src/bin（测试用例，无需修改）
 ├── ...

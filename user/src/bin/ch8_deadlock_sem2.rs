@@ -54,7 +54,7 @@ extern "C" fn main() -> i32 {
     let mut tids = [0usize; THREAD_N];
 
     for i in 0..THREAD_N {
-        tids[i] = thread_create(deadlock_test as usize, i) as usize;
+        tids[i] = thread_create(deadlock_test as *const () as usize, i) as usize;
     }
 
     sleep(1000);

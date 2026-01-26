@@ -80,7 +80,7 @@ fn set_priority(&self, _caller: Caller, prio: isize) -> isize
 │       ├── main.rs（内核主函数，包括系统调用接口实现）
 │       ├── process.rs（进程结构）
 │       └── processor.rs（进程管理器和调度器）
-├── syscall（系统调用模块）
+├── tg-syscall（系统调用模块）
 │   └── src
 │       └── kernel/mod.rs（Process/Scheduling trait 定义，无需修改）
 ├── user（用户程序）

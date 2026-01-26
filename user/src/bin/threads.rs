@@ -31,17 +31,16 @@ pub fn thread_c() -> isize {
 
 #[no_mangle]
 pub extern "C" fn main() -> i32 {
-    println!("threads test========");
     let mut v = vec![
-        thread_create(thread_a as usize, 0),
-        thread_create(thread_b as usize, 0),
-        thread_create(thread_c as usize, 0),
+        thread_create(thread_a as *const () as usize, 0),
+        thread_create(thread_b as *const () as usize, 0),
+        thread_create(thread_c as *const () as usize, 0),
     ];
     println!("v :{:?}", v);
     let max_len = 5;
     for i in 0..max_len {
         println!("create tid: {}", i + 4);
-        let tid = thread_create(thread_b as usize, 0);
+        let tid = thread_create(thread_b as *const () as usize, 0);
         println!("create tid: {} end", i + 4);
         v.push(tid);
     }
@@ -51,6 +50,6 @@ pub extern "C" fn main() -> i32 {
         println!("thread#{} exited with code {}", tid, exit_code);
     }
     println!("main thread exited.");
-    println!("==========================v size: {:?}", v);
+    println!("threads test passed!");
     0
 }

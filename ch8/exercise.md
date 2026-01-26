@@ -74,7 +74,7 @@ fn enable_deadlock_detect(&self, _caller: Caller, is_enable: i32) -> isize
 │       ├── process.rs（进程结构）
 │       ├── processor.rs（进程/线程管理器）
 │       └── virtio_block.rs（VirtIO 块设备实现）
-├── syscall（系统调用模块）
+├── tg-syscall（系统调用模块）
 │   └── src
 │       └── kernel/mod.rs（SyncMutex trait 定义，无需修改）
 ├── user（用户程序）

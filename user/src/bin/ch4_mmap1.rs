@@ -18,6 +18,6 @@ extern "C" fn main() -> i32 {
     unsafe {
         *addr = start as u8; // 尝试写入只读页，应该触发异常
     }
-    println!("Should cause error, Test ch4_mmap1 fail!");
+    println!("Should cause error, Test 04_2 fail!");
     0
 }
