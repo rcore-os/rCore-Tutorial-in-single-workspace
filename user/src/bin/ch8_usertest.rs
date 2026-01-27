@@ -26,6 +26,7 @@ const TESTS: &[&str] = &[
     "race_adder_mutex_blocking",
     "phil_din_mutex",
     "test_condvar",
+    "pipetest",
     "ch8_deadlock_mutex1",
     "ch8_deadlock_sem1",
     "ch8_deadlock_sem2",

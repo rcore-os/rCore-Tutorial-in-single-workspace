@@ -1,9 +1,12 @@
+use core::cell::Cell;
+
+use crate::pipe::{Pipe, PipeRingBuffer};
+use crate::Inode;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::*;
-
-use crate::Inode;
+use spin::Mutex;
 
 ///Array of u8 slice that user communicate with os
 pub struct UserBuffer {
@@ -28,6 +31,43 @@ impl UserBuffer {
     /// 检查 `UserBuffer` 是否为空。
     pub fn is_empty(&self) -> bool {
         self.buffers.is_empty()
+    }
+}
+
+impl IntoIterator for UserBuffer {
+    type Item = *mut u8;
+    type IntoIter = UserBufferIterator;
+    fn into_iter(self) -> Self::IntoIter {
+        UserBufferIterator {
+            buffers: self.buffers,
+            current_buffer: 0,
+            current_idx: 0,
+        }
+    }
+}
+
+/// 用户缓冲区迭代器
+pub struct UserBufferIterator {
+    buffers: Vec<&'static mut [u8]>,
+    current_buffer: usize,
+    current_idx: usize,
+}
+
+impl Iterator for UserBufferIterator {
+    type Item = *mut u8;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_buffer >= self.buffers.len() {
+            None
+        } else {
+            let r = &mut self.buffers[self.current_buffer][self.current_idx] as *mut _;
+            if self.current_idx + 1 == self.buffers[self.current_buffer].len() {
+                self.current_idx = 0;
+                self.current_buffer += 1;
+            } else {
+                self.current_idx += 1;
+            }
+            Some(r)
+        }
     }
 }
 
@@ -71,10 +111,11 @@ pub struct FileHandle {
     /// Open options: able to write
     pub write: bool,
     /// Current offset
-    pub offset: usize,
-    // TODO: CH7
-    // /// Specify if this is pipe
-    // pub pipe: bool,
+    pub offset: Cell<usize>,
+    /// Specify if this is pipe
+    pub pipe: bool,
+    /// Pipe ring buffer
+    pub buffer: Option<Arc<Mutex<PipeRingBuffer>>>,
 }
 
 impl FileHandle {
@@ -84,7 +125,9 @@ impl FileHandle {
             inode: Some(inode),
             read,
             write,
-            offset: 0,
+            offset: Cell::new(0),
+            pipe: false,
+            buffer: None,
         }
     }
 
@@ -94,7 +137,9 @@ impl FileHandle {
             inode: None,
             read,
             write,
-            offset: 0,
+            offset: Cell::new(0),
+            pipe: false,
+            buffer: None,
         }
     }
 
@@ -108,37 +153,129 @@ impl FileHandle {
         self.write
     }
 
-    /// 从文件读取数据到用户缓冲区。
-    pub fn read(&mut self, mut buf: UserBuffer) -> isize {
-        let mut total_read_size: usize = 0;
-        if let Some(inode) = &self.inode {
-            for slice in buf.buffers.iter_mut() {
-                let read_size = inode.read_at(self.offset, slice);
-                if read_size == 0 {
-                    break;
+    /// 从文件/管道读取数据到用户缓冲区。
+    /// 管道读取返回值：
+    /// - > 0: 实际读取的字节数
+    /// - 0: 写端已关闭且无数据可读（EOF）
+    /// - -2: 当前无数据可读但写端未关闭（需等待）
+    pub fn read(&self, mut buf: UserBuffer) -> isize {
+        if self.pipe {
+            assert!(self.readable() && self.buffer.is_some());
+            let want_to_read = buf.len();
+            let mut buf_iter = buf.into_iter();
+            let mut already_read = 0usize;
+            let mut ring_buffer = self.buffer.as_ref().unwrap().lock();
+            let loop_read = ring_buffer.available_read();
+            if loop_read == 0 {
+                // 无数据可读
+                if ring_buffer.all_write_ends_closed() {
+                    return 0; // EOF
                 }
-                self.offset += read_size;
-                total_read_size += read_size;
+                return -2; // 需等待
             }
-            total_read_size as _
+            // 读取尽可能多的数据
+            for _ in 0..loop_read {
+                if let Some(byte_ref) = buf_iter.next() {
+                    unsafe {
+                        *byte_ref = ring_buffer.read_byte();
+                    }
+                    already_read += 1;
+                    if already_read == want_to_read {
+                        return want_to_read as _;
+                    }
+                } else {
+                    return already_read as _;
+                }
+            }
+            // 缓冲区数据读完但还没满足需求，返回已读取的字节数
+            already_read as _
         } else {
-            -1
+            // 文件读取
+            let mut total_read_size: usize = 0;
+            if let Some(inode) = &self.inode {
+                for slice in buf.buffers.iter_mut() {
+                    let read_size = inode.read_at(self.offset.get(), slice);
+                    if read_size == 0 {
+                        break;
+                    }
+                    self.offset.set(self.offset.get() + read_size);
+                    total_read_size += read_size;
+                }
+                total_read_size as _
+            } else {
+                -1
+            }
         }
     }
 
-    /// 将用户缓冲区数据写入文件。
-    pub fn write(&mut self, buf: UserBuffer) -> isize {
-        let mut total_write_size: usize = 0;
-        if let Some(inode) = &self.inode {
-            for slice in buf.buffers.iter() {
-                let write_size = inode.write_at(self.offset, slice);
-                assert_eq!(write_size, slice.len());
-                self.offset += write_size;
-                total_write_size += write_size;
+    /// 将用户缓冲区数据写入文件/管道
+    /// 管道写入返回值：
+    /// - > 0: 实际写入的字节数
+    /// - -2: 当前无空间可写（需等待）
+    pub fn write(&self, buf: UserBuffer) -> isize {
+        if self.pipe {
+            assert!(self.writable() && self.buffer.is_some());
+            let want_to_write = buf.len();
+            let mut buf_iter = buf.into_iter();
+            let mut already_write = 0usize;
+            let mut ring_buffer = self.buffer.as_ref().unwrap().lock();
+            let loop_write = ring_buffer.available_write();
+            if loop_write == 0 {
+                return -2; // 缓冲区满，需等待
             }
-            total_write_size as _
+            // 写入尽可能多的数据
+            for _ in 0..loop_write {
+                if let Some(byte_ref) = buf_iter.next() {
+                    ring_buffer.write_byte(unsafe { *byte_ref });
+                    already_write += 1;
+                    if already_write == want_to_write {
+                        return want_to_write as _;
+                    }
+                } else {
+                    return already_write as _;
+                }
+            }
+            // 缓冲区写满但还没写完，返回已写入的字节数
+            already_write as _
         } else {
-            -1
+            // 文件写入
+            let mut total_write_size: usize = 0;
+            if let Some(inode) = &self.inode {
+                for slice in buf.buffers.iter() {
+                    let write_size = inode.write_at(self.offset.get(), slice);
+                    assert_eq!(write_size, slice.len());
+                    self.offset.set(self.offset.get() + write_size);
+                    total_write_size += write_size;
+                }
+                total_write_size as _
+            } else {
+                -1
+            }
+        }
+    }
+}
+
+impl Pipe for FileHandle {
+    /// 创建一个管道读端
+    fn read_end(buffer: Arc<Mutex<PipeRingBuffer>>) -> Self {
+        Self {
+            inode: None,
+            read: true,
+            write: false,
+            offset: Cell::new(0),
+            pipe: true,
+            buffer: Some(buffer),
+        }
+    }
+    /// 创建一个管道写端
+    fn write_end(buffer: Arc<Mutex<PipeRingBuffer>>) -> Self {
+        Self {
+            inode: None,
+            read: false,
+            write: true,
+            offset: Cell::new(0),
+            pipe: true,
+            buffer: Some(buffer),
         }
     }
 }

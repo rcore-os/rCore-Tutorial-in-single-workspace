@@ -172,6 +172,11 @@ pub fn kill(pid: isize, signum: SignalNo) -> isize {
     unsafe { syscall2(SyscallId::KILL, pid as _, signum as _) }
 }
 
+/// 调整进程堆大小
+pub fn sbrk(size: i32) -> isize {
+    unsafe { syscall1(SyscallId::BRK, size as _) }
+}
+
 /// 设置信号处理函数。
 #[inline]
 pub fn sigaction(
@@ -321,6 +326,12 @@ pub fn mmap(start: usize, len: usize, prot: usize) -> isize {
 pub fn munmap(start: usize, len: usize) -> isize {
     // SAFETY: 系统调用参数是简单的整数值
     unsafe { syscall2(SyscallId::MUNMAP, start, len) }
+}
+
+/// 创建管道
+#[inline]
+pub fn pipe(pipe_fd: &mut [usize]) -> isize {
+    unsafe { syscall1(SyscallId::PIPE2, pipe_fd.as_mut_ptr() as _) }
 }
 
 /// 这个模块包含调用系统调用的最小封装，用户可以直接使用这些函数调用自定义的系统调用。

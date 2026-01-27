@@ -52,9 +52,9 @@ tg-linker = { path = "tg-linker", version = "0.1.0-preview.2" }
 tg-syscall = { path = "tg-syscall", version = "0.1.0-preview.2" }
 tg-kernel-context = { path = "tg-kernel-context", version = "0.1.0-preview.1" }
 tg-kernel-alloc = { path = "tg-kernel-alloc", version = "0.1.0-preview.2" }
-tg-kernel-vm = { path = "tg-kernel-vm", version = "0.1.0-preview.1" }
+tg-kernel-vm = { path = "tg-kernel-vm", version = "0.1.0-preview.2" }
 tg-task-manage = { path = "tg-task-manage", version = "0.1.0-preview.1" }
-tg-easy-fs = { path = "tg-easy-fs", version = "0.1.0-preview.1" }
+tg-easy-fs = { path = "tg-easy-fs", version = "0.1.0-preview.2" }
 tg-signal-defs = { path = "tg-signal-defs", version = "0.1.0-preview.1" }
 tg-signal = { path = "tg-signal", version = "0.1.0-preview.1" }
 tg-signal-impl = { path = "tg-signal-impl", version = "0.1.0-preview.1" }

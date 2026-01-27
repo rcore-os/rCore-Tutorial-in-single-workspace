@@ -237,8 +237,7 @@ mod impls {
     use core::{alloc::Layout, ptr::NonNull};
     use spin::Mutex;
     use tg_console::log;
-    use tg_easy_fs::UserBuffer;
-    use tg_easy_fs::{FSManager, OpenFlags};
+    use tg_easy_fs::{make_pipe, FSManager, OpenFlags, UserBuffer};
     use tg_kernel_vm::{
         page_table::{MmuMeta, Pte, Sv39, VAddr, VmFlags, PPN, VPN},
         PageManager,
@@ -338,7 +337,7 @@ mod impls {
                     });
                     count as _
                 } else if let Some(file) = &current.fd_table[fd] {
-                    let mut file = file.lock();
+                    let file = file.lock();
                     if file.writable() {
                         let mut v: Vec<&'static mut [u8]> = Vec::new();
                         unsafe { v.push(core::slice::from_raw_parts_mut(ptr.as_ptr(), count)) };
@@ -370,7 +369,7 @@ mod impls {
                     }
                     count as _
                 } else if let Some(file) = &current.fd_table[fd] {
-                    let mut file = file.lock();
+                    let file = file.lock();
                     if file.readable() {
                         let mut v: Vec<&'static mut [u8]> = Vec::new();
                         unsafe { v.push(core::slice::from_raw_parts_mut(ptr.as_ptr(), count)) };
@@ -410,7 +409,7 @@ mod impls {
                     FS.open(string.as_str(), OpenFlags::from_bits(flags as u32).unwrap())
                 {
                     let new_fd = current.fd_table.len();
-                    current.fd_table.push(Some(Mutex::new(fd.as_ref().clone())));
+                    current.fd_table.push(Some(Mutex::new(fd)));
                     new_fd as isize
                 } else {
                     -1
@@ -428,6 +427,35 @@ mod impls {
                 return -1;
             }
             current.fd_table[fd].take();
+            0
+        }
+
+        fn pipe(&self, _caller: Caller, pipe: usize) -> isize {
+            let current = PROCESSOR.get_mut().current().unwrap();
+            let (read_end, write_end) = make_pipe();
+            let read_fd = current.fd_table.len();
+            let write_fd = read_fd + 1;
+            // 将 read_fd 写入 pipe[0]
+            if let Some(mut ptr) = current
+                .address_space
+                .translate::<usize>(VAddr::new(pipe), WRITEABLE)
+            {
+                unsafe { *ptr.as_mut() = read_fd };
+            } else {
+                return -1;
+            }
+            // 将 write_fd 写入 pipe[1]
+            if let Some(mut ptr) = current
+                .address_space
+                .translate::<usize>(VAddr::new(pipe + core::mem::size_of::<usize>()), WRITEABLE)
+            {
+                unsafe { *ptr.as_mut() = write_fd };
+            } else {
+                return -1;
+            }
+            // 最后添加，避免中途写入异常导致浪费一个 fd
+            current.fd_table.push(Some(Mutex::new(read_end)));
+            current.fd_table.push(Some(Mutex::new(write_end)));
             0
         }
     }
@@ -502,6 +530,15 @@ mod impls {
         fn getpid(&self, _caller: Caller) -> isize {
             let current = PROCESSOR.get_mut().current().unwrap();
             current.pid.get_usize() as _
+        }
+
+        fn sbrk(&self, _caller: Caller, size: i32) -> isize {
+            let current = PROCESSOR.get_mut().current().unwrap();
+            if let Some(old_brk) = current.change_program_brk(size as isize) {
+                old_brk as isize
+            } else {
+                -1
+            }
         }
     }
 

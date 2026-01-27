@@ -327,6 +327,18 @@ mod impls {
         fn exit(&self, _caller: Caller, _status: usize) -> isize {
             0
         }
+
+        fn sbrk(&self, caller: Caller, size: i32) -> isize {
+            if let Some(process) = unsafe { PROCESSES.get_mut() }.get_mut(caller.entity) {
+                if let Some(old_brk) = process.change_program_brk(size as isize) {
+                    old_brk as isize
+                } else {
+                    -1
+                }
+            } else {
+                -1
+            }
+        }
     }
 
     impl Scheduling for SyscallContext {

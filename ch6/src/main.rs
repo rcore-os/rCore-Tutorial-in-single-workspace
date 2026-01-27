@@ -324,7 +324,7 @@ mod impls {
                     });
                     count as _
                 } else if let Some(file) = &current.fd_table[fd] {
-                    let mut file = file.lock();
+                    let file = file.lock();
                     if file.writable() {
                         let mut v: Vec<&'static mut [u8]> = Vec::new();
                         unsafe { v.push(core::slice::from_raw_parts_mut(ptr.as_ptr(), count)) };
@@ -356,7 +356,7 @@ mod impls {
                     }
                     count as _
                 } else if let Some(file) = &current.fd_table[fd] {
-                    let mut file = file.lock();
+                    let file = file.lock();
                     if file.readable() {
                         let mut v: Vec<&'static mut [u8]> = Vec::new();
                         unsafe { v.push(core::slice::from_raw_parts_mut(ptr.as_ptr(), count)) };
@@ -524,6 +524,15 @@ mod impls {
                 current.pid.get_usize()
             );
             -1
+        }
+
+        fn sbrk(&self, _caller: Caller, size: i32) -> isize {
+            let current = PROCESSOR.get_mut().current().unwrap();
+            if let Some(old_brk) = current.change_program_brk(size as isize) {
+                old_brk as isize
+            } else {
+                -1
+            }
         }
     }
 

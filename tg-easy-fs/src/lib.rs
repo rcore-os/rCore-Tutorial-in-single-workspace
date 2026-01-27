@@ -12,6 +12,7 @@ mod block_dev;
 mod efs;
 mod file;
 mod layout;
+mod pipe;
 mod vfs;
 /// Use a block size of 512 bytes
 pub const BLOCK_SZ: usize = 512;
@@ -21,4 +22,5 @@ pub use block_dev::BlockDevice;
 pub use efs::EasyFileSystem;
 pub use file::*;
 use layout::*;
+pub use pipe::make_pipe;
 pub use vfs::Inode;

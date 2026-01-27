@@ -81,6 +81,73 @@ impl<Meta: VmMeta, M: PageManager<Meta>> AddressSpace<Meta, M> {
         self.map_extern(range, self.page_manager.v_to_p(page), flags)
     }
 
+    /// 取消指定 VPN 范围的映射
+    pub fn unmap(&mut self, range: Range<VPN<Meta>>) {
+        // 从 areas 中移除该范围（可能需要拆分现有区域）
+        let mut new_areas = Vec::new();
+        for area in self.areas.drain(..) {
+            if area.end <= range.start || area.start >= range.end {
+                // 不重叠，保留原区域
+                new_areas.push(area);
+            } else {
+                // 有重叠，需要拆分
+                if area.start < range.start {
+                    new_areas.push(area.start..range.start);
+                }
+                if area.end > range.end {
+                    new_areas.push(range.end..area.end);
+                }
+            }
+        }
+        self.areas = new_areas;
+
+        // 清除页表项（将 PTE 设为无效，即写入 0）
+        let mut vpn = range.start;
+        while vpn < range.end {
+            // 使用 visitor 找到 PTE 并清除
+            if let Some(pte_ptr) = self.find_pte_mut(vpn) {
+                unsafe {
+                    core::ptr::write_bytes(
+                        pte_ptr as *mut u8,
+                        0,
+                        core::mem::size_of::<page_table::Pte<Meta>>(),
+                    )
+                };
+            }
+            vpn = vpn + 1;
+        }
+    }
+
+    /// 查找指定 VPN 的 PTE 指针（用于修改）
+    fn find_pte_mut(&self, vpn: VPN<Meta>) -> Option<*mut page_table::Pte<Meta>> {
+        let mut current = self.page_manager.root_ptr();
+
+        for level in (0..=Meta::MAX_LEVEL).rev() {
+            let idx = vpn.index_in(level);
+            let pte_ptr = unsafe { current.as_ptr().add(idx) };
+            let pte = unsafe { *pte_ptr };
+
+            if level == 0 {
+                return Some(pte_ptr);
+            }
+
+            if !pte.is_valid() {
+                return None;
+            }
+
+            // 如果是叶子节点（大页），也返回
+            // 检查 R 或 X 位来判断是否是叶子节点
+            let flags_raw = pte.flags().val();
+            let is_leaf = (flags_raw & 0b1010) != 0; // R=bit1, X=bit3
+            if is_leaf {
+                return Some(pte_ptr);
+            }
+
+            current = self.page_manager.p_to_v(pte.ppn());
+        }
+        None
+    }
+
     /// 检查 `flags` 的属性要求，然后将地址空间中的一个虚地址翻译成当前地址空间中的指针。
     pub fn translate<T>(&self, addr: VAddr<Meta>, flags: VmFlags<Meta>) -> Option<NonNull<T>> {
         let mut visitor = Visitor::new(self);

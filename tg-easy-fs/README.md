@@ -12,6 +12,7 @@ This crate provides a lightweight filesystem (EasyFS) implementation designed fo
 - **Inode-based structure**: Unix-like inode system for file metadata management
 - **Block caching**: Efficient block cache layer for improved I/O performance
 - **Bitmap allocation**: Bitmap-based block and inode allocation
+- **Pipe support**: IPC pipe implementation with ring buffer
 - **no_std compatible**: Designed for bare-metal kernel environments
 
 ## Usage
@@ -31,6 +32,7 @@ use tg_easy_fs::{BlockDevice, EasyFileSystem, Inode};
 - `EasyFileSystem` - Main filesystem structure
 - `Inode` - Virtual filesystem node interface
 - `BlockCache` - Block caching layer
+- `make_pipe` - IPC pipe support
 
 ## License
 

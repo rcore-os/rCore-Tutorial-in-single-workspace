@@ -93,3 +93,52 @@ pub fn trace_write(ptr: *const u8, value: u8) -> isize {
 pub fn count_syscall(syscall_id: usize) -> isize {
     trace(2, syscall_id, 0)
 }
+
+/// 从管道读取数据
+/// 返回实际读取的总字节数，负数表示错误
+pub fn pipe_read(pipe_fd: usize, buffer: &mut [u8]) -> isize {
+    let mut total_read = 0usize;
+    let len = buffer.len();
+    loop {
+        if total_read >= len {
+            return total_read as isize;
+        }
+        let ret = read(pipe_fd, &mut buffer[total_read..]);
+        if ret == -2 {
+            // 暂时无数据，让出 CPU 后重试
+            sched_yield();
+            continue;
+        } else if ret == 0 {
+            // EOF，写端关闭
+            return total_read as isize;
+        } else if ret < 0 {
+            // 其他错误
+            return ret;
+        } else {
+            total_read += ret as usize;
+        }
+    }
+}
+
+/// 向管道写入数据
+/// 返回实际写入的总字节数，负数表示错误
+pub fn pipe_write(pipe_fd: usize, buffer: &[u8]) -> isize {
+    let mut total_write = 0usize;
+    let len = buffer.len();
+    loop {
+        if total_write >= len {
+            return total_write as isize;
+        }
+        let ret = write(pipe_fd, &buffer[total_write..]);
+        if ret == -2 {
+            // 缓冲区满，让出 CPU 后重试
+            sched_yield();
+            continue;
+        } else if ret < 0 {
+            // 其他错误
+            return ret;
+        } else {
+            total_write += ret as usize;
+        }
+    }
+}

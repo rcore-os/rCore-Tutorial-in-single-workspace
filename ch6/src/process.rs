@@ -23,6 +23,10 @@ pub struct Process {
     pub address_space: AddressSpace<Sv39, Sv39Manager>,
     /// 文件描述符表
     pub fd_table: Vec<Option<Mutex<FileHandle>>>,
+    /// 堆底
+    pub heap_bottom: usize,
+    /// 当前程序 break 位置
+    pub program_brk: usize,
 }
 
 impl Process {
@@ -30,6 +34,8 @@ impl Process {
         let proc = Process::from_elf(elf).unwrap();
         self.address_space = proc.address_space;
         self.context = proc.context;
+        self.heap_bottom = proc.heap_bottom;
+        self.program_brk = proc.program_brk;
     }
 
     pub fn fork(&mut self) -> Option<Process> {
@@ -58,6 +64,8 @@ impl Process {
             context: foreign_ctx,
             address_space,
             fd_table: new_fd_table,
+            heap_bottom: self.heap_bottom,
+            program_brk: self.program_brk,
         })
     }
 
@@ -76,6 +84,7 @@ impl Process {
         const PAGE_MASK: usize = PAGE_SIZE - 1;
 
         let mut address_space = AddressSpace::new();
+        let mut max_end_va: usize = 0;
         for program in elf.program_iter() {
             if !matches!(program.get_type(), Ok(program::Type::Load)) {
                 continue;
@@ -86,6 +95,10 @@ impl Process {
             let off_mem = program.virtual_addr() as usize;
             let end_mem = off_mem + program.mem_size() as usize;
             assert_eq!(off_file & PAGE_MASK, off_mem & PAGE_MASK);
+
+            if end_mem > max_end_va {
+                max_end_va = end_mem;
+            }
 
             let mut flags: [u8; 5] = *b"U___V";
             if program.flags().is_execute() {
@@ -104,6 +117,10 @@ impl Process {
                 VmFlags::from_str(unsafe { core::str::from_utf8_unchecked(&flags) }).unwrap(),
             );
         }
+
+        // 堆底从 ELF 加载的最高地址的下一页开始
+        let heap_bottom = VAddr::<Sv39>::new(max_end_va).ceil().base().val();
+
         // 映射用户栈
         let stack = unsafe {
             alloc_zeroed(Layout::from_size_align_unchecked(
@@ -134,6 +151,43 @@ impl Process {
                 // Stderr
                 Some(Mutex::new(FileHandle::empty(false, true))),
             ],
+            heap_bottom,
+            program_brk: heap_bottom,
         })
+    }
+
+    /// 修改程序 break 位置，返回旧的 break 地址，失败返回 None
+    pub fn change_program_brk(&mut self, size: isize) -> Option<usize> {
+        let old_brk = self.program_brk;
+        let new_brk = self.program_brk as isize + size;
+        if new_brk < self.heap_bottom as isize {
+            return None;
+        }
+        let new_brk = new_brk as usize;
+
+        let old_brk_ceil = VAddr::<Sv39>::new(old_brk).ceil();
+        let new_brk_ceil = VAddr::<Sv39>::new(new_brk).ceil();
+
+        if size > 0 {
+            // 扩展堆
+            if new_brk_ceil.val() > old_brk_ceil.val() {
+                // 需要映射新页面
+                self.address_space.map(
+                    old_brk_ceil..new_brk_ceil,
+                    &[],
+                    0,
+                    VmFlags::build_from_str("U_WRV"),
+                );
+            }
+        } else if size < 0 {
+            // 收缩堆
+            if old_brk_ceil.val() > new_brk_ceil.val() {
+                // 需要取消映射页面
+                self.address_space.unmap(new_brk_ceil..old_brk_ceil);
+            }
+        }
+
+        self.program_brk = new_brk;
+        Some(old_brk)
     }
 }

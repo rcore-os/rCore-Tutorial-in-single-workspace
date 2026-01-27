@@ -28,6 +28,7 @@ static TESTS: &[&str] = &[
     "14forktest2",
     "fork_exit",
     "forktest_simple",
+    "sbrk",
     "filetest_simple",
     "ch6_file0",
     "ch6_file1",
