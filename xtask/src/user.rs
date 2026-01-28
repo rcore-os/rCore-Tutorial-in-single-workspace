@@ -17,11 +17,15 @@ pub struct CasesInfo {
 }
 
 impl Cases {
-    fn build(&mut self, ch: u8, release: bool, ci: bool) -> CasesInfo {
+    fn build(&mut self, ch: u8, release: bool, ci: bool, exercise: bool) -> CasesInfo {
         if let Some(names) = &self.cases {
             let base = self.base.unwrap_or(0);
             let step = self.step.filter(|_| self.base.is_some()).unwrap_or(0);
-            let chapter_env = if ci { Some(ch) } else { None };
+            let chapter_env: Option<i8> = if ci {
+                Some(if exercise { ch as i8 } else { -(ch as i8) })
+            } else {
+                None
+            };
             let cases = names
                 .iter()
                 .enumerate()
@@ -43,7 +47,7 @@ impl Cases {
 }
 
 fn build_one(
-    chapter_env: Option<u8>,
+    chapter_env: Option<i8>,
     name: impl AsRef<OsStr>,
     release: bool,
     base_address: u64,
@@ -89,7 +93,7 @@ pub fn build_for(ch: u8, release: bool, exercise: bool, ci: bool) {
         .unwrap()
         .remove(&key)
         .unwrap_or_default();
-    let CasesInfo { base, step, bins } = cases.build(ch, release, ci);
+    let CasesInfo { base, step, bins } = cases.build(ch, release, ci, exercise);
     if bins.is_empty() {
         return;
     }

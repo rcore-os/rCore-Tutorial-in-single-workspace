@@ -1,4 +1,4 @@
-﻿name: CI
+name: CI
 
 on:
   push:
@@ -20,6 +20,66 @@ jobs:
 
       - name: Check format
         run: cargo fmt --all --check
+
+  qemu-base:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-system-misc \
+            python3 \
+            git \
+            curl \
+            build-essential
+
+      - name: Sanity check system tools
+        run: |
+          set -eux
+          qemu-system-riscv64 --version
+          python3 --version
+          git --version
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv64gc-unknown-none-elf
+          components: rust-src, llvm-tools-preview
+
+      - name: Sanity check Rust
+        run: |
+          set -eux
+          rustc --version
+          cargo --version
+          rustup --version
+
+      - name: Mark workspace as safe git directory
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout checker
+        run: |
+          git clone --depth 1 https://github.com/LearningOS/rCore-Tutorial-Checker-2025S.git checker
+
+      - name: Run base tests (ch2-8)
+        run: |
+          set -ux
+          failed=0
+          for ch in 2 3 4 5 6 7 8; do
+            echo "========== Testing ch${ch} base =========="
+            if timeout 6m cargo qemu --ch ${ch} --nobios --ci 2>&1 \
+                | python3 checker/check/ch${ch}b.py; then
+              echo "ch${ch} PASSED"
+            else
+              echo "ch${ch} FAILED"
+              failed=1
+            fi
+          done
+          exit $failed
 
   qemu-exercise:
     runs-on: ubuntu-latest

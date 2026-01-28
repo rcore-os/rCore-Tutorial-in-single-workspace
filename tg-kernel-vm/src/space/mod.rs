@@ -116,6 +116,12 @@ impl<Meta: VmMeta, M: PageManager<Meta>> AddressSpace<Meta, M> {
             }
             vpn = vpn + 1;
         }
+
+        // 刷新地址空间
+        #[cfg(target_arch = "riscv64")]
+        unsafe {
+            core::arch::asm!("sfence.vma")
+        };
     }
 
     /// 查找指定 VPN 的 PTE 指针（用于修改）

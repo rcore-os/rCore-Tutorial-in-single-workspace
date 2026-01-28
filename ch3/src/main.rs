@@ -18,7 +18,7 @@ core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 应用程序数量。
 const APP_CAPACITY: usize = 32;
 // 定义内核入口。
-tg_linker::boot0!(rust_main; stack = (APP_CAPACITY + 2) * 4096);
+tg_linker::boot0!(rust_main; stack = (APP_CAPACITY + 2) * 8192);
 
 extern "C" fn rust_main() -> ! {
     // bss 段清零

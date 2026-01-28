@@ -76,14 +76,7 @@ struct BuildArgs {
 }
 
 impl BuildArgs {
-    fn check(&self) {
-        if self.ci && !self.exercise {
-            eprintln!("need `--exercise` when `ci` is set");
-            std::process::exit(1);
-        }
-    }
     fn make(&self) -> PathBuf {
-        self.check();
         let mut env: HashMap<&str, OsString> = HashMap::new();
         let package = match self.ch {
             1 => if self.lab { "tg-ch1-lab" } else { "tg-ch1" }.to_string(),

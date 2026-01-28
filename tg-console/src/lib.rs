@@ -1,4 +1,4 @@
-﻿//! 提供可定制实现的 `print!`、`println!` 和 `log::Log`。
+//! 提供可定制实现的 `print!`、`println!` 和 `log::Log`。
 
 #![no_std]
 #![deny(warnings, missing_docs)]
@@ -30,6 +30,66 @@ pub trait Console: Sync {
 
 /// 库找到输出的方法：保存一个对象引用，这是一种单例。
 static CONSOLE: Once<&'static dyn Console> = Once::new();
+
+/// 打印缓冲区大小。
+const BUFFER_SIZE: usize = 64;
+
+/// 打印缓冲区，用于收集格式化输出后一次性输出，避免抢占导致输出交错。
+struct PrintBuffer {
+    buffer: [u8; BUFFER_SIZE],
+    pos: usize,
+}
+
+impl PrintBuffer {
+    /// 创建一个新的打印缓冲区。
+    const fn new() -> Self {
+        Self {
+            buffer: [0u8; BUFFER_SIZE],
+            pos: 0,
+        }
+    }
+
+    /// 刷新缓冲区，将内容输出到控制台。
+    fn flush(&mut self) {
+        if self.pos > 0 {
+            if let Some(console) = CONSOLE.get() {
+                // SAFETY: buffer 中的内容是从 str 写入的，保证是有效的 UTF-8
+                let s = unsafe { core::str::from_utf8_unchecked(&self.buffer[..self.pos]) };
+                console.put_str(s);
+            }
+            self.pos = 0;
+        }
+    }
+
+    /// 写入字符串到缓冲区，必要时刷新。
+    fn write(&mut self, s: &str) {
+        let bytes = s.as_bytes();
+        let mut offset = 0;
+
+        while offset < bytes.len() {
+            let remaining_buffer = BUFFER_SIZE - self.pos;
+            let remaining_input = bytes.len() - offset;
+            let to_copy = remaining_buffer.min(remaining_input);
+
+            self.buffer[self.pos..self.pos + to_copy]
+                .copy_from_slice(&bytes[offset..offset + to_copy]);
+            self.pos += to_copy;
+            offset += to_copy;
+
+            // 缓冲区满了，刷新
+            if self.pos == BUFFER_SIZE {
+                self.flush();
+            }
+        }
+    }
+}
+
+impl Write for PrintBuffer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write(s);
+        Ok(())
+    }
+}
 
 /// 用户调用这个函数设置输出的方法。
 pub fn init_console(console: &'static dyn Console) {
@@ -65,10 +125,13 @@ pub fn test_log() {
 /// 打印。
 ///
 /// 给宏用的，用户不会直接调它。
+/// 使用栈上缓冲区收集格式化输出，然后一次性输出到控制台。
 #[doc(hidden)]
 #[inline]
 pub fn _print(args: fmt::Arguments) {
-    Logger.write_fmt(args).unwrap();
+    let mut buffer = PrintBuffer::new();
+    buffer.write_fmt(args).unwrap();
+    buffer.flush();
 }
 
 /// 格式化打印。

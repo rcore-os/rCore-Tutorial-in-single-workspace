@@ -15,7 +15,7 @@ use tg_syscall::{Caller, SyscallId};
 // 用户程序内联进来。
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 定义内核入口。
-tg_linker::boot0!(rust_main; stack = 4 * 4096);
+tg_linker::boot0!(rust_main; stack = 8 * 4096);
 
 extern "C" fn rust_main() -> ! {
     // bss 段清零
@@ -34,9 +34,9 @@ extern "C" fn rust_main() -> ! {
         // 初始化上下文
         let mut ctx = LocalContext::user(app_base);
         // 设置用户栈（使用 MaybeUninit 避免 release 模式下零初始化的问题）
-        let mut user_stack: core::mem::MaybeUninit<[usize; 256]> = core::mem::MaybeUninit::uninit();
+        let mut user_stack: core::mem::MaybeUninit<[usize; 512]> = core::mem::MaybeUninit::uninit();
         let user_stack_ptr = user_stack.as_mut_ptr() as *mut usize;
-        *ctx.sp_mut() = unsafe { user_stack_ptr.add(256) } as usize;
+        *ctx.sp_mut() = unsafe { user_stack_ptr.add(512) } as usize;
         loop {
             unsafe { ctx.execute() };
 

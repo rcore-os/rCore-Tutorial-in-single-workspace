@@ -47,7 +47,7 @@ riscv = "0.10"
 numeric-enum-macro = "0.2"
 
 # 内部 crate 依赖
-tg-console = { path = "tg-console", version = "0.1.0-preview.1" }
+tg-console = { path = "tg-console", version = "0.1.0-preview.2" }
 tg-linker = { path = "tg-linker", version = "0.1.0-preview.2" }
 tg-syscall = { path = "tg-syscall", version = "0.1.0-preview.2" }
 tg-kernel-context = { path = "tg-kernel-context", version = "0.1.0-preview.1" }

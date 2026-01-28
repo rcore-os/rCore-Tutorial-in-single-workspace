@@ -1,4 +1,4 @@
-﻿use tg_kernel_context::LocalContext;
+use tg_kernel_context::LocalContext;
 use tg_syscall::{Caller, SyscallId};
 
 /// 任务控制块。
@@ -7,7 +7,7 @@ use tg_syscall::{Caller, SyscallId};
 pub struct TaskControlBlock {
     ctx: LocalContext,
     pub finish: bool,
-    stack: [usize; 256],
+    stack: [usize; 1024], // 8KB 用户栈，避免栈溢出覆盖上下文
 }
 
 /// 调度事件。
@@ -22,7 +22,7 @@ impl TaskControlBlock {
     pub const ZERO: Self = Self {
         ctx: LocalContext::empty(),
         finish: false,
-        stack: [0; 256],
+        stack: [0; 1024],
     };
 
     /// 初始化一个任务。
