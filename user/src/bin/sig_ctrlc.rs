@@ -20,7 +20,7 @@ pub extern "C" fn main() -> i32 {
 
     let mut new = SignalAction::default();
     let old = SignalAction::default();
-    new.handler = func as usize;
+    new.handler = func as *const () as usize;
 
     println!("sig_ctrlc: sigaction");
     if sigaction(SignalNo::SIGINT, &new, &old) < 0 {

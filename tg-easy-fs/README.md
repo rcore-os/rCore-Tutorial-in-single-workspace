@@ -12,7 +12,7 @@ This crate provides a lightweight filesystem (EasyFS) implementation designed fo
 - **Inode-based structure**: Unix-like inode system for file metadata management
 - **Block caching**: Efficient block cache layer for improved I/O performance
 - **Bitmap allocation**: Bitmap-based block and inode allocation
-- **Pipe support**: IPC pipe implementation with ring buffer
+- **Pipe support**: IPC pipe implementation with dedicated `PipeReader`/`PipeWriter` types
 - **no_std compatible**: Designed for bare-metal kernel environments
 
 ## Usage
@@ -20,10 +20,14 @@ This crate provides a lightweight filesystem (EasyFS) implementation designed fo
 This crate is primarily used within the rCore tutorial kernel (ch6+) for file operations.
 
 ```rust
-use tg_easy_fs::{BlockDevice, EasyFileSystem, Inode};
+use tg_easy_fs::{BlockDevice, EasyFileSystem, Inode, FileHandle};
+use tg_easy_fs::{make_pipe, PipeReader, PipeWriter};
 
-// Implement BlockDevice trait for your storage device
-// Then create and use the filesystem
+// File operations
+let file = FileHandle::new(readable, writable, inode);
+
+// Pipe operations
+let (reader, writer): (PipeReader, Arc<PipeWriter>) = make_pipe();
 ```
 
 ## Architecture
@@ -32,7 +36,9 @@ use tg_easy_fs::{BlockDevice, EasyFileSystem, Inode};
 - `EasyFileSystem` - Main filesystem structure
 - `Inode` - Virtual filesystem node interface
 - `BlockCache` - Block caching layer
-- `make_pipe` - IPC pipe support
+- `FileHandle` - File descriptor with read/write offset tracking
+- `PipeReader` / `PipeWriter` - IPC pipe endpoints (thread-safe)
+- `make_pipe()` - Creates a pipe pair for inter-process communication
 
 ## License
 

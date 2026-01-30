@@ -1,10 +1,10 @@
-use crate::Sv39Manager;
+use crate::{build_flags, parse_flags, Sv39, Sv39Manager};
 use alloc::alloc::alloc_zeroed;
-use core::{alloc::Layout, str::FromStr};
+use core::alloc::Layout;
 use tg_console::log;
 use tg_kernel_context::{foreign::ForeignContext, LocalContext};
 use tg_kernel_vm::{
-    page_table::{MmuMeta, Sv39, VAddr, VmFlags, PPN, VPN},
+    page_table::{MmuMeta, VAddr, PPN, VPN},
     AddressSpace,
 };
 use xmas_elf::{
@@ -68,7 +68,7 @@ impl Process {
                 VAddr::new(off_mem).floor()..VAddr::new(end_mem).ceil(),
                 &elf.input[off_file..][..len_file],
                 off_mem & PAGE_MASK,
-                VmFlags::from_str(unsafe { core::str::from_utf8_unchecked(&flags) }).unwrap(),
+                parse_flags(unsafe { core::str::from_utf8_unchecked(&flags) }).unwrap(),
             );
         }
 
@@ -84,7 +84,7 @@ impl Process {
         address_space.map_extern(
             VPN::new((1 << 26) - 2)..VPN::new(1 << 26),
             PPN::new(stack as usize >> Sv39::PAGE_BITS),
-            VmFlags::build_from_str("U_WRV"),
+            build_flags("U_WRV"),
         );
 
         log::info!(
@@ -120,12 +120,8 @@ impl Process {
             // 扩展堆
             if new_brk_ceil.val() > old_brk_ceil.val() {
                 // 需要映射新页面
-                self.address_space.map(
-                    old_brk_ceil..new_brk_ceil,
-                    &[],
-                    0,
-                    VmFlags::build_from_str("U_WRV"),
-                );
+                self.address_space
+                    .map(old_brk_ceil..new_brk_ceil, &[], 0, build_flags("U_WRV"));
             }
         } else if size < 0 {
             // 收缩堆

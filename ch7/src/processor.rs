@@ -22,6 +22,7 @@ impl Processor {
     }
 }
 
+/// 处理器实例
 pub static PROCESSOR: Processor = Processor::new();
 
 /// 任务管理器

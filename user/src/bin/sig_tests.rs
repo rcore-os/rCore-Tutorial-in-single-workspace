@@ -49,7 +49,7 @@ fn user_sig_test_multiprocsignals() {
     if pid == 0 {
         let mut new = SignalAction::default();
         let old = SignalAction::default();
-        new.handler = func as usize;
+        new.handler = func as *const () as usize;
         if sigaction(SignalNo::SIGUSR1, &new, &old) < 0 {
             panic!("Sigaction failed!");
         }
@@ -67,7 +67,7 @@ fn user_sig_test_restore() {
     let mut new = SignalAction::default();
     let old = SignalAction::default();
     let old2 = SignalAction::default();
-    new.handler = func as usize;
+    new.handler = func as *const () as usize;
 
     if sigaction(SignalNo::SIGUSR1, &new, &old) < 0 {
         panic!("Sigaction failed!");
@@ -108,7 +108,7 @@ fn kernel_sig_test_stop_cont() {
 fn kernel_sig_test_failignorekill() {
     let mut new = SignalAction::default();
     let old = SignalAction::default();
-    new.handler = func as usize;
+    new.handler = func as *const () as usize;
 
     if sigaction(SignalNo::SIGKILL, &new, &old) >= 0 {
         panic!("Should not set sigaction to kill!");
@@ -126,11 +126,11 @@ fn kernel_sig_test_failignorekill() {
 fn final_sig_test() {
     let mut new = SignalAction::default();
     let old = SignalAction::default();
-    new.handler = func2 as usize;
+    new.handler = func2 as *const () as usize;
 
     let mut new2 = SignalAction::default();
     let old2 = SignalAction::default();
-    new2.handler = func3 as usize;
+    new2.handler = func3 as *const () as usize;
 
     let pid = fork();
     if pid == 0 {

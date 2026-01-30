@@ -1,5 +1,10 @@
+//! 第五章：进程
+//!
+//! 本章实现了完整的进程管理，支持进程创建、执行、等待等操作。
 #![no_std]
 #![no_main]
+#![cfg_attr(target_arch = "riscv64", deny(warnings, missing_docs))]
+#![cfg_attr(not(target_arch = "riscv64"), allow(dead_code, unused_imports))]
 
 mod process;
 mod processor;
@@ -9,17 +14,23 @@ extern crate tg_console;
 
 extern crate alloc;
 
+use crate::{
+    impls::{Console, Sv39Manager, SyscallContext},
+    process::Process,
+    processor::{ProcManager, PROCESSOR},
+};
 use alloc::{alloc::alloc, collections::BTreeMap};
 use core::{alloc::Layout, cell::UnsafeCell, ffi::CStr, mem::MaybeUninit};
-use impls::{Console, Sv39Manager, SyscallContext};
-use process::Process;
-use processor::{ProcManager, PROCESSOR};
 use riscv::register::*;
 use spin::Lazy;
+#[cfg(not(target_arch = "riscv64"))]
+use stub::Sv39;
 use tg_console::log;
 use tg_kernel_context::foreign::MultislotPortal;
+#[cfg(target_arch = "riscv64")]
+use tg_kernel_vm::page_table::Sv39;
 use tg_kernel_vm::{
-    page_table::{MmuMeta, Sv39, VAddr, VmFlags, VmMeta, PPN, VPN},
+    page_table::{MmuMeta, VAddr, VmFlags, VmMeta, PPN, VPN},
     AddressSpace,
 };
 use tg_sbi;
@@ -27,9 +38,26 @@ use tg_syscall::Caller;
 use tg_task_manage::{PManager, ProcId};
 use xmas_elf::ElfFile;
 
+/// 构建 VmFlags。
+#[cfg(target_arch = "riscv64")]
+const fn build_flags(s: &str) -> VmFlags<Sv39> {
+    VmFlags::build_from_str(s)
+}
+
+/// 解析 VmFlags。
+#[cfg(target_arch = "riscv64")]
+fn parse_flags(s: &str) -> Result<VmFlags<Sv39>, ()> {
+    s.parse()
+}
+
+#[cfg(not(target_arch = "riscv64"))]
+use stub::{build_flags, parse_flags};
+
 // 应用程序内联进来。
+#[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 定义内核入口。
+#[cfg(target_arch = "riscv64")]
 tg_linker::boot0!(rust_main; stack = 32 * 4096);
 // 物理内存容量 = 48 MiB。
 const MEMORY: usize = 48 << 20;
@@ -155,6 +183,7 @@ extern "C" fn rust_main() -> ! {
 }
 
 /// Rust 异常处理函数，以异常方式关机。
+#[cfg(target_arch = "riscv64")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
@@ -176,7 +205,7 @@ fn kernel_space(layout: tg_linker::KernelLayout, memory: usize, portal: usize) {
         space.map_extern(
             s.floor()..e.ceil(),
             PPN::new(s.floor().val()),
-            VmFlags::build_from_str(flags),
+            build_flags(flags),
         )
     }
     let s = VAddr::<Sv39>::new(layout.end());
@@ -185,12 +214,12 @@ fn kernel_space(layout: tg_linker::KernelLayout, memory: usize, portal: usize) {
     space.map_extern(
         s.floor()..e.ceil(),
         PPN::new(s.floor().val()),
-        VmFlags::build_from_str("_WRV"),
+        build_flags("_WRV"),
     );
     space.map_extern(
         PROTAL_TRANSIT..PROTAL_TRANSIT + 1,
         PPN::new(portal >> Sv39::PAGE_BITS),
-        VmFlags::build_from_str("__G_XWRV"),
+        build_flags("__G_XWRV"),
     );
     println!();
     unsafe { satp::set(satp::Mode::Sv39, 0, space.root_ppn().val()) };
@@ -205,12 +234,14 @@ fn map_portal(space: &AddressSpace<Sv39, Sv39Manager>) {
 
 /// 各种接口库的实现。
 mod impls {
-    use crate::{process::Process as ProcStruct, processor::ProcManager, APPS, PROCESSOR};
+    use crate::{
+        build_flags, process::Process as ProcStruct, processor::ProcManager, Sv39, APPS, PROCESSOR,
+    };
     use alloc::alloc::alloc_zeroed;
     use core::{alloc::Layout, ptr::NonNull};
     use tg_console::log;
     use tg_kernel_vm::{
-        page_table::{MmuMeta, Pte, Sv39, VAddr, VmFlags, PPN, VPN},
+        page_table::{MmuMeta, Pte, VAddr, VmFlags, PPN, VPN},
         PageManager,
     };
     use tg_syscall::*;
@@ -296,13 +327,13 @@ mod impls {
         fn write(&self, _caller: Caller, fd: usize, buf: usize, count: usize) -> isize {
             match fd {
                 STDOUT | STDDEBUG => {
-                    const READABLE: VmFlags<Sv39> = VmFlags::build_from_str("RV");
+                    const READABLE: VmFlags<Sv39> = build_flags("RV");
                     if let Some(ptr) = PROCESSOR
                         .get_mut()
                         .current()
                         .unwrap()
                         .address_space
-                        .translate(VAddr::new(buf), READABLE)
+                        .translate::<u8>(VAddr::new(buf), READABLE)
                     {
                         print!("{}", unsafe {
                             core::str::from_utf8_unchecked(core::slice::from_raw_parts(
@@ -326,13 +357,13 @@ mod impls {
         #[inline]
         fn read(&self, _caller: Caller, fd: usize, buf: usize, count: usize) -> isize {
             if fd == STDIN {
-                const WRITEABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
+                const WRITEABLE: VmFlags<Sv39> = build_flags("W_V");
                 if let Some(mut ptr) = PROCESSOR
                     .get_mut()
                     .current()
                     .unwrap()
                     .address_space
-                    .translate(VAddr::new(buf), WRITEABLE)
+                    .translate::<u8>(VAddr::new(buf), WRITEABLE)
                 {
                     let mut ptr = unsafe { ptr.as_mut() } as *mut u8;
                     for _ in 0..count {
@@ -373,11 +404,11 @@ mod impls {
         }
 
         fn exec(&self, _caller: Caller, path: usize, count: usize) -> isize {
-            const READABLE: VmFlags<Sv39> = VmFlags::build_from_str("RV");
+            const READABLE: VmFlags<Sv39> = build_flags("RV");
             let current = PROCESSOR.get_mut().current().unwrap();
             current
                 .address_space
-                .translate(VAddr::new(path), READABLE)
+                .translate::<u8>(VAddr::new(path), READABLE)
                 .map(|ptr| unsafe {
                     core::str::from_utf8_unchecked(core::slice::from_raw_parts(ptr.as_ptr(), count))
                 })
@@ -400,7 +431,7 @@ mod impls {
         fn wait(&self, _caller: Caller, pid: isize, exit_code_ptr: usize) -> isize {
             let processor: *mut PManager<ProcStruct, ProcManager> = PROCESSOR.get_mut() as *mut _;
             let current = unsafe { (*processor).current().unwrap() };
-            const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
+            const WRITABLE: VmFlags<Sv39> = build_flags("W_V");
             if let Some((dead_pid, exit_code)) =
                 unsafe { (*processor).wait(ProcId::from_usize(pid as usize)) }
             {
@@ -463,7 +494,7 @@ mod impls {
     impl Clock for SyscallContext {
         #[inline]
         fn clock_gettime(&self, _caller: Caller, clock_id: ClockId, tp: usize) -> isize {
-            const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
+            const WRITABLE: VmFlags<Sv39> = build_flags("W_V");
             match clock_id {
                 ClockId::CLOCK_MONOTONIC => {
                     if let Some(mut ptr) = PROCESSOR
@@ -471,7 +502,7 @@ mod impls {
                         .current()
                         .unwrap()
                         .address_space
-                        .translate(VAddr::new(tp), WRITABLE)
+                        .translate::<TimeSpec>(VAddr::new(tp), WRITABLE)
                     {
                         let time = riscv::register::time::read() * 10000 / 125;
                         *unsafe { ptr.as_mut() } = TimeSpec {
@@ -513,4 +544,54 @@ mod impls {
             -1
         }
     }
+}
+
+/// 非 RISC-V64 架构的占位实现
+#[cfg(not(target_arch = "riscv64"))]
+mod stub {
+    use tg_kernel_vm::page_table::{MmuMeta, VmFlags};
+
+    /// Sv39 占位类型
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+    pub struct Sv39;
+
+    impl MmuMeta for Sv39 {
+        const P_ADDR_BITS: usize = 56;
+        const PAGE_BITS: usize = 12;
+        const LEVEL_BITS: &'static [usize] = &[9, 9, 9];
+        const PPN_POS: usize = 10;
+
+        #[inline]
+        fn is_leaf(value: usize) -> bool {
+            value & 0b1110 != 0
+        }
+    }
+
+    /// 构建 VmFlags 占位。
+    pub const fn build_flags(_s: &str) -> VmFlags<Sv39> {
+        unsafe { VmFlags::from_raw(0) }
+    }
+
+    /// 解析 VmFlags 占位。
+    pub fn parse_flags(_s: &str) -> Result<VmFlags<Sv39>, ()> {
+        Ok(unsafe { VmFlags::from_raw(0) })
+    }
+
+    #[panic_handler]
+    fn panic(_: &core::panic::PanicInfo) -> ! {
+        loop {}
+    }
+
+    #[no_mangle]
+    pub extern "C" fn main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn __libc_start_main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn rust_eh_personality() {}
 }

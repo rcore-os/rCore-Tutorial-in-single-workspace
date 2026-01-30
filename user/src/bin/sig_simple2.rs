@@ -16,7 +16,7 @@ pub extern "C" fn main() -> i32 {
     if pid == 0 {
         let mut new = SignalAction::default();
         let old = SignalAction::default();
-        new.handler = func as usize;
+        new.handler = func as *const () as usize;
 
         println!("signal_simple2: child sigaction");
         if sigaction(SignalNo::SIGUSR1, &new, &old) < 0 {

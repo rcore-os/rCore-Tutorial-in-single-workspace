@@ -1,6 +1,10 @@
+//! 第三章：多道程序与分时多任务
+//!
+//! 本章实现了一个多道程序操作系统，支持多道程序并发执行，能够依次加载并运行多个用户程序。
 #![no_std]
 #![no_main]
-#![deny(warnings)]
+#![cfg_attr(target_arch = "riscv64", deny(warnings, missing_docs))]
+#![cfg_attr(not(target_arch = "riscv64"), allow(dead_code))]
 
 mod task;
 
@@ -14,10 +18,12 @@ use tg_console::log;
 use tg_sbi;
 
 // 应用程序内联进来。
+#[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 应用程序数量。
 const APP_CAPACITY: usize = 32;
 // 定义内核入口。
+#[cfg(target_arch = "riscv64")]
 tg_linker::boot0!(rust_main; stack = (APP_CAPACITY + 2) * 8192);
 
 extern "C" fn rust_main() -> ! {
@@ -104,6 +110,7 @@ extern "C" fn rust_main() -> ! {
 }
 
 /// Rust 异常处理函数，以异常方式关机。
+#[cfg(target_arch = "riscv64")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
@@ -195,5 +202,24 @@ mod impls {
             tg_console::log::info!("trace: not implemented");
             -1
         }
+    }
+}
+
+/// 非 RISC-V64 架构的占位实现
+#[cfg(not(target_arch = "riscv64"))]
+mod stub {
+    #[panic_handler]
+    fn panic(_: &core::panic::PanicInfo) -> ! {
+        loop {}
+    }
+
+    #[no_mangle]
+    pub extern "C" fn main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn __libc_start_main() -> i32 {
+        0
     }
 }

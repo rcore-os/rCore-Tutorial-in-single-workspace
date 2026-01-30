@@ -1,95 +1,119 @@
-# 第七章
+# 第七章：进程间通信与信号
 
-已提供信号部分的用户库接口及测例，但内核没有相关实现
+本章实现了进程间通信机制，包括管道和信号处理。
 
-## 主体实现
+## 功能概述
 
-目前 `/ch7` 模块复制自 `/ch6`，已经有了基本的信号实现。
+- 信号 (Signal) 机制处理异步事件
+- 用户自定义信号处理函数的注册与调用
+- 信号屏蔽字管理，控制信号的接收
+- 在系统调用返回前检查并处理待处理信号
+- 管道 (Pipe) 实现进程间单向数据传递
+- 文件、管道和标准输入输出都通过统一的文件描述符类型管理
 
-在 `/xtask/src/user.rs` 和 `/user/cases.toml` 中加入了第七章相关信息。
+## 用户程序加载
 
-### 新增模块
+用户程序存储在 easy-fs 磁盘镜像中，内核启动时挂载文件系统，通过文件名从文件系统加载。
 
-目前新增加了四个模块：
+## 新增或更新的系统调用
 
-- `signal-defs` 模块。包含每个信号标号的具体含义 `enum SignalNo`和信号处理函数的定义 `struct SignalAction`。`syscall`模块需要它们，而信号的接口模块`signal`也需要它们。**考虑到 `syscall` 和 `signal` 谁依赖谁都不太合适，所以单独拆了一个非常简单的 `signal-defs` 出来，专门存放用户程序和内核都需要使用的信号定义**
+| 系统调用 | 功能 |
+|----------|------|
+| `pipe` | 创建管道，返回读端和写端文件描述符 |
+| `kill` | 向指定进程发送信号 |
+| `sigaction` | 设置信号处理函数 |
+| `sigprocmask` | 设置信号屏蔽字 |
+| `sigreturn` | 从信号处理函数返回，恢复原执行流 |
+| `read` | 读取文件/管道/标准输入 |
+| `write` | 写入文件/管道/标准输出 |
 
-- `signal`模块。信号模块的定义，主要提供`pub trait Signal`
+## 信号处理
 
-- `signal-impl`模块。一个信号模块的参考实现。
+信号允许异步通知进程发生了某个事件。每个进程维护待处理信号集合和信号处理函数表。
 
-- `ch7`模块。第七章的主线代码。
-
-它们（和部分已有模块）的依赖关系如下：
-
-```mermaid
-graph TD;
-    ch7-->signal-impl
-    ch7-->signal
-    ch7-->syscall
-    user-->syscall
-    signal-impl-->signal
-    signal-->signal-defs
-    syscall-->signal-defs
-    signal-defs-->numeric-enum-macro
-```
-
-其中 `numeric-enum-macro` 是一个外部库，提供了 `enum` 和整数类型之间的表达和转换关系。
-
-## 用户测例
-
-添加测例：`sig_ctrlc` `sig_simple` `sig_simple2` `sig_tests`，其中 `sig_ctrlc` `sig_simple` `sig_simple2` 可通过。
-
-目前仅添加了信号相关的测例，后续还会加入其他测例。
-
-（本项目与原 `rCore-Tutorial-v3`对用户程序的部分接口有所不同，因此引入时会修改部分代码）
-
-## 信号部分
-
-目前已在 `/syscall/src/user.rs` 添加用户库对应需要的 syscall：
-
-- `kill` 发送信号
-- `sigaction` 设置信号处理函数
-- `sigprocmask` 修改信号掩码
-- `sigreturn` 从信号处理函数中返回
-
-并添加 `/signal-defs`，包含一些用户程序和内核通用的信号标号和处理函数定义。
-
-> 这里 `SignalAction::mask` 使用 `usize` 而非 `i32`，是为了兼容将来可能会有的标号在 `[32,64)` 之间的实时信号。
-> 
-> 这里信号标号使用 `SignalNo`，是为了与上面的 `mask` 区分，提示用户程序在 `kill()` 和 `sigaction()` 中应使用信号的标号，而在 `sigprocmask` 中应使用信号的掩码
-
-### 额外添加的 syscall 和代码
-
-由于信号模块依赖一些前面章节的 syscall，但它们还没有实现，所以这里也添加和修改了一些信号之外的 syscall 和代码：
-
-- 添加 `syscall: getpid`，应属于第五章。
-
-- 添加 `/user/src/lib.rs: sleep(period_ms: usize)` ，应属于第三章。这里为了适应用户程序，还在 `/syscall/lib/time.rs` 中添加了从毫秒数(`usize`)转换为 `TimeSpec`的方法
-
-- 添加 `/ch7/src/exit_process.rs` 这个方法实际上是原来的 `sys_exit` 。因为“进程退出”这一事件除了由 `sys_exit` 触发，也可能由信号触发，因此现在把这个过程抽离出来，其他事情发生时也会
-
-## 后续工作的依赖问题
-
-前面章节还有一些工作没有完成，而第七章的部分内容恰好对这些没完成的部分有依赖，因此目前功能还不够全面：
-
-- 缺少时钟中断，所以还不支持暂停应用的信号
-
-- 缺少 trait File，目前所有文件都来自fs，而stdin/stdout 是靠特判实现的，所以pipe还需要等一会
-
-- 第五章实现中，进程状态简化了，现在没法保存和获取进程退出时的 exit_code，wait 的非负数返回值只能使 333。但是信号相关的部分测例 `sig_tests`是需要检测退出时的返回值的。
-
-- 之前的rCore-Tutorial是有“用户程序阻塞在内核态”的机制的，比如说暂停的信号和pipe，即可能出现
+本章内核在系统调用返回前检查并处理待处理信号。
 
 ```rust
-loop {
+match task.signal.handle_signals(ctx) {
+    // 收到终止信号，进程应该结束执行
+    SignalResult::ProcessKilled(exit_code) => unsafe {
+        (*processor).make_current_exited(exit_code as _)
+    },
+    _ => // ...
+```
 
-    if ......
-        suspend_current_and_run_next();
+## 管道
 
+管道是一对文件描述符，一端写入、另一端读取，用于父子进程间通信：
+
+```rust
+fn pipe(&self, pipe_fd: usize) -> isize {
+    let (read_end, write_end) = make_pipe();
+    // ...
+    // pipe_fd[0] = 读端 fd, pipe_fd[1] = 写端 fd
+    current.fd_table.push(Some(Mutex::new(Fd::PipeRead(read_end))));
+    current.fd_table.push(Some(Mutex::new(Fd::PipeWrite(write_end))));
+    0
 }
 ```
 
-的情况，但是现在的 `kernel-context` 似乎不支持这个机制了。这样上述的功能都需要重新考虑如何实现
+管道由 `tg-easy-fs` 中的 `make_pipe()` 创建，内部使用环形缓冲区实现数据传递。
 
-（顺便一提，本来 `stdin` 的串口输入也是需要这个机制的，但现在似乎整个内核会阻塞在`sbi_rt::legacy::console_getchar()` 上，把问题绕过去了）
+## 关键依赖：tg-signal 与 tg-signal-impl
+
+信号机制由多个 crate 协作实现，依赖关系如下：
+
+```mermaid
+graph TD
+    tg-ch7 --> tg-signal-impl
+    tg-ch7 --> tg-signal
+    tg-ch7 --> tg-syscall
+    tg-signal-impl --> tg-signal
+    tg-signal --> tg-signal-defs
+    tg-syscall --> tg-signal-defs
+    tg-signal-defs --> numeric-enum-macro
+```
+
+- **tg-signal-defs**：信号基础定义（`SignalNo`、`SignalAction`），依赖 `numeric-enum-macro` 生成枚举
+- **tg-signal**：定义 `Signal` trait 和 `SignalResult`，重导出 `tg-signal-defs` 的类型
+- **tg-signal-impl**：提供 `Signal` trait 的参考实现 `SignalImpl`
+  ```rust
+  pub struct SignalImpl {
+      received: SignalSet,                    // 已收到的信号（位图）
+      mask: SignalSet,                        // 信号屏蔽字
+      handling: Option<HandlingSignal>,       // 正在处理的信号状态
+      actions: [Option<SignalAction>; MAX_SIG + 1],  // 信号处理函数表
+  }
+  ```
+- **tg-syscall**：系统调用定义，依赖 `tg-signal-defs` 获取信号类型
+
+进程通过 `Box<dyn Signal>` 持有信号处理器，支持 fork 时继承信号配置。
+
+## Dependencies
+
+| 依赖 | 说明 |
+|------|------|
+| `virtio-drivers` | virtio 块设备驱动 |
+| `xmas-elf` | ELF 文件解析 |
+| `riscv` | RISC-V CSR 寄存器访问 |
+| `tg-sbi` | SBI 调用封装库 |
+| `tg-linker` | 链接脚本生成、内核布局定位 |
+| `tg-console` | 控制台输出 (`print!`/`println!`) 和日志 |
+| `tg-kernel-context` | 用户上下文及异界传送门（启用 `foreign` feature） |
+| `tg-kernel-alloc` | 内核内存分配器 |
+| `tg-kernel-vm` | 虚拟内存管理 |
+| `tg-syscall` | 系统调用定义与分发 |
+| `tg-task-manage` | 进程管理框架（启用 `proc` feature） |
+| `tg-easy-fs` | 简单文件系统及管道实现 |
+| `tg-signal` | 信号模块定义 |
+| `tg-signal-impl` | 信号模块参考实现 |
+
+## Features
+
+| Feature | 说明 |
+|---------|------|
+| `nobios` | 无需外部 SBI 实现，直接从 QEMU `-bios none` 模式启动 |
+
+## License
+
+Licensed under either of MIT license or Apache License, Version 2.0 at your option.

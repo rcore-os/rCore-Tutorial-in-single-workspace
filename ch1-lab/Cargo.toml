@@ -11,5 +11,5 @@ nobios = [
 ]
 
 [dependencies]
-tg-sbi = { path = "../tg-sbi" }
-tg-console = { path = "../tg-console" }
+tg-sbi = { path = "../tg-sbi", version = "0.1.0-preview.1" }
+tg-console = { path = "../tg-console", version = "0.1.0-preview.2" }

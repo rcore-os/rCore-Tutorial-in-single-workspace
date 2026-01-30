@@ -1,6 +1,10 @@
+//! 第二章：批处理系统
+//!
+//! 本章实现了一个批处理操作系统，支持特权级切换和 Trap 处理，能够依次加载并运行多个用户程序。
 #![no_std]
 #![no_main]
-#![deny(warnings)]
+#![cfg_attr(target_arch = "riscv64", deny(warnings, missing_docs))]
+#![cfg_attr(not(target_arch = "riscv64"), allow(dead_code))]
 
 #[macro_use]
 extern crate tg_console;
@@ -13,8 +17,10 @@ use tg_sbi;
 use tg_syscall::{Caller, SyscallId};
 
 // 用户程序内联进来。
+#[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 定义内核入口。
+#[cfg(target_arch = "riscv64")]
 tg_linker::boot0!(rust_main; stack = 8 * 4096);
 
 extern "C" fn rust_main() -> ! {
@@ -65,6 +71,7 @@ extern "C" fn rust_main() -> ! {
 }
 
 /// Rust 异常处理函数，以异常方式关机。
+#[cfg(target_arch = "riscv64")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
@@ -136,5 +143,24 @@ mod impls {
         fn exit(&self, _caller: tg_syscall::Caller, _status: usize) -> isize {
             0
         }
+    }
+}
+
+/// 非 RISC-V64 架构的占位实现
+#[cfg(not(target_arch = "riscv64"))]
+mod stub {
+    #[panic_handler]
+    fn panic(_: &core::panic::PanicInfo) -> ! {
+        loop {}
+    }
+
+    #[no_mangle]
+    pub extern "C" fn main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn __libc_start_main() -> i32 {
+        0
     }
 }
