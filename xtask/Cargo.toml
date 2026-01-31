@@ -10,7 +10,7 @@ homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
 readme = "README.md"
 keywords = ["xtask", "riscv", "qemu", "r-core", "build-tool"]
 categories = ["command-line-utilities"]
-documentation = ""
+documentation = "https://docs.rs/tg-xtask"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
