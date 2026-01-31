@@ -74,6 +74,7 @@ impl CargoBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn args<I, S>(&mut self, iter: I) -> &mut Self
     where
         I: IntoIterator<Item = S>,

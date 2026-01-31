@@ -52,7 +52,7 @@ fn main() {
 struct BuildArgs {
     /// chapter number
     #[clap(short, long)]
-    ch: u8,
+    ch: Option<u8>,
     /// lab or not
     #[clap(long)]
     lab: bool,
@@ -89,27 +89,152 @@ struct BuildArgs {
     /// explicitly specify package directory
     #[clap(long)]
     pkg_dir: Option<String>,
+    /// explicitly specify package directory (preferred flag)
+    #[clap(long)]
+    dir: Option<String>,
 }
 
 impl BuildArgs {
     fn make(&self) -> PathBuf {
         let mut env: HashMap<&str, OsString> = HashMap::new();
-        let package = match self.ch {
-            1 => if self.lab { "tg-ch1-lab" } else { "tg-ch1" }.to_string(),
-            2..=8 => {
-                user::build_for(self.ch, false, self.exercise, self.ci);
-                env.insert(
-                    "APP_ASM",
-                    TARGET
-                        .join("debug")
-                        .join("app.asm")
-                        .as_os_str()
-                        .to_os_string(),
-                );
-                format!("tg-ch{}", self.ch)
+        // Determine package name and possibly package directory.
+        let package: String;
+        let mut inferred_pkg_dir: Option<PathBuf> = None;
+
+        if let Some(pkg_arg) = &self.pkg {
+            // If user passed a package directory name (e.g. `myos`), prefer that if it contains Cargo.toml
+            let cand_dir = PROJECT.join(pkg_arg);
+            if cand_dir.join("Cargo.toml").exists() {
+                // read package name from Cargo.toml
+                if let Ok(contents) = std::fs::read_to_string(cand_dir.join("Cargo.toml")) {
+                    if let Ok(value) = contents.parse::<toml::Value>() {
+                        if let Some(name) = value.get("package").and_then(|p| p.get("name")).and_then(|n| n.as_str()) {
+                            package = name.to_string();
+                            inferred_pkg_dir = Some(cand_dir);
+                        } else {
+                            package = pkg_arg.clone();
+                        }
+                    } else {
+                        package = pkg_arg.clone();
+                    }
+                } else {
+                    package = pkg_arg.clone();
+                }
+            } else {
+                // treat as package name
+                package = pkg_arg.clone();
+                // try to infer directory by stripping "tg-" prefix
+                if let Some(stripped) = package.strip_prefix("tg-") {
+                    let d = PROJECT.join(stripped);
+                    if d.join("Cargo.toml").exists() {
+                        inferred_pkg_dir = Some(d);
+                    }
+                }
+                // also try direct directory named as package
+                if inferred_pkg_dir.is_none() {
+                    let d = PROJECT.join(&package);
+                    if d.join("Cargo.toml").exists() {
+                        inferred_pkg_dir = Some(d);
+                    }
+                }
             }
-            _ => unreachable!(),
-        };
+        } else if let Some(dir_arg) = &self.dir {
+            // user provided --dir: try to read package name from its Cargo.toml
+            let cand_dir = Path::new(dir_arg);
+            if cand_dir.join("Cargo.toml").exists() {
+                if let Ok(contents) = std::fs::read_to_string(cand_dir.join("Cargo.toml")) {
+                    if let Ok(value) = contents.parse::<toml::Value>() {
+                        if let Some(name) = value.get("package").and_then(|p| p.get("name")).and_then(|n| n.as_str()) {
+                            package = name.to_string();
+                            inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                        } else {
+                            package = cand_dir.file_name().unwrap().to_string_lossy().to_string();
+                            inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                        }
+                    } else {
+                        package = cand_dir.file_name().unwrap().to_string_lossy().to_string();
+                        inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                    }
+                } else {
+                    package = cand_dir.file_name().unwrap().to_string_lossy().to_string();
+                    inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                }
+            } else {
+                // fallback to ch-based behavior if dir not containing Cargo.toml
+                match self.ch {
+                    Some(1) => package = if self.lab { "tg-ch1-lab".to_string() } else { "tg-ch1".to_string() },
+                    Some(n) if (2..=8).contains(&n) => {
+                        user::build_for(n, false, self.exercise, self.ci);
+                        env.insert(
+                            "APP_ASM",
+                            TARGET
+                                .join("debug")
+                                .join("app.asm")
+                                .as_os_str()
+                                .to_os_string(),
+                        );
+                        package = format!("tg-ch{}", n);
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        } else if let Some(dir_arg) = &self.pkg_dir {
+            // legacy pkg_dir handling
+            let cand_dir = Path::new(dir_arg);
+            if cand_dir.join("Cargo.toml").exists() {
+                if let Ok(contents) = std::fs::read_to_string(cand_dir.join("Cargo.toml")) {
+                    if let Ok(value) = contents.parse::<toml::Value>() {
+                        if let Some(name) = value.get("package").and_then(|p| p.get("name")).and_then(|n| n.as_str()) {
+                            package = name.to_string();
+                            inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                        } else {
+                            package = dir_arg.clone();
+                            inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                        }
+                    } else {
+                        package = dir_arg.clone();
+                        inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                    }
+                } else {
+                    package = dir_arg.clone();
+                    inferred_pkg_dir = Some(cand_dir.to_path_buf());
+                }
+            } else {
+                // treat as package name
+                package = dir_arg.clone();
+                // try to infer directory by stripping "tg-" prefix
+                if let Some(stripped) = package.strip_prefix("tg-") {
+                    let d = PROJECT.join(stripped);
+                    if d.join("Cargo.toml").exists() {
+                        inferred_pkg_dir = Some(d);
+                    }
+                }
+                if inferred_pkg_dir.is_none() {
+                    let d = PROJECT.join(&package);
+                    if d.join("Cargo.toml").exists() {
+                        inferred_pkg_dir = Some(d);
+                    }
+                }
+            }
+        } else {
+            // fallback to ch-based behavior
+            match self.ch {
+                Some(1) => package = if self.lab { "tg-ch1-lab".to_string() } else { "tg-ch1".to_string() },
+                Some(n) if (2..=8).contains(&n) => {
+                    user::build_for(n, false, self.exercise, self.ci);
+                    env.insert(
+                        "APP_ASM",
+                        TARGET
+                            .join("debug")
+                            .join("app.asm")
+                            .as_os_str()
+                            .to_os_string(),
+                    );
+                    package = format!("tg-ch{}", n);
+                }
+                _ => unreachable!(),
+            }
+        }
         // 生成
         let mut all_features = Vec::new();
         if let Some(features) = &self.features {
@@ -120,18 +245,42 @@ impl BuildArgs {
         }
 
         let mut build = Cargo::build();
-        build
-            .package(&package)
-            .conditional(!all_features.is_empty(), |cargo| {
-                cargo.features(false, all_features.iter().copied());
-            })
-            .optional(&self.log, |cargo, log| {
-                cargo.env("LOG", log);
-            })
-            .conditional(self.release, |cargo| {
-                cargo.release();
-            })
-            .target(TARGET_ARCH);
+        // If we have a package directory (manifest), use --manifest-path to build that crate
+        // prefer explicit `--dir` over legacy `--pkg-dir`
+        let chosen_dir = if let Some(d) = &self.dir {
+            Some(Path::new(d).to_path_buf())
+        } else if let Some(d) = &self.pkg_dir {
+            Some(Path::new(d).to_path_buf())
+        } else if let Some(d) = &inferred_pkg_dir {
+            Some(d.clone())
+        } else {
+            None
+        };
+
+        // If user provided a directory via --dir/--pkg-dir, use its Cargo.toml as manifest
+        let manifest_path = chosen_dir.as_ref().map(|p| p.join("Cargo.toml"));
+
+        if let Some(manifest) = &manifest_path {
+            build.arg("--manifest-path").arg(manifest);
+        } else {
+            build.package(&package);
+        }
+
+        // If the user provided a directory, instruct cargo to use that directory's target
+        if let Some(cd) = &chosen_dir {
+            build.arg("--target-dir").arg(cd.join("target"));
+        }
+
+        build.conditional(!all_features.is_empty(), |cargo| {
+            cargo.features(false, all_features.iter().copied());
+        });
+        build.optional(&self.log, |cargo, log| {
+            cargo.env("LOG", log);
+        });
+        build.conditional(self.release, |cargo| {
+            cargo.release();
+        });
+        build.target(TARGET_ARCH);
         for (key, value) in env {
             build.env(key, value);
         }
@@ -141,20 +290,30 @@ impl BuildArgs {
         build.invoke();
         // If prefer_local_target/local_target semantics are requested, we will prefer
         // a package-local target if it exists. The returned ELF path will be chosen below.
-        // compute default global ELF path
-        let global_elf = TARGET
+        // compute default ELF path. If user specified --dir, use its `target/` as the base,
+        // otherwise use workspace-level `target/`.
+        let base_target_dir = if let Some(cd) = &chosen_dir {
+            cd.join("target")
+        } else {
+            PROJECT.join("target")
+        };
+
+        let global_elf = base_target_dir
+            .join(TARGET_ARCH)
             .join(if self.release { "release" } else { "debug" })
             .join(package.clone());
 
-        // determine package directory (pkg_dir override, else infer from ch)
-        let pkg_dir = if let Some(d) = &self.pkg_dir {
+        // determine package directory (explicit --dir/--pkg-dir override, else inferred, else ch-based)
+        let pkg_dir = if let Some(d) = &self.dir {
             std::path::PathBuf::from(d)
-        } else if let Some(pn) = &self.pkg {
-            std::path::PathBuf::from(pn)
+        } else if let Some(d) = &self.pkg_dir {
+            std::path::PathBuf::from(d)
+        } else if let Some(d) = inferred_pkg_dir {
+            d
         } else {
             match self.ch {
-                1 => PROJECT.join(if self.lab { "ch1-lab" } else { "ch1" }),
-                2..=8 => PROJECT.join(format!("ch{}", self.ch)),
+                Some(1) => PROJECT.join(if self.lab { "ch1-lab" } else { "ch1" }),
+                Some(n) if (2..=8).contains(&n) => PROJECT.join(format!("ch{}", n)),
                 _ => PROJECT.to_path_buf(),
             }
         };
@@ -196,7 +355,7 @@ impl AsmArgs {
         let out = Path::new(std::env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
-            .join(self.console.unwrap_or(format!("ch{}.asm", self.build.ch)));
+            .join(self.console.unwrap_or(format!("ch{}.asm", self.build.ch.unwrap_or(1))));
         println!("Asm file dumps to '{}'.", out.display());
         fs::write(out, BinUtil::objdump().arg(elf).arg("-d").output().stdout).unwrap();
     }
@@ -240,7 +399,7 @@ impl QemuArgs {
             .args(["-smp", &self.smp.unwrap_or(1).to_string()])
             .args(["-m", "64M"])
             .args(["-serial", "mon:stdio"]);
-        if self.build.ch > 5 {
+        if self.build.ch.unwrap_or(1) > 5 {
             // Add VirtIO Device
             qemu.args([
                 "-drive",

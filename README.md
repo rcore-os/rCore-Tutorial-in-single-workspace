@@ -98,3 +98,24 @@ rCore-Tutorial-v3 的教材部分别出心裁地为每一章取了一种古生�
 - [x] [§7](ch7/README.md) by [BHY](https://github.com/scPointer)
 - [x] [§8](ch8/README.md) by [ZFL](https://github.com/zflcs)
 - [ ] §9
+
+## 使用示例：`--dir` 参数
+
+当你希望在仓库外或不把包加入根 workspace 的情况下构建并运行某个包（例如 `myos` 或 `ch1` 目录），可以使用 `--dir` 指定包目录：
+
+- 构建包（仅打印命令）：
+
+```bash
+cargo make --dir ./myos --print-cmd --nobios
+```
+
+- 在 QEMU 中运行（打印构建/objcopy/qemu 命令，并用 `--nobios` 以无 BIOS 模式加载内核）：
+
+```bash
+cargo qemu --dir ./ch1 --print-cmd --nobios
+```
+
+行为说明：
+- `--dir ./foo` 会等价于对 `cargo` 使用 `--manifest-path ./foo/Cargo.toml` 并同时设置 `--target-dir ./foo/target`，因此生成的可执行文件会放在 `./foo/target/riscv64gc-unknown-none-elf/{debug|release}/<pkg>`。
+- `--print-cmd` 会在执行前打印 `cargo build`、`rust-objcopy` 和 `qemu-system-*` 的完整命令行，便于调试。
+- `--nobios` 在构建时加入 `nobios` 特性，并在运行时把 QEMU 的 `-bios none`，使内核被直接加载到 0x80000000（与默认 RustSBI 加载地址不同）。
