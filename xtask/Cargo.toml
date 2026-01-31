@@ -1,8 +1,17 @@
 [package]
-name = "xtask"
-version = "0.0.1"
+name = "tg-xtask"
+version = "0.1.0"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
+description = "A small xtask helper to build and run rCore tutorial kernels and local kernels with QEMU."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+readme = "README.md"
+keywords = ["xtask", "riscv", "qemu", "r-core", "build-tool"]
+categories = ["command-line-utilities"]
+documentation = ""
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,4 +23,7 @@ serde = "1.0"
 serde_derive = "1.0"
 toml = "0.7"
 
-tg-easy-fs = { path = "../tg-easy-fs" }
+tg-easy-fs = "0.1.0-preview.2"
+
+[package.metadata]
+# Indicate this crate is intended as a CLI helper; no special metadata required.

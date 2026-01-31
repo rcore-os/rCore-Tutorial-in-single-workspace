@@ -162,18 +162,22 @@ impl BuildArgs {
             } else {
                 // fallback to ch-based behavior if dir not containing Cargo.toml
                 match self.ch {
-                    Some(1) => package = if self.lab { "tg-ch1-lab".to_string() } else { "tg-ch1".to_string() },
-                    Some(n) if (2..=8).contains(&n) => {
-                        user::build_for(n, false, self.exercise, self.ci);
-                        env.insert(
-                            "APP_ASM",
-                            TARGET
-                                .join("debug")
-                                .join("app.asm")
-                                .as_os_str()
-                                .to_os_string(),
-                        );
-                        package = format!("tg-ch{}", n);
+                        Some(1) => {
+                            package = if self.lab { "tg-ch1-lab".to_string() } else { "tg-ch1".to_string() };
+                            inferred_pkg_dir = Some(PROJECT.join(if self.lab { "ch1-lab" } else { "ch1" }));
+                        }
+                        Some(n) if (2..=8).contains(&n) => {
+                            user::build_for(n, false, self.exercise, self.ci);
+                            env.insert(
+                                "APP_ASM",
+                                TARGET
+                                    .join("debug")
+                                    .join("app.asm")
+                                    .as_os_str()
+                                    .to_os_string(),
+                            );
+                            package = format!("tg-ch{}", n);
+                            inferred_pkg_dir = Some(PROJECT.join(format!("ch{}", n)));
                     }
                     _ => unreachable!(),
                 }
