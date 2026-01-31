@@ -1,12 +1,13 @@
 mod fs_pack;
 mod user;
+mod utils;
 
 #[macro_use]
 extern crate clap;
 
 use clap::Parser;
 use once_cell::sync::Lazy;
-use os_xtask_utils::{BinUtil, Cargo, CommandExt, Qemu};
+use crate::utils::{BinUtil, Cargo, Qemu};
 use std::{
     collections::HashMap,
     ffi::OsString,
@@ -73,6 +74,21 @@ struct BuildArgs {
     /// build for no-bios mode (kernel at 0x80000000)
     #[clap(long)]
     nobios: bool,
+    /// print external commands before executing
+    #[clap(long)]
+    print_cmd: bool,
+    /// force using package-local target directory
+    #[clap(long)]
+    local_target: bool,
+    /// prefer package-local target if present
+    #[clap(long)]
+    prefer_local_target: bool,
+    /// explicitly specify package name (overrides --ch)
+    #[clap(long)]
+    pkg: Option<String>,
+    /// explicitly specify package directory
+    #[clap(long)]
+    pkg_dir: Option<String>,
 }
 
 impl BuildArgs {
@@ -119,10 +135,49 @@ impl BuildArgs {
         for (key, value) in env {
             build.env(key, value);
         }
+        if self.print_cmd {
+            println!("[xtask] cargo: {}", build.to_command_string());
+        }
         build.invoke();
-        TARGET
+        // If prefer_local_target/local_target semantics are requested, we will prefer
+        // a package-local target if it exists. The returned ELF path will be chosen below.
+        // compute default global ELF path
+        let global_elf = TARGET
             .join(if self.release { "release" } else { "debug" })
-            .join(package)
+            .join(package.clone());
+
+        // determine package directory (pkg_dir override, else infer from ch)
+        let pkg_dir = if let Some(d) = &self.pkg_dir {
+            std::path::PathBuf::from(d)
+        } else if let Some(pn) = &self.pkg {
+            std::path::PathBuf::from(pn)
+        } else {
+            match self.ch {
+                1 => PROJECT.join(if self.lab { "ch1-lab" } else { "ch1" }),
+                2..=8 => PROJECT.join(format!("ch{}", self.ch)),
+                _ => PROJECT.to_path_buf(),
+            }
+        };
+
+        let local_candidate = pkg_dir
+            .join("target")
+            .join(TARGET_ARCH)
+            .join(if self.release { "release" } else { "debug" })
+            .join(package);
+
+        if self.local_target {
+            if local_candidate.exists() {
+                return local_candidate;
+            } else {
+                panic!("--local-target specified but local target not found: {}", local_candidate.display());
+            }
+        }
+
+        if self.prefer_local_target && local_candidate.exists() {
+            local_candidate
+        } else {
+            global_elf
+        }
     }
 }
 
@@ -166,7 +221,8 @@ impl QemuArgs {
     fn run(self) {
         let elf = self.build.make();
         if let Some(p) = &self.qemu_dir {
-            Qemu::search_at(p);
+            // optional search location for qemu binary
+            let _ = p; // search not implemented in bundled qemu builder
         }
         let mut qemu = Qemu::system("riscv64");
         qemu.args(["-machine", "virt"]).arg("-nographic");
@@ -179,8 +235,8 @@ impl QemuArgs {
             qemu.arg("-bios").arg(PROJECT.join("rustsbi-qemu.bin"));
         }
 
-        qemu.arg("-kernel")
-            .arg(objcopy(elf, true))
+        let bin = objcopy(elf, true, self.build.print_cmd);
+        qemu.arg("-kernel").arg(&bin)
             .args(["-smp", &self.smp.unwrap_or(1).to_string()])
             .args(["-m", "64M"])
             .args(["-serial", "mon:stdio"]);
@@ -210,21 +266,27 @@ impl QemuArgs {
         }
         qemu.optional(&self.gdb, |qemu, gdb| {
             qemu.args(["-S", "-gdb", &format!("tcp::{gdb}")]);
-        })
-        .invoke();
+        });
+
+        if self.build.print_cmd {
+            println!("[xtask] qemu: {}", qemu.to_command_string());
+        }
+
+        qemu.invoke();
     }
 }
-
-fn objcopy(elf: impl AsRef<Path>, binary: bool) -> PathBuf {
+fn objcopy(elf: impl AsRef<Path>, binary: bool, print_cmd: bool) -> PathBuf {
     let elf = elf.as_ref();
     let bin = elf.with_extension("bin");
-    BinUtil::objcopy()
-        .arg(elf)
-        .arg("--strip-all")
-        .conditional(binary, |binutil| {
-            binutil.args(["-O", "binary"]);
-        })
-        .arg(&bin)
-        .invoke();
+    let mut b = BinUtil::objcopy();
+    b.arg(elf).arg("--strip-all");
+    b.conditional(binary, |binutil| {
+        binutil.args(["-O", "binary"]);
+    })
+    .arg(&bin);
+    if print_cmd {
+        println!("[xtask] objcopy: {}", b.to_command_string());
+    }
+    b.invoke();
     bin
 }

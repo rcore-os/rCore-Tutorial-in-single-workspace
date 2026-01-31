@@ -1,5 +1,5 @@
 use crate::{fs_pack::easy_fs_pack, objcopy, PROJECT, TARGET, TARGET_ARCH};
-use os_xtask_utils::{Cargo, CommandExt};
+use crate::utils::Cargo;
 use serde_derive::Deserialize;
 use std::{collections::HashMap, ffi::OsStr, fs::File, io::Write, path::PathBuf};
 
@@ -76,7 +76,7 @@ fn build_one(
         .join(if release { "release" } else { "debug" })
         .join(name);
     if binary {
-        objcopy(elf, binary)
+        objcopy(elf, binary, false)
     } else {
         elf
     }
