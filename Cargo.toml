@@ -2,7 +2,6 @@
 members = [
     "xtask",
     "ch1-lab",
-    "ch3",
     "ch4",
     "ch5",
     "ch6",
@@ -24,7 +23,7 @@ members = [
 ]
 default-members = ["xtask"]
 resolver = "2"
-exclude = ["ch1","ch2","tg-user"]
+exclude = ["ch1","ch2","ch3","tg-user"]
 
 # 统一的包元数据，子 crate 可通过 `xxx.workspace = true` 继承
 [workspace.package]

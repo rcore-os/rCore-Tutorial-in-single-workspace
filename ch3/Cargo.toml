@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch3"
 description = "Chapter 3 of rCore Tutorial: Multiprogramming and time-sharing multitasking."
-version = "0.1.0-preview.1"
+version = "0.2.0-preview.1"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -11,9 +11,13 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["rcore", "tutorial", "no-std", "riscv", "multitasking"]
 categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+    ".cargo/config.toml",
+]
 
 [features]
-default = []
+default = ["nobios"]
 coop = []
 nobios = [
     "tg-sbi/nobios",
@@ -28,11 +32,13 @@ panic = "abort"
 [dependencies]
 riscv = "0.10.1"
 
-tg-sbi = { path = "../tg-sbi", version = "0.1.0-preview.1" }
-tg-linker = { path = "../tg-linker", version = "0.1.0-preview.2" }
-tg-console = { path = "../tg-console", version = "0.1.0-preview.2" }
-tg-kernel-context = { path = "../tg-kernel-context", version = "0.1.0-preview.1" }
-tg-syscall = { path = "../tg-syscall", version = "0.1.0-preview.2", features = ["kernel"] }
+tg-sbi = { version = "0.1.0-preview.1" }
+tg-linker = { version = "0.1.0-preview.2" }
+tg-console = { version = "0.1.0-preview.2" }
+tg-kernel-context = { version = "0.1.0-preview.1" }
+tg-syscall = { version = "0.1.0-preview.2", features = ["kernel"] }
 
 [build-dependencies]
-tg-linker = { path = "../tg-linker", version = "0.1.0-preview.2" }
+tg-linker = { version = "0.1.0-preview.2" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
