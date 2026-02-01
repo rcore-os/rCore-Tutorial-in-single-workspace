@@ -1,0 +1,22 @@
+[package]
+name = "tg-checker"
+description = "A test output checker for rCore-Tutorial, validates kernel output against expected patterns."
+version = "0.1.0-preview.1"
+edition = "2021"
+authors = ["Ivans-11 <w-yf22@mails.tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+documentation = "https://docs.rs/tg-checker"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["rcore", "checker", "testing", "riscv"]
+categories = ["command-line-utilities", "development-tools::testing"]
+
+[[bin]]
+name = "tg-checker"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+regex = "1.10"
+colored = "2.1"
