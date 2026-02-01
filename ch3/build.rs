@@ -35,9 +35,7 @@ fn should_skip_build_apps() -> bool {
         return true;
     }
 
-    let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let manifest_dir = manifest_dir.to_string_lossy();
-    manifest_dir.contains("/target/package/") || manifest_dir.contains("\\target\\package\\")
+    is_packaged_build()
 }
 
 fn write_linker() {
@@ -48,11 +46,26 @@ fn write_linker() {
     });
     println!("cargo:rustc-link-arg=-T{}", ld_out.display());
 
-    let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let ld_root = root.join("linker.ld");
-    fs::write(&ld_root, tg_linker::NOBIOS_SCRIPT).unwrap_or_else(|err| {
-        panic!("failed to write linker script to {}: {}", ld_root.display(), err)
-    });
+    if !is_packaged_build() {
+        let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+        let ld_root = root.join("linker.ld");
+        fs::write(&ld_root, tg_linker::NOBIOS_SCRIPT).unwrap_or_else(|err| {
+            panic!("failed to write linker script to {}: {}", ld_root.display(), err)
+        });
+    }
+}
+
+fn is_packaged_build() -> bool {
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    let out_dir = out_dir.to_string_lossy();
+
+    let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let manifest_dir = manifest_dir.to_string_lossy();
+
+    out_dir.contains("/target/package/")
+        || out_dir.contains("\\target\\package\\")
+        || manifest_dir.contains("/target/package/")
+        || manifest_dir.contains("\\target\\package\\")
 }
 
 fn build_apps() {
