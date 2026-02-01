@@ -22,8 +22,22 @@ fn main() {
     // 只在 RISC-V64 架构上使用链接脚本
     if target_arch == "riscv64" {
         write_linker();
-        build_apps();
+        if should_skip_build_apps() {
+            write_dummy_app_asm();
+        } else {
+            build_apps();
+        }
     }
+}
+
+fn should_skip_build_apps() -> bool {
+    if env::var_os("TG_SKIP_USER_APPS").is_some() {
+        return true;
+    }
+
+    let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let manifest_dir = manifest_dir.to_string_lossy();
+    manifest_dir.contains("/target/package/") || manifest_dir.contains("\\target\\package\\")
 }
 
 fn write_linker() {
@@ -160,6 +174,31 @@ app_{i}_end:",
         )
         .unwrap();
     }
+}
+
+fn write_dummy_app_asm() {
+    use std::io::Write;
+
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    let app_asm = out_dir.join("app.asm");
+    let mut asm = fs::File::create(&app_asm)
+        .unwrap_or_else(|err| panic!("failed to create {}: {}", app_asm.display(), err));
+
+    writeln!(
+        asm,
+        "\
+.global apps
+.section .data
+.align 3
+apps:
+    .quad 0
+    .quad 0
+    .quad 0
+    .quad 0"
+    )
+    .unwrap();
+
+    println!("cargo:rustc-env=APP_ASM={}", app_asm.display());
 }
 
 fn ensure_tg_user() -> PathBuf {

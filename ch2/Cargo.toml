@@ -11,6 +11,10 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["rcore", "tutorial", "no-std", "riscv", "batch-system"]
 categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+    ".cargo/config.toml",
+]
 
 [features]
 default = ["nobios"]
