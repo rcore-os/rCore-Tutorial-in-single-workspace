@@ -183,7 +183,6 @@ extern "C" fn rust_main() -> ! {
 }
 
 /// Rust 异常处理函数，以异常方式关机。
-#[cfg(target_arch = "riscv64")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
@@ -575,11 +574,6 @@ mod stub {
     /// 解析 VmFlags 占位。
     pub fn parse_flags(_s: &str) -> Result<VmFlags<Sv39>, ()> {
         Ok(unsafe { VmFlags::from_raw(0) })
-    }
-
-    #[panic_handler]
-    fn panic(_: &core::panic::PanicInfo) -> ! {
-        loop {}
     }
 
     #[no_mangle]

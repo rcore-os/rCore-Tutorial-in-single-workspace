@@ -71,7 +71,6 @@ extern "C" fn rust_main() -> ! {
 }
 
 /// Rust 异常处理函数，以异常方式关机。
-#[cfg(target_arch = "riscv64")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
@@ -149,11 +148,6 @@ mod impls {
 /// 非 RISC-V64 架构的占位实现
 #[cfg(not(target_arch = "riscv64"))]
 mod stub {
-    #[panic_handler]
-    fn panic(_: &core::panic::PanicInfo) -> ! {
-        loop {}
-    }
-
     #[no_mangle]
     pub extern "C" fn main() -> i32 {
         0
@@ -163,4 +157,7 @@ mod stub {
     pub extern "C" fn __libc_start_main() -> i32 {
         0
     }
+
+    #[no_mangle]
+    pub extern "C" fn rust_eh_personality() {}
 }
