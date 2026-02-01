@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch2"
 description = "Chapter 2 of rCore Tutorial: Batch processing system with privilege levels and trap handling."
-version = "0.2.0-preview.1"
+version = "0.2.0-preview.2"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -13,7 +13,7 @@ keywords = ["rcore", "tutorial", "no-std", "riscv", "batch-system"]
 categories = ["no-std", "embedded"]
 exclude = [
     "tg-user/**",
-    ".cargo/config.toml",
+#    ".cargo/config.toml",
 ]
 
 [features]

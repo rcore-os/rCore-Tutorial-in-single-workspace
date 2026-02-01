@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch4"
 description = "Chapter 4 of rCore Tutorial: Address space management with SV39 virtual memory."
-version = "0.2.0-preview.1"
+version = "0.2.0-preview.2"
 edition = "2021"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -13,7 +13,7 @@ keywords = ["rcore", "tutorial", "no-std", "riscv", "virtual-memory"]
 categories = ["no-std", "embedded"]
 exclude = [
     "tg-user/**",
-    ".cargo/config.toml",
+#    ".cargo/config.toml",
 ]
 
 [features]
