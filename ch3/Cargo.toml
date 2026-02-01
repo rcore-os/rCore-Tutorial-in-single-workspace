@@ -17,11 +17,8 @@ exclude = [
 ]
 
 [features]
-default = ["nobios"]
 coop = []
-nobios = [
-    "tg-sbi/nobios",
-]
+exercise = []
 
 [profile.dev]
 panic = "abort"
@@ -32,7 +29,7 @@ panic = "abort"
 [dependencies]
 riscv = "0.10.1"
 
-tg-sbi = { version = "0.1.0-preview.1" }
+tg-sbi = { version = "0.1.0-preview.1", features = ["nobios"] }
 tg-linker = { version = "0.1.0-preview.2" }
 tg-console = { version = "0.1.0-preview.2" }
 tg-kernel-context = { version = "0.1.0-preview.1" }

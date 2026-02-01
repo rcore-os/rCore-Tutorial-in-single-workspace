@@ -19,7 +19,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=TG_USER_DIR");
     println!("cargo:rerun-if-env-changed=TG_USER_VERSION");
     println!("cargo:rerun-if-env-changed=TG_SKIP_USER_APPS");
-    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_NOBIOS");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_EXERCISE");
 
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
 
@@ -42,17 +42,9 @@ fn should_skip_build_apps() -> bool {
 }
 
 fn write_linker() {
-    let nobios = env::var("CARGO_FEATURE_NOBIOS").is_ok();
-
-    let linker_script = if nobios {
-        tg_linker::NOBIOS_SCRIPT
-    } else {
-        tg_linker::SCRIPT
-    };
-
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     let ld_out = out_dir.join("linker.ld");
-    fs::write(&ld_out, linker_script).unwrap_or_else(|err| {
+    fs::write(&ld_out, tg_linker::NOBIOS_SCRIPT).unwrap_or_else(|err| {
         panic!("failed to write linker script to {}: {}", ld_out.display(), err)
     });
     println!("cargo:rustc-link-arg=-T{}", ld_out.display());
@@ -60,7 +52,7 @@ fn write_linker() {
     if !is_packaged_build() {
         let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
         let ld_root = root.join("linker.ld");
-        fs::write(&ld_root, linker_script).unwrap_or_else(|err| {
+        fs::write(&ld_root, tg_linker::NOBIOS_SCRIPT).unwrap_or_else(|err| {
             panic!("failed to write linker script to {}: {}", ld_root.display(), err)
         });
     }
@@ -96,13 +88,18 @@ fn build_apps_and_pack_fs() {
         panic!("failed to parse cases.toml: {err}")
     });
 
-    let cases = cases_map.remove("ch6").unwrap_or_default();
+    let case_key = if env::var("CARGO_FEATURE_EXERCISE").is_ok() {
+        "ch6_exercise"
+    } else {
+        "ch6"
+    };
+    let cases = cases_map.remove(case_key).unwrap_or_default();
     let base = cases.base.unwrap_or(0);
     let step = cases.step.unwrap_or(0);
     let names = cases.cases.unwrap_or_default();
 
     if names.is_empty() {
-        panic!("no user cases found for ch6 in {}", cases_path.display());
+        panic!("no user cases found for {case_key} in {}", cases_path.display());
     }
 
     let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());

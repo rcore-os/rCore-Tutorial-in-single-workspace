@@ -12,12 +12,6 @@ readme = "README.md"
 keywords = ["rcore", "tutorial", "no-std", "riscv", "bare-metal"]
 categories = ["no-std", "embedded"]
 
-[features]
-default = ["nobios"]
-nobios = [
-	"tg-sbi/nobios",
-]
-
 [profile.dev]
 panic = "abort"
 
@@ -25,4 +19,4 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
-tg-sbi = { version = "0.1.0-preview.1" }
+tg-sbi = { version = "0.1.0-preview.1", features = ["nobios"] }

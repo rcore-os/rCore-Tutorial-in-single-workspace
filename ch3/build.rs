@@ -16,6 +16,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LOG");
     println!("cargo:rerun-if-env-changed=TG_USER_DIR");
     println!("cargo:rerun-if-env-changed=TG_USER_VERSION");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_EXERCISE");
 
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
 
@@ -82,13 +83,18 @@ fn build_apps() {
         panic!("failed to parse cases.toml: {err}")
     });
 
-    let cases = cases_map.remove("ch3").unwrap_or_default();
+    let case_key = if env::var("CARGO_FEATURE_EXERCISE").is_ok() {
+        "ch3_exercise"
+    } else {
+        "ch3"
+    };
+    let cases = cases_map.remove(case_key).unwrap_or_default();
     let base = cases.base.unwrap_or(0);
     let step = cases.step.unwrap_or(0);
     let names = cases.cases.unwrap_or_default();
 
     if names.is_empty() {
-        panic!("no user cases found for ch3 in {}", cases_path.display());
+        panic!("no user cases found for {case_key} in {}", cases_path.display());
     }
 
     let target_dir = tg_user_root.join("target").join(TARGET_ARCH).join("debug");
