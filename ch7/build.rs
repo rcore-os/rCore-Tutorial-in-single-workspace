@@ -19,7 +19,6 @@ fn main() {
     println!("cargo:rerun-if-env-changed=TG_USER_DIR");
     println!("cargo:rerun-if-env-changed=TG_USER_VERSION");
     println!("cargo:rerun-if-env-changed=TG_SKIP_USER_APPS");
-    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_NOBIOS");
 
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
 
@@ -42,28 +41,11 @@ fn should_skip_build_apps() -> bool {
 }
 
 fn write_linker() {
-    let nobios = env::var("CARGO_FEATURE_NOBIOS").is_ok();
-
-    let linker_script = if nobios {
-        tg_linker::NOBIOS_SCRIPT
-    } else {
-        tg_linker::SCRIPT
-    };
-
-    let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    let ld_out = out_dir.join("linker.ld");
-    fs::write(&ld_out, linker_script).unwrap_or_else(|err| {
-        panic!("failed to write linker script to {}: {}", ld_out.display(), err)
+    let ld = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("linker.ld");
+    fs::write(&ld, tg_linker::NOBIOS_SCRIPT).unwrap_or_else(|err| {
+        panic!("failed to write linker script to {}: {}", ld.display(), err)
     });
-    println!("cargo:rustc-link-arg=-T{}", ld_out.display());
-
-    if !is_packaged_build() {
-        let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-        let ld_root = root.join("linker.ld");
-        fs::write(&ld_root, linker_script).unwrap_or_else(|err| {
-            panic!("failed to write linker script to {}: {}", ld_root.display(), err)
-        });
-    }
+    println!("cargo:rustc-link-arg=-T{}", ld.display());
 }
 
 fn is_packaged_build() -> bool {
