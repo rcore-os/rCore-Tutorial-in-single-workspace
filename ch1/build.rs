@@ -5,44 +5,22 @@ fn main() {
 
     // 只在 RISC-V64 架构上使用链接脚本
     if target_arch == "riscv64" {
-        let ld = &PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("linker.ld");
-        fs::write(
-            ld,
-            if env::var("CARGO_FEATURE_NOBIOS").is_ok() {
-                NOBIOS_LINKER
-            } else {
-                LINKER
-            },
-        )
-        .unwrap();
-        println!("cargo:rustc-link-arg=-T{}", ld.display());
+        let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+        let ld_out = out_dir.join("linker.ld");
+        fs::write(&ld_out, NOBIOS_LINKER).unwrap_or_else(|err| {
+            panic!("failed to write linker script to {}: {}", ld_out.display(), err)
+        });
+        println!("cargo:rustc-link-arg=-T{}", ld_out.display());
+
+        let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+        let ld_root = root.join("linker.ld");
+        fs::write(&ld_root, NOBIOS_LINKER).unwrap_or_else(|err| {
+            panic!("failed to write linker script to {}: {}", ld_root.display(), err)
+        });
     }
 
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_NOBIOS");
 }
-
-const LINKER: &[u8] = b"
-OUTPUT_ARCH(riscv)
-SECTIONS {
-    .text 0x80200000 : {
-        *(.text.entry)
-        *(.text .text.*)
-    }
-    .rodata : {
-        *(.rodata .rodata.*)
-        *(.srodata .srodata.*)
-    }
-    .data : {
-        *(.data .data.*)
-        *(.sdata .sdata.*)
-    }
-    .bss : {
-        *(.bss.uninit)
-        *(.bss .bss.*)
-        *(.sbss .sbss.*)
-    }
-}";
 
 const NOBIOS_LINKER: &[u8] = b"
 OUTPUT_ARCH(riscv)
