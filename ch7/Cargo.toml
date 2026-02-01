@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch7"
 description = "Chapter 7 of rCore Tutorial: Inter-process communication with pipe and signal handling."
-version = "0.1.0-preview.1"
+version = "0.2.0-preview.1"
 edition = "2021"
 authors = ["scPointer <jax01@foxmail.com>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -11,9 +11,14 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["rcore", "tutorial", "no-std", "riscv", "ipc"]
 categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+    ".cargo/config.toml",
+]
 
 [features]
-default = []
+default = ["nobios"]
+coop = []
 nobios = [
     "tg-sbi/nobios",
 ]
@@ -30,17 +35,20 @@ xmas-elf = "0.8.0"
 riscv = "0.10.1"
 spin = "0.9"
 
-tg-sbi = { path = "../tg-sbi", version = "0.1.0-preview.1" }
-tg-linker = { path = "../tg-linker", version = "0.1.0-preview.2" }
-tg-console = { path = "../tg-console", version = "0.1.0-preview.2" }
-tg-kernel-context = { path = "../tg-kernel-context", version = "0.1.0-preview.1", features = ["foreign"] }
-tg-kernel-alloc = { path = "../tg-kernel-alloc", version = "0.1.0-preview.2" }
-tg-kernel-vm = { path = "../tg-kernel-vm", version = "0.1.0-preview.2" }
-tg-syscall = { path = "../tg-syscall", version = "0.1.0-preview.2", features = ["kernel"] }
-tg-task-manage = { path = "../tg-task-manage", version = "0.1.0-preview.1", features = ["proc"] }
-tg-easy-fs = { path = "../tg-easy-fs", version = "0.1.0-preview.2" }
-tg-signal = { path = "../tg-signal", version = "0.1.0-preview.1" }
-tg-signal-impl = { path = "../tg-signal-impl", version = "0.1.0-preview.1" }
+tg-sbi = { version = "0.1.0-preview.1" }
+tg-linker = { version = "0.1.0-preview.2" }
+tg-console = { version = "0.1.0-preview.2" }
+tg-kernel-context = { version = "0.1.0-preview.1", features = ["foreign"] }
+tg-kernel-alloc = { version = "0.1.0-preview.2" }
+tg-kernel-vm = { version = "0.1.0-preview.2" }
+tg-syscall = { version = "0.1.0-preview.2", features = ["kernel"] }
+tg-task-manage = { version = "0.1.0-preview.1", features = ["proc"] }
+tg-easy-fs = { version = "0.1.0-preview.2" }
+tg-signal = { version = "0.1.0-preview.1" }
+tg-signal-impl = { version = "0.1.0-preview.1" }
 
 [build-dependencies]
-tg-linker = { path = "../tg-linker", version = "0.1.0-preview.2" }
+tg-linker = { version = "0.1.0-preview.2" }
+tg-easy-fs = { version = "0.1.0-preview.2" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
