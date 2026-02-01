@@ -1,0 +1,28 @@
+[package]
+name = "tg-user"
+description = "User-space apps for rCore Tutorial chapters (subset for ch2)."
+version = "0.2.0-preview.1"
+edition = "2021"
+authors = ["YdrMaster <ydrml@hotmail.com>"]
+repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace/tree/singledev"
+documentation = "https://docs.rs/tg-user"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "user-apps"]
+categories = ["no-std", "embedded"]
+
+[lib]
+name = "user_lib"
+path = "src/lib.rs"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+tg-console = { version = "0.1.0-preview.2" }
+tg-syscall = { version = "0.1.0-preview.2", features = ["user"] }
+customizable-buddy = "0.0.2"

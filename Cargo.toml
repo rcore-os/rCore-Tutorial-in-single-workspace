@@ -9,7 +9,6 @@ members = [
     "ch6",
     "ch7",
     "ch8",
-    "user",
     "tg-linker",
     "tg-console",
     "tg-syscall",
@@ -26,7 +25,7 @@ members = [
 ]
 default-members = ["xtask"]
 resolver = "2"
-exclude = ["ch1"]
+exclude = ["ch1","tg-user"]
 
 # 统一的包元数据，子 crate 可通过 `xxx.workspace = true` 继承
 [workspace.package]
