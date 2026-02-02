@@ -1,10 +1,17 @@
+//! 第一章：应用程序与基本执行环境
+//!
+//! 本章实现了一个最简单的 RISC-V S 态裸机程序，展示操作系统的最小执行环境。
 #![no_std]
 #![no_main]
-#![deny(warnings)]
+#![cfg_attr(target_arch = "riscv64", deny(warnings, missing_docs))]
+#![cfg_attr(not(target_arch = "riscv64"), allow(dead_code))]
+
+use tg_sbi;
 
 /// Supervisor 汇编入口。
 ///
 /// 设置栈并跳转到 Rust。
+#[cfg(target_arch = "riscv64")]
 #[unsafe(naked)]
 #[no_mangle]
 #[link_section = ".text.entry"]
@@ -27,19 +34,31 @@ unsafe extern "C" fn _start() -> ! {
 ///
 /// 打印 `Hello, World!`，然后关机。
 extern "C" fn rust_main() -> ! {
-    use sbi_rt::*;
-    for c in b"Hello, world!" {
-        #[allow(deprecated)]
-        legacy::console_putchar(*c as _);
+    for c in b"Hello, world!\n" {
+        tg_sbi::console_putchar(*c);
     }
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    tg_sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
-    use sbi_rt::*;
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    tg_sbi::shutdown(true)
+}
+
+/// 非 RISC-V64 架构的占位实现
+#[cfg(not(target_arch = "riscv64"))]
+mod stub {
+    #[no_mangle]
+    pub extern "C" fn main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn __libc_start_main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn rust_eh_personality() {}
 }

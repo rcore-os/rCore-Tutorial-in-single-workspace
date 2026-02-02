@@ -1,42 +1,48 @@
+//! 第二章：批处理系统
+//!
+//! 本章实现了一个批处理操作系统，支持特权级切换和 Trap 处理，能够依次加载并运行多个用户程序。
 #![no_std]
 #![no_main]
-#![deny(warnings)]
+#![cfg_attr(target_arch = "riscv64", deny(warnings, missing_docs))]
+#![cfg_attr(not(target_arch = "riscv64"), allow(dead_code))]
 
 #[macro_use]
-extern crate rcore_console;
+extern crate tg_console;
 
 use impls::{Console, SyscallContext};
-use kernel_context::LocalContext;
-use rcore_console::log;
 use riscv::register::*;
-use sbi_rt::*;
-use syscall::{Caller, SyscallId};
+use tg_console::log;
+use tg_kernel_context::LocalContext;
+use tg_sbi;
+use tg_syscall::{Caller, SyscallId};
 
 // 用户程序内联进来。
+#[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 定义内核入口。
-linker::boot0!(rust_main; stack = 4 * 4096);
+#[cfg(target_arch = "riscv64")]
+tg_linker::boot0!(rust_main; stack = 8 * 4096);
 
 extern "C" fn rust_main() -> ! {
     // bss 段清零
-    unsafe { linker::KernelLayout::locate().zero_bss() };
+    unsafe { tg_linker::KernelLayout::locate().zero_bss() };
     // 初始化 `console`
-    rcore_console::init_console(&Console);
-    rcore_console::set_log_level(option_env!("LOG"));
-    rcore_console::test_log();
+    tg_console::init_console(&Console);
+    tg_console::set_log_level(option_env!("LOG"));
+    tg_console::test_log();
     // 初始化 syscall
-    syscall::init_io(&SyscallContext);
-    syscall::init_process(&SyscallContext);
+    tg_syscall::init_io(&SyscallContext);
+    tg_syscall::init_process(&SyscallContext);
     // 批处理
-    for (i, app) in linker::AppMeta::locate().iter().enumerate() {
+    for (i, app) in tg_linker::AppMeta::locate().iter().enumerate() {
         let app_base = app.as_ptr() as usize;
         log::info!("load app{i} to {app_base:#x}");
         // 初始化上下文
         let mut ctx = LocalContext::user(app_base);
         // 设置用户栈（使用 MaybeUninit 避免 release 模式下零初始化的问题）
-        let mut user_stack: core::mem::MaybeUninit<[usize; 256]> = core::mem::MaybeUninit::uninit();
+        let mut user_stack: core::mem::MaybeUninit<[usize; 512]> = core::mem::MaybeUninit::uninit();
         let user_stack_ptr = user_stack.as_mut_ptr() as *mut usize;
-        *ctx.sp_mut() = unsafe { user_stack_ptr.add(256) } as usize;
+        *ctx.sp_mut() = unsafe { user_stack_ptr.add(512) } as usize;
         loop {
             unsafe { ctx.execute() };
 
@@ -61,16 +67,14 @@ extern "C" fn rust_main() -> ! {
         println!();
     }
 
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    tg_sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{info}");
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    tg_sbi::shutdown(true)
 }
 
 enum SyscallResult {
@@ -81,11 +85,11 @@ enum SyscallResult {
 
 /// 处理系统调用，返回是否应该终止程序。
 fn handle_syscall(ctx: &mut LocalContext) -> SyscallResult {
-    use syscall::{SyscallId as Id, SyscallResult as Ret};
+    use tg_syscall::{SyscallId as Id, SyscallResult as Ret};
 
     let id = ctx.a(7).into();
     let args = [ctx.a(0), ctx.a(1), ctx.a(2), ctx.a(3), ctx.a(4), ctx.a(5)];
-    match syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
+    match tg_syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
         Ret::Done(ret) => match id {
             Id::EXIT => SyscallResult::Exit(ctx.a(0)),
             _ => {
@@ -100,22 +104,21 @@ fn handle_syscall(ctx: &mut LocalContext) -> SyscallResult {
 
 /// 各种接口库的实现
 mod impls {
-    use syscall::{STDDEBUG, STDOUT};
+    use tg_syscall::{STDDEBUG, STDOUT};
 
     pub struct Console;
 
-    impl rcore_console::Console for Console {
+    impl tg_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            #[allow(deprecated)]
-            sbi_rt::legacy::console_putchar(c as _);
+            tg_sbi::console_putchar(c);
         }
     }
 
     pub struct SyscallContext;
 
-    impl syscall::IO for SyscallContext {
-        fn write(&self, _caller: syscall::Caller, fd: usize, buf: usize, count: usize) -> isize {
+    impl tg_syscall::IO for SyscallContext {
+        fn write(&self, _caller: tg_syscall::Caller, fd: usize, buf: usize, count: usize) -> isize {
             match fd {
                 STDOUT | STDDEBUG => {
                     print!("{}", unsafe {
@@ -127,17 +130,34 @@ mod impls {
                     count as _
                 }
                 _ => {
-                    rcore_console::log::error!("unsupported fd: {fd}");
+                    tg_console::log::error!("unsupported fd: {fd}");
                     -1
                 }
             }
         }
     }
 
-    impl syscall::Process for SyscallContext {
+    impl tg_syscall::Process for SyscallContext {
         #[inline]
-        fn exit(&self, _caller: syscall::Caller, _status: usize) -> isize {
+        fn exit(&self, _caller: tg_syscall::Caller, _status: usize) -> isize {
             0
         }
     }
+}
+
+/// 非 RISC-V64 架构的占位实现
+#[cfg(not(target_arch = "riscv64"))]
+mod stub {
+    #[no_mangle]
+    pub extern "C" fn main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn __libc_start_main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn rust_eh_personality() {}
 }

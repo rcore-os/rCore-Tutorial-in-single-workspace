@@ -1,11 +1,15 @@
+//! 第四章：地址空间
+//!
+//! 本章实现了基于 RISC-V Sv39 的虚拟内存管理，为每个进程提供独立的地址空间。
 #![no_std]
 #![no_main]
-// #![deny(warnings)]
+#![cfg_attr(target_arch = "riscv64", deny(warnings, missing_docs))]
+#![cfg_attr(not(target_arch = "riscv64"), allow(dead_code, unused_imports))]
 
 mod process;
 
 #[macro_use]
-extern crate rcore_console;
+extern crate tg_console;
 
 extern crate alloc;
 
@@ -14,42 +18,77 @@ use crate::{
     process::Process,
 };
 use alloc::{alloc::alloc, vec::Vec};
-use core::alloc::Layout;
+use core::{alloc::Layout, cell::UnsafeCell};
 use impls::Console;
-use kernel_context::{foreign::MultislotPortal, LocalContext};
-use kernel_vm::{
-    page_table::{MmuMeta, Sv39, VAddr, VmFlags, VmMeta, PPN, VPN},
+use riscv::register::*;
+#[cfg(not(target_arch = "riscv64"))]
+use stub::Sv39;
+use tg_console::log;
+use tg_kernel_context::{foreign::MultislotPortal, LocalContext};
+#[cfg(target_arch = "riscv64")]
+use tg_kernel_vm::page_table::Sv39;
+use tg_kernel_vm::{
+    page_table::{MmuMeta, VAddr, VmFlags, VmMeta, PPN, VPN},
     AddressSpace,
 };
-use rcore_console::log;
-use riscv::register::*;
-use sbi_rt::*;
-use syscall::Caller;
+use tg_sbi;
+use tg_syscall::Caller;
 use xmas_elf::ElfFile;
 
+/// 构建 VmFlags。
+#[cfg(target_arch = "riscv64")]
+const fn build_flags(s: &str) -> VmFlags<Sv39> {
+    VmFlags::build_from_str(s)
+}
+
+/// 解析 VmFlags。
+#[cfg(target_arch = "riscv64")]
+fn parse_flags(s: &str) -> Result<VmFlags<Sv39>, ()> {
+    s.parse()
+}
+
+#[cfg(not(target_arch = "riscv64"))]
+use stub::{build_flags, parse_flags};
+
 // 应用程序内联进来。
+#[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 // 定义内核入口。
-linker::boot0!(rust_main; stack = 6 * 4096);
+#[cfg(target_arch = "riscv64")]
+tg_linker::boot0!(rust_main; stack = 6 * 4096);
 // 物理内存容量 = 24 MiB。
 const MEMORY: usize = 24 << 20;
 // 传送门所在虚页。
 const PROTAL_TRANSIT: VPN<Sv39> = VPN::MAX;
 // 进程列表。
-static mut PROCESSES: Vec<Process> = Vec::new();
+struct ProcessList(UnsafeCell<Vec<Process>>);
+
+unsafe impl Sync for ProcessList {}
+
+impl ProcessList {
+    const fn new() -> Self {
+        Self(UnsafeCell::new(Vec::new()))
+    }
+
+    unsafe fn get_mut(&self) -> &mut Vec<Process> {
+        &mut *self.0.get()
+    }
+}
+
+static PROCESSES: ProcessList = ProcessList::new();
 
 extern "C" fn rust_main() -> ! {
-    let layout = linker::KernelLayout::locate();
+    let layout = tg_linker::KernelLayout::locate();
     // bss 段清零
     unsafe { layout.zero_bss() };
     // 初始化 `console`
-    rcore_console::init_console(&Console);
-    rcore_console::set_log_level(option_env!("LOG"));
-    rcore_console::test_log();
+    tg_console::init_console(&Console);
+    tg_console::set_log_level(option_env!("LOG"));
+    tg_console::test_log();
     // 初始化内核堆
-    kernel_alloc::init(layout.start() as _);
+    tg_kernel_alloc::init(layout.start() as _);
     unsafe {
-        kernel_alloc::transfer(core::slice::from_raw_parts_mut(
+        tg_kernel_alloc::transfer(core::slice::from_raw_parts_mut(
             layout.end() as _,
             MEMORY - layout.len(),
         ))
@@ -63,13 +102,13 @@ extern "C" fn rust_main() -> ! {
     let mut ks = kernel_space(layout, MEMORY, portal_ptr as _);
     let portal_idx = PROTAL_TRANSIT.index_in(Sv39::MAX_LEVEL);
     // 加载应用程序
-    for (i, elf) in linker::AppMeta::locate().iter().enumerate() {
+    for (i, elf) in tg_linker::AppMeta::locate().iter().enumerate() {
         let base = elf.as_ptr() as usize;
         log::info!("detect app[{i}]: {base:#x}..{:#x}", base + elf.len());
         if let Some(process) = Process::new(ElfFile::new(elf).unwrap()) {
             // 映射异界传送门
             process.address_space.root()[portal_idx] = ks.root()[portal_idx];
-            unsafe { PROCESSES.push(process) };
+            unsafe { PROCESSES.get_mut().push(process) };
         }
     }
 
@@ -81,10 +120,10 @@ extern "C" fn rust_main() -> ! {
     ks.map_extern(
         VPN::new((1 << 26) - pages)..VPN::new(1 << 26),
         PPN::new(stack as usize >> Sv39::PAGE_BITS),
-        VmFlags::build_from_str("_WRV"),
+        build_flags("_WRV"),
     );
     // 建立调度线程，目的是划分异常域。调度线程上发生内核异常时会回到这个控制流处理
-    let mut scheduling = LocalContext::thread(schedule as _, false);
+    let mut scheduling = LocalContext::thread(schedule as *const () as _, false);
     *scheduling.sp_mut() = 1 << 38;
     unsafe { scheduling.execute() };
     log::error!("stval = {:#x}", stval::read());
@@ -95,24 +134,26 @@ extern "C" fn schedule() -> ! {
     // 初始化异界传送门
     let portal = unsafe { MultislotPortal::init_transit(PROTAL_TRANSIT.base().val(), 1) };
     // 初始化 syscall
-    syscall::init_io(&SyscallContext);
-    syscall::init_process(&SyscallContext);
-    syscall::init_scheduling(&SyscallContext);
-    syscall::init_clock(&SyscallContext);
-    while !unsafe { PROCESSES.is_empty() } {
-        let ctx = unsafe { &mut PROCESSES[0].context };
+    tg_syscall::init_io(&SyscallContext);
+    tg_syscall::init_process(&SyscallContext);
+    tg_syscall::init_scheduling(&SyscallContext);
+    tg_syscall::init_clock(&SyscallContext);
+    tg_syscall::init_trace(&SyscallContext);
+    tg_syscall::init_memory(&SyscallContext);
+    while !unsafe { PROCESSES.get_mut().is_empty() } {
+        let ctx = unsafe { &mut PROCESSES.get_mut()[0].context };
         unsafe { ctx.execute(portal, ()) };
         match scause::read().cause() {
             scause::Trap::Exception(scause::Exception::UserEnvCall) => {
-                use syscall::{SyscallId as Id, SyscallResult as Ret};
+                use tg_syscall::{SyscallId as Id, SyscallResult as Ret};
 
                 let ctx = &mut ctx.context;
                 let id: Id = ctx.a(7).into();
                 let args = [ctx.a(0), ctx.a(1), ctx.a(2), ctx.a(3), ctx.a(4), ctx.a(5)];
-                match syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
+                match tg_syscall::handle(Caller { entity: 0, flow: 0 }, id, args) {
                     Ret::Done(ret) => match id {
                         Id::EXIT => unsafe {
-                            PROCESSES.remove(0);
+                            PROCESSES.get_mut().remove(0);
                         },
                         _ => {
                             *ctx.a_mut(0) = ret as _;
@@ -121,7 +162,7 @@ extern "C" fn schedule() -> ! {
                     },
                     Ret::Unsupported(_) => {
                         log::info!("id = {id:?}");
-                        unsafe { PROCESSES.remove(0) };
+                        unsafe { PROCESSES.get_mut().remove(0) };
                     }
                 }
             }
@@ -131,31 +172,29 @@ extern "C" fn schedule() -> ! {
                     stval::read(),
                     ctx.context.pc()
                 );
-                unsafe { PROCESSES.remove(0) };
+                unsafe { PROCESSES.get_mut().remove(0) };
             }
         }
     }
-    system_reset(Shutdown, NoReason);
-    unreachable!()
+    tg_sbi::shutdown(false)
 }
 
 /// Rust 异常处理函数，以异常方式关机。
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     log::error!("{info}");
-    system_reset(Shutdown, SystemFailure);
-    loop {}
+    tg_sbi::shutdown(true)
 }
 
 fn kernel_space(
-    layout: linker::KernelLayout,
+    layout: tg_linker::KernelLayout,
     memory: usize,
     portal: usize,
 ) -> AddressSpace<Sv39, Sv39Manager> {
     let mut space = AddressSpace::<Sv39, Sv39Manager>::new();
     for region in layout.iter() {
         log::info!("{region}");
-        use linker::KernelRegionTitle::*;
+        use tg_linker::KernelRegionTitle::*;
         let flags = match region.title {
             Text => "X_RV",
             Rodata => "__RV",
@@ -166,7 +205,7 @@ fn kernel_space(
         space.map_extern(
             s.floor()..e.ceil(),
             PPN::new(s.floor().val()),
-            VmFlags::build_from_str(flags),
+            build_flags(flags),
         )
     }
     log::info!(
@@ -179,12 +218,12 @@ fn kernel_space(
     space.map_extern(
         s.floor()..e.ceil(),
         PPN::new(s.floor().val()),
-        VmFlags::build_from_str("_WRV"),
+        build_flags("_WRV"),
     );
     space.map_extern(
         PROTAL_TRANSIT..PROTAL_TRANSIT + 1,
         PPN::new(portal >> Sv39::PAGE_BITS),
-        VmFlags::build_from_str("__G_XWRV"),
+        build_flags("__G_XWRV"),
     );
     println!();
     unsafe { satp::set(satp::Mode::Sv39, 0, space.root_ppn().val()) };
@@ -193,15 +232,15 @@ fn kernel_space(
 
 /// 各种接口库的实现。
 mod impls {
-    use crate::PROCESSES;
+    use crate::{build_flags, Sv39, PROCESSES};
     use alloc::alloc::alloc_zeroed;
     use core::{alloc::Layout, ptr::NonNull};
-    use kernel_vm::{
-        page_table::{MmuMeta, Pte, Sv39, VAddr, VmFlags, PPN, VPN},
+    use tg_console::log;
+    use tg_kernel_vm::{
+        page_table::{MmuMeta, Pte, VAddr, VmFlags, PPN, VPN},
         PageManager,
     };
-    use rcore_console::log;
-    use syscall::*;
+    use tg_syscall::*;
 
     #[repr(transparent)]
     pub struct Sv39Manager(NonNull<Pte<Sv39>>);
@@ -269,11 +308,10 @@ mod impls {
 
     pub struct Console;
 
-    impl rcore_console::Console for Console {
+    impl tg_console::Console for Console {
         #[inline]
         fn put_char(&self, c: u8) {
-            #[allow(deprecated)]
-            sbi_rt::legacy::console_putchar(c as _);
+            tg_sbi::console_putchar(c);
         }
     }
 
@@ -283,11 +321,12 @@ mod impls {
         fn write(&self, caller: Caller, fd: usize, buf: usize, count: usize) -> isize {
             match fd {
                 STDOUT | STDDEBUG => {
-                    const READABLE: VmFlags<Sv39> = VmFlags::build_from_str("RV");
-                    if let Some(ptr) = unsafe { PROCESSES.get_mut(caller.entity) }
+                    const READABLE: VmFlags<Sv39> = build_flags("RV");
+                    if let Some(ptr) = unsafe { PROCESSES.get_mut() }
+                        .get_mut(caller.entity)
                         .unwrap()
                         .address_space
-                        .translate(VAddr::new(buf), READABLE)
+                        .translate::<u8>(VAddr::new(buf), READABLE)
                     {
                         print!("{}", unsafe {
                             core::str::from_utf8_unchecked(core::slice::from_raw_parts(
@@ -314,6 +353,18 @@ mod impls {
         fn exit(&self, _caller: Caller, _status: usize) -> isize {
             0
         }
+
+        fn sbrk(&self, caller: Caller, size: i32) -> isize {
+            if let Some(process) = unsafe { PROCESSES.get_mut() }.get_mut(caller.entity) {
+                if let Some(old_brk) = process.change_program_brk(size as isize) {
+                    old_brk as isize
+                } else {
+                    -1
+                }
+            } else {
+                -1
+            }
+        }
     }
 
     impl Scheduling for SyscallContext {
@@ -326,13 +377,14 @@ mod impls {
     impl Clock for SyscallContext {
         #[inline]
         fn clock_gettime(&self, caller: Caller, clock_id: ClockId, tp: usize) -> isize {
-            const WRITABLE: VmFlags<Sv39> = VmFlags::build_from_str("W_V");
+            const WRITABLE: VmFlags<Sv39> = build_flags("W_V");
             match clock_id {
                 ClockId::CLOCK_MONOTONIC => {
-                    if let Some(mut ptr) = unsafe { PROCESSES.get(caller.entity) }
+                    if let Some(mut ptr) = unsafe { PROCESSES.get_mut() }
+                        .get_mut(caller.entity)
                         .unwrap()
                         .address_space
-                        .translate(VAddr::new(tp), WRITABLE)
+                        .translate::<TimeSpec>(VAddr::new(tp), WRITABLE)
                     {
                         let time = riscv::register::time::read() * 10000 / 125;
                         *unsafe { ptr.as_mut() } = TimeSpec {
@@ -349,4 +401,83 @@ mod impls {
             }
         }
     }
+
+    impl Trace for SyscallContext {
+        // TODO: 实现 trace 系统调用
+        #[inline]
+        fn trace(&self, _caller: Caller, _trace_request: usize, _id: usize, _data: usize) -> isize {
+            tg_console::log::info!("trace: not implemented");
+            -1
+        }
+    }
+
+    impl Memory for SyscallContext {
+        // TODO: 实现 mmap 系统调用
+        fn mmap(
+            &self,
+            _caller: Caller,
+            addr: usize,
+            len: usize,
+            prot: i32,
+            _flags: i32,
+            _fd: i32,
+            _offset: usize,
+        ) -> isize {
+            tg_console::log::info!(
+                "mmap: addr = {addr:#x}, len = {len}, prot = {prot}, not implemented"
+            );
+            -1
+        }
+
+        // TODO: 实现 munmap 系统调用
+        fn munmap(&self, _caller: Caller, addr: usize, len: usize) -> isize {
+            tg_console::log::info!("munmap: addr = {addr:#x}, len = {len}, not implemented");
+            -1
+        }
+    }
+}
+
+/// 非 RISC-V64 架构的占位实现
+#[cfg(not(target_arch = "riscv64"))]
+mod stub {
+    use tg_kernel_vm::page_table::{MmuMeta, VmFlags};
+
+    /// Sv39 占位类型
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+    pub struct Sv39;
+
+    impl MmuMeta for Sv39 {
+        const P_ADDR_BITS: usize = 56;
+        const PAGE_BITS: usize = 12;
+        const LEVEL_BITS: &'static [usize] = &[9, 9, 9];
+        const PPN_POS: usize = 10;
+
+        #[inline]
+        fn is_leaf(value: usize) -> bool {
+            value & 0b1110 != 0
+        }
+    }
+
+    /// 构建 VmFlags 占位。
+    pub const fn build_flags(_s: &str) -> VmFlags<Sv39> {
+        unsafe { VmFlags::from_raw(0) }
+    }
+
+    /// 解析 VmFlags 占位。
+    pub fn parse_flags(_s: &str) -> Result<VmFlags<Sv39>, ()> {
+        Ok(unsafe { VmFlags::from_raw(0) })
+    }
+
+    #[no_mangle]
+    pub extern "C" fn main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn __libc_start_main() -> i32 {
+        0
+    }
+
+    #[no_mangle]
+    pub extern "C" fn rust_eh_personality() {}
 }

@@ -1,18 +1,19 @@
-use crate::{map_portal, Sv39Manager, PROCESSOR};
-use alloc::sync::Arc;
-use alloc::{alloc::alloc_zeroed, boxed::Box, vec::Vec};
-use core::{alloc::Layout, str::FromStr};
-use easy_fs::FileHandle;
-use kernel_context::{foreign::ForeignContext, LocalContext};
-use kernel_vm::{
-    page_table::{MmuMeta, Sv39, VAddr, VmFlags, PPN, VPN},
+use crate::{
+    build_flags, fs::Fd, map_portal, parse_flags, processor::ProcessorInner, Sv39, Sv39Manager,
+    PROCESSOR,
+};
+use alloc::{alloc::alloc_zeroed, boxed::Box, sync::Arc, vec::Vec};
+use core::alloc::Layout;
+use spin::Mutex;
+use tg_kernel_context::{foreign::ForeignContext, LocalContext};
+use tg_kernel_vm::{
+    page_table::{MmuMeta, VAddr, PPN, VPN},
     AddressSpace,
 };
-use rcore_task_manage::{ProcId, ThreadId};
-use signal::Signal;
-use signal_impl::SignalImpl;
-use spin::Mutex;
-use sync::{Condvar, Mutex as MutexTrait, Semaphore};
+use tg_signal::Signal;
+use tg_signal_impl::SignalImpl;
+use tg_sync::{Condvar, Mutex as MutexTrait, Semaphore};
+use tg_task_manage::{ProcId, ThreadId};
 use xmas_elf::{
     header::{self, HeaderPt2, Machine},
     program, ElfFile,
@@ -42,7 +43,7 @@ pub struct Process {
     /// 可变
     pub address_space: AddressSpace<Sv39, Sv39Manager>,
     /// 文件描述符表
-    pub fd_table: Vec<Option<Mutex<FileHandle>>>,
+    pub fd_table: Vec<Option<Mutex<Fd>>>,
     /// 信号模块
     pub signal: Box<dyn Signal>,
     /// 分配的锁以及信号量
@@ -56,9 +57,10 @@ impl Process {
     pub fn exec(&mut self, elf: ElfFile) {
         let (proc, thread) = Process::from_elf(elf).unwrap();
         self.address_space = proc.address_space;
+        let processor: *mut ProcessorInner = PROCESSOR.get_mut() as *mut ProcessorInner;
         unsafe {
-            let pthreads = PROCESSOR.get_thread(self.pid).unwrap();
-            PROCESSOR.get_task(pthreads[0]).unwrap().context = thread.context;
+            let pthreads = (*processor).get_thread(self.pid).unwrap();
+            (*processor).get_task(pthreads[0]).unwrap().context = thread.context;
         }
     }
     /// 只支持一个线程
@@ -71,9 +73,10 @@ impl Process {
         parent_addr_space.cloneself(&mut address_space);
         map_portal(&address_space);
         // 线程
-        let pthreads = unsafe { PROCESSOR.get_thread(self.pid).unwrap() };
+        let processor: *mut ProcessorInner = PROCESSOR.get_mut() as *mut ProcessorInner;
+        let pthreads = unsafe { (*processor).get_thread(self.pid).unwrap() };
         let context = unsafe {
-            PROCESSOR
+            (*processor)
                 .get_task(pthreads[0])
                 .unwrap()
                 .context
@@ -83,14 +86,11 @@ impl Process {
         let satp = (8 << 60) | address_space.root_ppn().val();
         let thread = Thread::new(satp, context);
         // 复制父进程文件符描述表
-        let mut new_fd_table: Vec<Option<Mutex<FileHandle>>> = Vec::new();
-        for fd in self.fd_table.iter_mut() {
-            if let Some(file) = fd {
-                new_fd_table.push(Some(Mutex::new(file.get_mut().clone())));
-            } else {
-                new_fd_table.push(None);
-            }
-        }
+        let new_fd_table: Vec<Option<Mutex<Fd>>> = self
+            .fd_table
+            .iter()
+            .map(|fd| fd.as_ref().map(|f| Mutex::new(f.lock().clone())))
+            .collect();
         Some((
             Self {
                 pid,
@@ -145,7 +145,7 @@ impl Process {
                 VAddr::new(off_mem).floor()..VAddr::new(end_mem).ceil(),
                 &elf.input[off_file..][..len_file],
                 off_mem & PAGE_MASK,
-                VmFlags::from_str(unsafe { core::str::from_utf8_unchecked(&flags) }).unwrap(),
+                parse_flags(unsafe { core::str::from_utf8_unchecked(&flags) }).unwrap(),
             );
         }
         // 映射用户栈
@@ -158,7 +158,7 @@ impl Process {
         address_space.map_extern(
             VPN::new((1 << 26) - 2)..VPN::new(1 << 26),
             PPN::new(stack as usize >> Sv39::PAGE_BITS),
-            VmFlags::build_from_str("U_WRV"),
+            build_flags("U_WRV"),
         );
         // 映射异界传送门
         map_portal(&address_space);
@@ -173,9 +173,20 @@ impl Process {
                 address_space,
                 fd_table: vec![
                     // Stdin
-                    Some(Mutex::new(FileHandle::empty(true, false))),
+                    Some(Mutex::new(Fd::Empty {
+                        read: true,
+                        write: false,
+                    })),
                     // Stdout
-                    Some(Mutex::new(FileHandle::empty(false, true))),
+                    Some(Mutex::new(Fd::Empty {
+                        read: false,
+                        write: true,
+                    })),
+                    // Stderr
+                    Some(Mutex::new(Fd::Empty {
+                        read: false,
+                        write: true,
+                    })),
                 ],
                 signal: Box::new(SignalImpl::new()),
                 semaphore_list: Vec::new(),

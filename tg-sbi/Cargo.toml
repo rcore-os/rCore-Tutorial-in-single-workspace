@@ -1,0 +1,22 @@
+[package]
+name = "tg-sbi"
+description = "SBI (Supervisor Binary Interface) call wrappers for rCore tutorial OS."
+version = "0.1.0-preview.1"
+edition = "2021"
+authors = ["Ivans-11 <w-yf22@mails.tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
+documentation = "https://docs.rs/tg-sbi"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["rcore", "sbi", "no-std", "riscv"]
+categories = ["no-std", "embedded"]
+
+[features]
+default = []
+nobios = []
+
+[package.metadata.docs.rs]
+targets = ["riscv64gc-unknown-none-elf"]
+
+[dependencies]

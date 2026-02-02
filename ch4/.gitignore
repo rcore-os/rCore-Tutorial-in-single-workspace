@@ -1,0 +1,13 @@
+**/.*/*
+!**/.cargo/*
+!**/.github/*
+!**/.vscode/settings.json
+
+*.asm
+*.bin
+!/**/m_entry.asm
+target
+Cargo.lock
+tg-user
+tg-kernel-vm
+linker.ld
