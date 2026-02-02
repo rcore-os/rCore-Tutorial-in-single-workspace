@@ -23,6 +23,14 @@ cargo run --features coop      # 协作式调度（需主动 yield）
 > 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
 > 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
 
+### 测试
+
+```bash
+./test.sh  # 全部测试，等价于 ./test.sh all
+./test.sh base  # 基础测试
+./test.sh exercise  # 练习测试
+```
+
 ## 用户程序加载
 
 tg-ch3 在构建阶段会拉取 tg-user 并编译用户程序，生成 `APP_ASM` 内联到内核镜像中，运行时依次加载执行。

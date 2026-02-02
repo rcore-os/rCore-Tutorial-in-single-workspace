@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "xtask",
     "ch1-lab",
     "tg-linker",
     "tg-console",
@@ -16,7 +15,6 @@ members = [
     "tg-sync",
     "tg-sbi",
 ]
-default-members = ["xtask"]
 resolver = "2"
 exclude = ["ch1","ch2","ch3","ch4","ch5","ch6","ch7","ch8","tg-user","tg-checker"]
 

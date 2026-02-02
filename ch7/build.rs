@@ -162,12 +162,14 @@ fn easy_fs_pack(
     use std::sync::Arc;
 
     fs::create_dir_all(fs_target)?;
+    let fs_file = fs_target.join("fs.img");
+    println!("cargo:rerun-if-changed={}", fs_file.display());
     let block_file = Arc::new(BlockFile(std::sync::Mutex::new({
         let f = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(fs_target.join("fs.img"))?;
+            .open(fs_file)?;
         f.set_len(64 * 2048 * BLOCK_SZ as u64).unwrap();
         f
     })));

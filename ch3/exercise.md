@@ -52,3 +52,8 @@ tg-ch3/
 ```bash
 cargo run --features exercise
 ```
+
+- 测试练习测例：
+```bash
+./test.sh exercise
+```

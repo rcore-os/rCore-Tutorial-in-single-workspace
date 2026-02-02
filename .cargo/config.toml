@@ -1,6 +1,0 @@
-[alias]
-# Updated to match package name `tg-xtask` (crate renamed for publishing)
-xtask = "run --package tg-xtask --release --"
-make = "xtask make"
-asm = "xtask asm"
-qemu = "xtask qemu"

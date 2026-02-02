@@ -31,7 +31,7 @@ extern "C" fn rust_main() -> ! {
     unsafe { tg_linker::KernelLayout::locate().zero_bss() };
     // 初始化 `console`
     tg_console::init_console(&Console);
-    tg_console::set_log_level(option_env!("LOG"));
+    tg_console::set_log_level(option_env!("LOG").or(Some("info")));
     tg_console::test_log();
     // 初始化 syscall
     tg_syscall::init_io(&SyscallContext);
