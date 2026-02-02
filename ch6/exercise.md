@@ -95,34 +95,36 @@ bitflags! {
 
 ### 实验要求
 
-- 在 ch6 目录下完成实验。
+- 在 tg-ch6 目录下完成实验。
 - 目录结构说明：
 
 ```
-├── ch6（内核实现）
-│   ├── Cargo.toml（配置文件）
-│   └── src（内核源代码）
-│       ├── main.rs（内核主函数，包括系统调用接口实现）
-│       ├── fs.rs（文件系统相关）
-│       ├── process.rs（进程结构）
-│       ├── processor.rs（进程管理器）
-│       └── virtio_block.rs（VirtIO 块设备实现）
-├── tg-easy-fs（文件系统实现，需要修改以支持硬链接）
-├── tg-syscall（系统调用模块）
-│   └── src
-│       ├── kernel/mod.rs（IO trait 定义，无需修改）
-│       └── fs.rs（Stat 结构体和 StatMode 结构体定义，无需修改）
-├── user（用户程序）
-│   └── src/bin（测试用例，无需修改）
-├── ...
+tg-ch6/
+├── Cargo.toml（内核配置文件，需要修改依赖配置）
+├── src/（内核源代码，需要修改）
+│   ├── main.rs（内核主函数，包括系统调用接口实现）
+│   ├── fs.rs（文件系统相关）
+│   ├── process.rs（进程结构）
+│   ├── processor.rs（进程管理器）
+│   └── virtio_block.rs（VirtIO 块设备实现）
+├── tg-easy-fs/（文件系统实现，需要拉取到本地并修改以支持硬链接）
+│   └── src/
+│       ├── lib.rs
+│       └── ...
+└── tg-user/（用户程序，运行时自动拉取，无需修改）
+    └── src/bin（测试用例）
 ```
 
-- 测试方法：
+> **说明**：
+> - `tg-user` 会在运行时自动拉取到 `tg-ch6/tg-user` 目录下
+> - `tg-easy-fs` 需要拉取到本地才能修改其代码以支持硬链接
+
+- 运行练习测例：
 ```bash
-cargo qemu --ch 6 --exercise
+cargo run --features exercise
 ```
 然后在终端中输入 `ch6_usertest` 运行，这个测例打包了所有你需要通过的测例。
 
-### 测试说明
+### 说明
 
 - 你的内核必须前向兼容，需要能通过前一章的所有测例

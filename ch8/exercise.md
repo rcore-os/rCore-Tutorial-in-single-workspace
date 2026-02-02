@@ -62,32 +62,32 @@ fn enable_deadlock_detect(&self, _caller: Caller, is_enable: i32) -> isize
 
 ### 实验要求
 
-- 在 ch8 目录下完成实验。
+- 在 tg-ch8 目录下完成实验。
 - 目录结构说明：
 
 ```
-├── ch8（内核实现）
-│   ├── Cargo.toml（配置文件）
-│   └── src（内核源代码）
-│       ├── main.rs（内核主函数，包括系统调用接口实现）
-│       ├── fs.rs（文件系统相关）
-│       ├── process.rs（进程结构）
-│       ├── processor.rs（进程/线程管理器）
-│       └── virtio_block.rs（VirtIO 块设备实现）
-├── tg-syscall（系统调用模块）
-│   └── src
-│       └── kernel/mod.rs（SyncMutex trait 定义，无需修改）
-├── user（用户程序）
-│   └── src/bin（测试用例，无需修改）
-├── ...
+tg-ch8/
+├── Cargo.toml（内核配置文件）
+├── src/（内核源代码，需要修改）
+│   ├── main.rs（内核主函数，包括系统调用接口实现）
+│   ├── fs.rs（文件系统相关）
+│   ├── process.rs（进程结构）
+│   ├── processor.rs（进程/线程管理器）
+│   └── virtio_block.rs（VirtIO 块设备实现）
+└── tg-user/（用户程序，运行时自动拉取，无需修改）
+    └── src/bin（测试用例）
 ```
 
-- 测试方法：
+> **说明**：
+> - `tg-user` 会在运行时自动拉取到 `tg-ch8/tg-user` 目录下
+> - 只需修改 `tg-ch8/src/` 目录下的内核代码
+
+- 运行练习测例：
 ```bash
-cargo qemu --ch 8 --exercise
+cargo run --features exercise
 ```
 然后在终端中输入 `ch8_usertest` 运行，这个测例打包了所有你需要通过的测例。
 
-### 测试说明
+### 说明
 
 - 由于本次实验框架变动较大，且改动较为复杂，为降低同学们的工作量，本次实验不要求合并之前的实验内容，只需通过 ch8 的全部测例和其他章节的基础测例即可。

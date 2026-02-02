@@ -10,26 +10,30 @@
 - 条件变量 (Condvar)
 - 线程阻塞/唤醒机制
 
+## 快速开始
+
+在 tg-ch8 目录下执行：
+
+```bash
+cargo run                      # 基础模式
+cargo run --features exercise  # 练习模式
+```
+
+> 默认会在 tg-ch8 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
+> 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
+> 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+
 ## 用户程序加载
 
-用户程序存储在 easy-fs 磁盘镜像中，内核启动时挂载文件系统，通过文件名从文件系统加载。
+tg-ch8 在构建阶段会拉取 tg-user 并编译用户程序，然后将编译产物打包到 easy-fs 磁盘镜像 `fs.img` 中。运行时 QEMU 挂载该磁盘镜像，内核通过 virtio-blk 驱动访问文件系统，按文件名加载并执行用户程序。
 
-## 新增或更新的系统调用
+## 默认 QEMU 启动参数
 
-| 系统调用 | 功能 |
-|----------|------|
-| `thread_create` | 创建新线程 |
-| `gettid` | 获取当前线程 TID |
-| `waittid` | 等待线程退出 |
-| `mutex_create` | 创建互斥锁 |
-| `mutex_lock` | 加锁 |
-| `mutex_unlock` | 解锁 |
-| `semaphore_create` | 创建信号量 |
-| `semaphore_up` | V 操作（释放信号量） |
-| `semaphore_down` | P 操作（获取信号量） |
-| `condvar_create` | 创建条件变量 |
-| `condvar_signal` | 唤醒等待线程 |
-| `condvar_wait` | 等待条件变量 |
+```text
+-machine virt -nographic -bios none\
+-drive file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0\
+-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+```
 
 ## 线程
 
@@ -106,11 +110,33 @@ Id::SEMAPHORE_DOWN | Id::MUTEX_LOCK | Id::CONDVAR_WAIT => {
 
 这些同步原语返回 `Option<ThreadId>`，由调度器负责实际的唤醒操作（将线程从阻塞队列移回就绪队列）。
 
-## Exercise
+## 新增或更新的系统调用
 
-见 [Exercise](./exercise.md)
+| 系统调用 | 功能 |
+|----------|------|
+| `thread_create` | 创建新线程 |
+| `gettid` | 获取当前线程 TID |
+| `waittid` | 等待线程退出 |
+| `mutex_create` | 创建互斥锁 |
+| `mutex_lock` | 加锁 |
+| `mutex_unlock` | 解锁 |
+| `semaphore_create` | 创建信号量 |
+| `semaphore_up` | V 操作（释放信号量） |
+| `semaphore_down` | P 操作（获取信号量） |
+| `condvar_create` | 创建条件变量 |
+| `condvar_signal` | 唤醒等待线程 |
+| `condvar_wait` | 等待条件变量 |
 
-## Dependencies
+
+## 依赖与配置
+
+### Features
+
+| Feature | 说明 |
+|---------|------|
+| `exercise` | 练习模式测例 |
+
+### Dependencies
 
 | 依赖 | 说明 |
 |------|------|
@@ -130,11 +156,9 @@ Id::SEMAPHORE_DOWN | Id::MUTEX_LOCK | Id::CONDVAR_WAIT => {
 | `tg-signal-impl` | 信号模块参考实现 |
 | `tg-sync` | 同步原语（Mutex、Semaphore、Condvar）实现 |
 
-## Features
+## 练习
 
-| Feature | 说明 |
-|---------|------|
-| `nobios` | 无需外部 SBI 实现，直接从 QEMU `-bios none` 模式启动 |
+见 [Exercise](./exercise.md)
 
 ## License
 

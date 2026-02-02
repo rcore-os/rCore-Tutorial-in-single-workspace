@@ -70,31 +70,31 @@ fn set_priority(&self, _caller: Caller, prio: isize) -> isize
 
 ### 实验要求
 
-- 在 ch5 目录下完成实验。
+- 在 tg-ch5 目录下完成实验。
 - 目录结构说明：
 
 ```
-├── ch5（内核实现）
-│   ├── Cargo.toml（配置文件）
-│   └── src（内核源代码）
-│       ├── main.rs（内核主函数，包括系统调用接口实现）
-│       ├── process.rs（进程结构）
-│       └── processor.rs（进程管理器和调度器）
-├── tg-syscall（系统调用模块）
-│   └── src
-│       └── kernel/mod.rs（Process/Scheduling trait 定义，无需修改）
-├── user（用户程序）
-│   └── src/bin（测试用例，无需修改）
-├── ...
+tg-ch5/
+├── Cargo.toml（内核配置文件）
+├── src/（内核源代码，需要修改）
+│   ├── main.rs（内核主函数，包括系统调用接口实现）
+│   ├── process.rs（进程结构）
+│   └── processor.rs（进程管理器和调度器）
+└── tg-user/（用户程序，运行时自动拉取，无需修改）
+    └── src/bin（测试用例）
 ```
 
-- 测试方法：
+> **说明**：
+> - `tg-user` 会在运行时自动拉取到 `tg-ch5/tg-user` 目录下
+> - 只需修改 `tg-ch5/src/` 目录下的内核代码
+
+- 运行练习测例：
 ```bash
-cargo qemu --ch 5 --exercise
+cargo run --features exercise
 ```
 然后在终端中输入 `ch5_usertest` 运行，这个测例打包了所有你需要通过的测例。
 你也可以通过修改这个文件调整本地测试的内容, 或者单独运行某测例来纠正特定的错误。
 
-### 测试说明
+### 说明
 
 - 从本章开始，你的内核必须前向兼容，需要能通过前一章的所有测例（除了 `ch3_trace` 和 `ch4_trace`）

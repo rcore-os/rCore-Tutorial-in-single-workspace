@@ -1,8 +1,6 @@
 # 第二章：批处理系统
 
-本 crate 提供一个批处理操作系统，支持特权级切换和 Trap 处理，能够依次加载并运行多个用户程序，功能与原 ch2 等价。
-
-**差异说明**：仅支持 nobios。
+本章实现了一个批处理操作系统，支持特权级切换和 Trap 处理，能够依次加载并运行多个用户程序。
 
 ## 功能概述
 
@@ -10,6 +8,18 @@
 - Trap 上下文保存与恢复
 - 系统调用处理 (`write`, `exit`)
 - 批处理方式顺序执行用户程序
+
+## 快速开始
+
+请在 tg-ch2 目录下执行：
+
+```bash
+cargo run
+```
+
+> 默认会在 tg-ch2 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
+> 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
+> 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
 
 ## 用户程序加载
 
@@ -19,15 +29,42 @@ tg-ch2 在构建阶段会拉取 tg-user 并编译用户程序，生成 `APP_ASM`
 
 `-machine virt -nographic -bios none`
 
-## 运行
+## 特权级切换与 Trap 处理
 
-请在 tg-ch2 目录下执行：
+本章的核心是 `LocalContext` 结构，它保存用户态的完整寄存器状态。当用户程序发生异常或触发系统调用时：
 
-`cargo run`
+1. 硬件自动切换到 S 态，跳转到 `stvec` 指向的 Trap 入口
+2. Trap 入口保存用户寄存器到 `LocalContext`
+3. 内核读取 `scause` 判断 Trap 类型，处理系统调用或异常
+4. 恢复 `LocalContext` 中的寄存器，执行 `sret` 返回用户态
 
-默认会在 tg-ch2 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
-默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
-若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+```rust
+// 执行用户程序
+unsafe { ctx.execute() };
+// 从 Trap 返回后，检查原因
+match scause::read().cause() {
+    Trap::Exception(Exception::UserEnvCall) => handle_syscall(&mut ctx),
+    // ...
+}
+```
+
+## 系统调用
+
+| 系统调用 | 功能 |
+|----------|------|
+| `write` | 向标准输出写入数据 |
+| `exit` | 退出当前程序 |
+
+## Dependencies
+
+| 依赖 | 说明 |
+|------|------|
+| `riscv` | RISC-V CSR 寄存器访问 |
+| `tg-sbi` | SBI 调用封装库 |
+| `tg-linker` | 链接脚本生成、内核布局定位、用户程序元数据 |
+| `tg-console` | 控制台输出 (`print!`/`println!`) 和日志 |
+| `tg-kernel-context` | 用户上下文 `LocalContext` 及特权级切换 |
+| `tg-syscall` | 系统调用定义与分发 |
 
 ## License
 

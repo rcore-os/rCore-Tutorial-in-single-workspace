@@ -11,22 +11,26 @@
 - 进程树结构维护父子关系
 - 初始进程 `initproc` 作为所有用户进程的祖先
 
+## 快速开始
+
+在 tg-ch5 目录下执行：
+
+```bash
+cargo run                      # 基础模式
+cargo run --features exercise  # 练习模式
+```
+
+> 默认会在 tg-ch5 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
+> 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
+> 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+
 ## 用户程序加载
 
-用户程序在编译时通过 `APP_ASM` 环境变量内联到内核镜像，运行时通过 `APPS` 静态表按名称查找并加载。
+tg-ch5 在构建阶段会拉取 tg-user 并编译用户程序，生成 `APP_ASM` 内联到内核镜像中，运行时通过 `APPS` 静态表按名称查找并加载。
 
-## 系统调用
+## 默认 QEMU 启动参数
 
-| 系统调用 | 功能 |
-|----------|------|
-| `fork` | 创建子进程（复制地址空间） |
-| `exec` | 加载并执行新程序 |
-| `wait` | 等待子进程退出 |
-| `exit` | 退出当前进程 |
-| `getpid` | 获取当前进程 PID |
-| `read` | 从标准输入读取 |
-| `write` | 向标准输出写入 |
-| `sbrk` | 调整进程堆空间 |
+`-machine virt -nographic -bios none`
 
 ## fork 的实现
 
@@ -53,11 +57,28 @@ fn fork(&self) -> Option<Process> {
 pid.get_usize() as isize
 ```
 
-## Exercise
+## 系统调用
 
-见 [Exercise](./exercise.md)
+| 系统调用 | 功能 |
+|----------|------|
+| `fork` | 创建子进程（复制地址空间） |
+| `exec` | 加载并执行新程序 |
+| `wait` | 等待子进程退出 |
+| `exit` | 退出当前进程 |
+| `getpid` | 获取当前进程 PID |
+| `read` | 从标准输入读取 |
+| `write` | 向标准输出写入 |
+| `sbrk` | 调整进程堆空间 |
 
-## Dependencies
+## 依赖与配置
+
+### Features
+
+| Feature | 说明 |
+|---------|------|
+| `exercise` | 练习模式测例 |
+
+### Dependencies
 
 | 依赖 | 说明 |
 |------|------|
@@ -72,11 +93,9 @@ pid.get_usize() as isize
 | `tg-syscall` | 系统调用定义与分发 |
 | `tg-task-manage` | 进程管理框架（启用 `proc` feature） |
 
-## Features
+## 练习
 
-| Feature | 说明 |
-|---------|------|
-| `nobios` | 无需外部 SBI 实现，直接从 QEMU `-bios none` 模式启动 |
+见 [Exercise](./exercise.md)
 
 ## License
 

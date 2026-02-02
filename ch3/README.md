@@ -9,20 +9,27 @@
 - 协作式调度（通过 `yield` 系统调用主动让出 CPU）
 - 轮转调度算法，依次执行各任务
 
+## 快速开始
+
+在 tg-ch3 目录下执行：
+
+```bash
+cargo run                      # 基础模式，抢占式调度
+cargo run --features exercise  # 练习模式
+cargo run --features coop      # 协作式调度（需主动 yield）
+```
+
+> 默认会在 tg-ch3 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
+> 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
+> 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+
 ## 用户程序加载
 
-用户程序在编译时通过 `APP_ASM` 环境变量内联到内核镜像中，运行时依次加载执行。
+tg-ch3 在构建阶段会拉取 tg-user 并编译用户程序，生成 `APP_ASM` 内联到内核镜像中，运行时依次加载执行。
 
-tg-ch3 在构建阶段会拉取 tg-user 并编译用户程序，生成 `APP_ASM` 内联到内核镜像中。
+## 默认 QEMU 启动参数
 
-## 系统调用
-
-| 系统调用 | 功能 |
-|----------|------|
-| `write` | 向标准输出写入数据 |
-| `exit` | 退出当前任务 |
-| `sched_yield` | 主动让出 CPU |
-| `clock_gettime` | 获取当前时间 |
+`-machine virt -nographic -bios none`
 
 ## 时钟中断与抢占式调度
 
@@ -45,11 +52,25 @@ Trap::Interrupt(Interrupt::SupervisorTimer) => {
 
 启用 `coop` feature 可禁用时钟中断，任务需主动调用 `yield` 让出 CPU。
 
-## Exercise
+## 系统调用
 
-见 [Exercise](./exercise.md)
+| 系统调用 | 功能 |
+|----------|------|
+| `write` | 向标准输出写入数据 |
+| `exit` | 退出当前任务 |
+| `sched_yield` | 主动让出 CPU |
+| `clock_gettime` | 获取当前时间 |
 
-## Dependencies
+## 依赖与配置
+
+### Features
+
+| Feature | 说明 |
+|---------|------|
+| `coop` | 协作式调度，禁用时钟中断抢占 |
+| `exercise` | 练习模式测例 |
+
+### Dependencies
 
 | 依赖 | 说明 |
 |------|------|
@@ -60,26 +81,9 @@ Trap::Interrupt(Interrupt::SupervisorTimer) => {
 | `tg-kernel-context` | 用户上下文 `LocalContext` 及特权级切换 |
 | `tg-syscall` | 系统调用定义与分发 |
 
-## Features
+## 练习
 
-| Feature | 说明 |
-|---------|------|
-| `coop` | 协作式调度模式，禁用时钟中断抢占，任务需主动 `yield` |
-| `nobios` | 无需外部 SBI 实现，直接从 QEMU `-bios none` 模式启动 |
-
-## 默认 QEMU 启动参数
-
-`-machine virt -nographic -bios none`
-
-## 运行
-
-请在 tg-ch3 目录下执行：
-
-`cargo run`
-
-默认会在 tg-ch3 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
-默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
-若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+见 [Exercise](./exercise.md)
 
 ## License
 

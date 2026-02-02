@@ -31,26 +31,24 @@ fn trace(&self, _caller: tg_syscall::Caller, _trace_request: usize, _id: usize, 
 
 ### 实验要求
 
-- 在 ch3 目录下完成实验。
+- 在 tg-ch3 目录下完成实验。
 - 目录结构说明：
 
 ```
-├── ch3（内核实现）
-│   ├── Cargo.toml（配置文件）
-│   └── src（内核源代码）
-│       ├── main.rs（内核主函数，包括系统调用接口实现）
-│       └── task.rs（任务控制块）
-├── tg-syscall（系统调用模块）
-│   └── src
-│       ├── kernel/mod.rs（内核端系统调用接口定义，无需修改）
-│       ├── user.rs（用户端系统调用，无需修改）
-│       └── syscall.h.in（系统调用号，无需修改）
-├── user（用户程序）
-│   └── src/bin（测试用例，无需修改）
-├── ...
+tg-ch3/
+├── Cargo.toml（内核配置文件）
+├── src/（内核源代码，需要修改）
+│   ├── main.rs（内核主函数，包括系统调用接口实现）
+│   └── task.rs（任务控制块）
+└── tg-user/（用户程序，运行时自动拉取，无需修改）
+    └── src/bin（测试用例）
 ```
 
-- 测试方法：
+> **说明**：
+> - `tg-user` 会在运行时自动拉取到 `tg-ch3/tg-user` 目录下
+> - 只需修改 `tg-ch3/src/` 目录下的内核代码
+
+- 运行练习测例：
 ```bash
-cargo qemu -ch 3 --exercise
+cargo run --features exercise
 ```

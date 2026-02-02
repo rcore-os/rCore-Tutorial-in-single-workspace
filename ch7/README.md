@@ -11,21 +11,29 @@
 - 管道 (Pipe) 实现进程间单向数据传递
 - 文件、管道和标准输入输出都通过统一的文件描述符类型管理
 
+## 快速开始
+
+在 tg-ch7 目录下执行：
+
+```bash
+cargo run
+```
+
+> 默认会在 tg-ch7 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
+> 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
+> 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+
 ## 用户程序加载
 
-用户程序存储在 easy-fs 磁盘镜像中，内核启动时挂载文件系统，通过文件名从文件系统加载。
+tg-ch7 在构建阶段会拉取 tg-user 并编译用户程序，然后将编译产物打包到 easy-fs 磁盘镜像 `fs.img` 中。运行时 QEMU 挂载该磁盘镜像，内核通过 virtio-blk 驱动访问文件系统，按文件名加载并执行用户程序。
 
-## 新增或更新的系统调用
+## 默认 QEMU 启动参数
 
-| 系统调用 | 功能 |
-|----------|------|
-| `pipe` | 创建管道，返回读端和写端文件描述符 |
-| `kill` | 向指定进程发送信号 |
-| `sigaction` | 设置信号处理函数 |
-| `sigprocmask` | 设置信号屏蔽字 |
-| `sigreturn` | 从信号处理函数返回，恢复原执行流 |
-| `read` | 读取文件/管道/标准输入 |
-| `write` | 写入文件/管道/标准输出 |
+```text
+-machine virt -nographic -bios none\
+-drive file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0\
+-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+```
 
 ## 信号处理
 
@@ -89,6 +97,18 @@ graph TD
 
 进程通过 `Box<dyn Signal>` 持有信号处理器，支持 fork 时继承信号配置。
 
+## 新增或更新的系统调用
+
+| 系统调用 | 功能 |
+|----------|------|
+| `pipe` | 创建管道，返回读端和写端文件描述符 |
+| `kill` | 向指定进程发送信号 |
+| `sigaction` | 设置信号处理函数 |
+| `sigprocmask` | 设置信号屏蔽字 |
+| `sigreturn` | 从信号处理函数返回，恢复原执行流 |
+| `read` | 读取文件/管道/标准输入 |
+| `write` | 写入文件/管道/标准输出 |
+
 ## Dependencies
 
 | 依赖 | 说明 |
@@ -107,12 +127,6 @@ graph TD
 | `tg-easy-fs` | 简单文件系统及管道实现 |
 | `tg-signal` | 信号模块定义 |
 | `tg-signal-impl` | 信号模块参考实现 |
-
-## Features
-
-| Feature | 说明 |
-|---------|------|
-| `nobios` | 无需外部 SBI 实现，直接从 QEMU `-bios none` 模式启动 |
 
 ## License
 

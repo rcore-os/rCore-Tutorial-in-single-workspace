@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch6"
 description = "Chapter 6 of rCore Tutorial: File system with easy-fs and virtio block device."
-version = "0.2.0-preview.2"
+version = "0.3.0-preview.1"
 edition = "2021"
 authors = ["tkf2019 <kaifu6821@qq.com>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"

@@ -9,18 +9,30 @@
 - 进程文件描述符表管理，支持标准输入输出和普通文件
 - 标准文件操作接口
 
+## 快速开始
+
+在 tg-ch6 目录下执行：
+
+```bash
+cargo run                      # 基础模式
+cargo run --features exercise  # 练习模式
+```
+
+> 默认会在 tg-ch6 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
+> 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
+> 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+
 ## 用户程序加载
 
-用户程序存储在 easy-fs 磁盘镜像中，内核启动时挂载文件系统，通过文件名从文件系统加载。
+tg-ch6 在构建阶段会拉取 tg-user 并编译用户程序，然后将编译产物打包到 easy-fs 磁盘镜像 `fs.img` 中。运行时 QEMU 挂载该磁盘镜像，内核通过 virtio-blk 驱动访问文件系统，按文件名加载并执行用户程序。
 
-## 新增或更新的系统调用
+## 默认 QEMU 启动参数
 
-| 系统调用 | 功能 |
-|----------|------|
-| `open` | 打开文件 |
-| `close` | 关闭文件 |
-| `read` | 读取文件或标准输入 |
-| `write` | 写入文件或标准输出 |
+```text
+-machine virt -nographic -bios none\
+-drive file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0\
+-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+```
 
 ## 文件描述符表
 
@@ -80,11 +92,24 @@ pub trait BlockDevice: Send + Sync + Any {
 }
 ```
 
-## Exercise
+## 新增或更新的系统调用
 
-见 [Exercise](./exercise.md)
+| 系统调用 | 功能 |
+|----------|------|
+| `open` | 打开文件 |
+| `close` | 关闭文件 |
+| `read` | 读取文件或标准输入 |
+| `write` | 写入文件或标准输出 |
 
-## Dependencies
+## 依赖与配置
+
+### Features
+
+| Feature | 说明 |
+|---------|------|
+| `exercise` | 练习模式测例 |
+
+### Dependencies
 
 | 依赖 | 说明 |
 |------|------|
@@ -101,11 +126,9 @@ pub trait BlockDevice: Send + Sync + Any {
 | `tg-task-manage` | 进程管理框架（启用 `proc` feature） |
 | `tg-easy-fs` | 简单文件系统 |
 
-## Features
+## 练习
 
-| Feature | 说明 |
-|---------|------|
-| `nobios` | 无需外部 SBI 实现，直接从 QEMU `-bios none` 模式启动 |
+见 [Exercise](./exercise.md)
 
 ## License
 

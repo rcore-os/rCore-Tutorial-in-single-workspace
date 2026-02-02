@@ -61,28 +61,28 @@ fn munmap(&self, _caller: Caller, addr: usize, len: usize) -> isize
 
 ### 实验要求
 
-- 在 ch4 目录下完成实验。
+- 在 tg-ch4 目录下完成实验。
 - 目录结构说明：
 
 ```
-├── ch4（内核实现）
-│   ├── Cargo.toml（配置文件）
-│   └── src（内核源代码）
-│       ├── main.rs（内核主函数，包括系统调用接口实现）
-│       └── process.rs（进程结构）
-├── tg-kernel-vm（虚拟内存模块）
+tg-ch4/
+├── Cargo.toml（内核配置文件，需要修改依赖配置）
+├── src/（内核源代码，需要修改）
+│   ├── main.rs（内核主函数，包括系统调用接口实现）
+│   └── process.rs（进程结构）
+├── tg-kernel-vm/（虚拟内存模块，需要拉取到本地并修改）
 │   └── src
 │       ├── lib.rs（PageManager trait 定义）
 │       └── space/mod.rs（AddressSpace 实现）
-├── tg-syscall（系统调用模块）
-│   └── src
-│       └── kernel/mod.rs（Memory trait 定义 mmap/munmap 接口，无需修改）
-├── user（用户程序）
-│   └── src/bin（测试用例，无需修改）
-├── ...
+└── tg-user/（用户程序，运行时自动拉取，无需修改）
+    └── src/bin（测试用例）
 ```
 
-- 测试方法：
+> **说明**：
+> - `tg-user` 会在运行时自动拉取到 `tg-ch4/tg-user` 目录下
+> - `tg-kernel-vm` 需要拉取到本地才能修改其代码
+
+- 运行练习测例：
 ```bash
-cargo qemu --ch 4 --exercise
+cargo run --features exercise
 ```

@@ -10,19 +10,26 @@
 - 内核堆分配器初始化，支持动态内存分配
 - 系统调用中进行用户地址翻译和权限检查
 
+## 快速开始
+
+在 tg-ch4 目录下执行：
+
+```bash
+cargo run                      # 基础模式
+cargo run --features exercise  # 练习模式
+```
+
+> 默认会在 tg-ch4 目录下创建 tg-user 源码目录（通过 `cargo clone`）。
+> 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
+> 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
+
 ## 用户程序加载
 
-用户程序在编译时通过 `APP_ASM` 环境变量内联到内核镜像中，运行时解析 ELF 并映射到独立地址空间。
+tg-ch4 在构建阶段会拉取 tg-user 并编译用户程序，生成 `APP_ASM` 内联到内核镜像中，运行时解析 ELF 并映射到独立地址空间。
 
-## 系统调用
+## 默认 QEMU 启动参数
 
-| 系统调用 | 功能 |
-|----------|------|
-| `write` | 向标准输出写入数据（需地址翻译） |
-| `exit` | 退出当前进程 |
-| `sched_yield` | 主动让出 CPU |
-| `clock_gettime` | 获取当前时间 |
-| `sbrk` | 调整进程堆空间 |
+`-machine virt -nographic -bios none`
 
 ## 异界传送门 (MultislotPortal)
 
@@ -43,11 +50,25 @@ process.address_space.root()[portal_idx] = kernel_space.root()[portal_idx];
 unsafe { ctx.execute(portal, ()) };
 ```
 
-## Exercise
+## 系统调用
 
-见 [Exercise](./exercise.md)
+| 系统调用 | 功能 |
+|----------|------|
+| `write` | 向标准输出写入数据（需地址翻译） |
+| `exit` | 退出当前进程 |
+| `sched_yield` | 主动让出 CPU |
+| `clock_gettime` | 获取当前时间 |
+| `sbrk` | 调整进程堆空间 |
 
-## Dependencies
+## 依赖与配置
+
+### Features
+
+| Feature | 说明 |
+|---------|------|
+| `exercise` | 练习模式测例 |
+
+### Dependencies
 
 | 依赖 | 说明 |
 |------|------|
@@ -61,11 +82,9 @@ unsafe { ctx.execute(portal, ()) };
 | `tg-kernel-vm` | 虚拟内存管理 |
 | `tg-syscall` | 系统调用定义与分发 |
 
-## Features
+## 练习
 
-| Feature | 说明 |
-|---------|------|
-| `nobios` | 无需外部 SBI 实现，直接从 QEMU `-bios none` 模式启动 |
+见 [Exercise](./exercise.md)
 
 ## License
 
