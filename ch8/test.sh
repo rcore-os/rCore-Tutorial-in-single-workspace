@@ -8,8 +8,6 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-TIMEOUT=${TIMEOUT:-360}  # 默认超时 360 秒（6分钟）
-
 # 检查并安装 tg-checker
 ensure_tg_checker() {
     if ! command -v tg-checker &> /dev/null; then
@@ -27,33 +25,30 @@ ensure_tg_checker
 
 run_base() {
     echo "运行 ch8 基础测试..."
-    if timeout "$TIMEOUT" bash -c 'printf "ch8b_usertest\n" | cargo run 2>&1 | tg-checker --ch 8'; then
+    cargo clean
+    export CHAPTER=-8
+    if cargo run 2>&1 | tg-checker --ch 8; then
         echo -e "${GREEN}✓ ch8 基础测试通过${NC}"
+        cargo clean
         return 0
     else
-        code=$?
-        if [ $code -eq 124 ]; then
-            echo -e "${RED}✗ ch8 基础测试超时${NC}"
-        else
-            echo -e "${RED}✗ ch8 基础测试失败${NC}"
-        fi
+        echo -e "${RED}✗ ch8 基础测试失败${NC}"
+        cargo clean
         return 1
     fi
 }
 
 run_exercise() {
     echo "运行 ch8 练习测试..."
+    cargo clean
     export CHAPTER=8
-    if timeout "$TIMEOUT" bash -c 'printf "ch8_usertest\n" | cargo run --features exercise 2>&1 | tg-checker --ch 8 --exercise'; then
+    if cargo run --features exercise 2>&1 | tg-checker --ch 8 --exercise; then
         echo -e "${GREEN}✓ ch8 练习测试通过${NC}"
+        cargo clean
         return 0
     else
-        code=$?
-        if [ $code -eq 124 ]; then
-            echo -e "${RED}✗ ch8 练习测试超时${NC}"
-        else
-            echo -e "${RED}✗ ch8 练习测试失败${NC}"
-        fi
+        echo -e "${RED}✗ ch8 练习测试失败${NC}"
+        cargo clean
         return 1
     fi
 }
@@ -72,7 +67,6 @@ case "${1:-all}" in
         ;;
     *)
         echo "用法: $0 [base|exercise|all]"
-        echo "环境变量: TIMEOUT=秒数 (默认 360)"
         exit 1
         ;;
 esac

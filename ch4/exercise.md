@@ -80,7 +80,13 @@ tg-ch4/
 
 > **说明**：
 > - `tg-user` 会在运行时自动拉取到 `tg-ch4/tg-user` 目录下
-> - `tg-kernel-vm` 需要拉取到本地才能修改其代码
+> - `tg-kernel-vm` 需要拉取到本地才能修改其代码:
+>   - 在 tg-ch4 目录下执行 `cargo clone tg-kernel-vm` 拉取到本地
+>   - 在 tg-ch4/Cargo.toml 中修改 tg-kernel-vm 为本地路径：
+>     ```toml
+>     [dependencies]
+>     tg-kernel-vm = { path = "./tg-kernel-vm" }
+>     ```
 
 - 运行练习测例：
 ```bash

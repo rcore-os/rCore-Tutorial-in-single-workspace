@@ -23,6 +23,12 @@ cargo run
 > 默认拉取版本为 `0.2.0-preview.1`，可通过环境变量 `TG_USER_VERSION` 覆盖。
 > 若已有本地 tg-user，可通过 `TG_USER_DIR` 指定路径。
 
+### 测试
+
+```bash
+./test.sh
+```
+
 ## 用户程序加载
 
 tg-ch7 在构建阶段会拉取 tg-user 并编译用户程序，然后将编译产物打包到 easy-fs 磁盘镜像 `fs.img` 中。运行时 QEMU 挂载该磁盘镜像，内核通过 virtio-blk 驱动访问文件系统，按文件名加载并执行用户程序。

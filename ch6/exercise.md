@@ -118,12 +118,23 @@ tg-ch6/
 > **说明**：
 > - `tg-user` 会在运行时自动拉取到 `tg-ch6/tg-user` 目录下
 > - `tg-easy-fs` 需要拉取到本地才能修改其代码以支持硬链接
+>   - 在 tg-ch6 目录下执行 `cargo clone tg-easy-fs` 拉取到本地
+>   - 在 tg-ch6/Cargo.toml 中修改 tg-easy-fs 为本地路径：
+>     ```toml
+>     [dependencies]
+>     tg-easy-fs = { path = "./tg-easy-fs" }
+>     ```
 
 - 运行练习测例：
 ```bash
 cargo run --features exercise
 ```
 然后在终端中输入 `ch6_usertest` 运行，这个测例打包了所有你需要通过的测例。
+
+- 测试练习测例：
+```bash
+./test.sh exercise
+```
 
 ### 说明
 

@@ -25,22 +25,30 @@ ensure_tg_checker
 
 run_base() {
     echo "运行 ch5 基础测试..."
-    if printf "ch5b_usertest\n" | cargo run 2>&1 | tg-checker --ch 5; then
+    cargo clean
+    export CHAPTER=-5
+    if cargo run 2>&1 | tg-checker --ch 5; then
         echo -e "${GREEN}✓ ch5 基础测试通过${NC}"
+        cargo clean
         return 0
     else
         echo -e "${RED}✗ ch5 基础测试失败${NC}"
+        cargo clean
         return 1
     fi
 }
 
 run_exercise() {
     echo "运行 ch5 练习测试..."
-    if printf "ch5_usertest\n" | cargo run --features exercise 2>&1 | tg-checker --ch 5 --exercise; then
+    cargo clean
+    export CHAPTER=5
+    if cargo run --features exercise 2>&1 | tg-checker --ch 5 --exercise; then
         echo -e "${GREEN}✓ ch5 练习测试通过${NC}"
+        cargo clean
         return 0
     else
         echo -e "${RED}✗ ch5 练习测试失败${NC}"
+        cargo clean
         return 1
     fi
 }

@@ -8,8 +8,6 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-TIMEOUT=${TIMEOUT:-360}  # 默认超时 360 秒（6分钟）
-
 # 检查并安装 tg-checker
 ensure_tg_checker() {
     if ! command -v tg-checker &> /dev/null; then
@@ -26,14 +24,14 @@ ensure_tg_checker() {
 ensure_tg_checker
 
 echo "运行 ch7 基础测试..."
-if timeout "$TIMEOUT" bash -c 'printf "ch7b_usertest\n" | cargo run 2>&1 | tg-checker --ch 7'; then
+cargo clean
+export CHAPTER=-7
+if cargo run 2>&1 | tg-checker --ch 7; then
     echo -e "${GREEN}✓ ch7 基础测试通过${NC}"
+    cargo clean
+    exit 0
 else
-    code=$?
-    if [ $code -eq 124 ]; then
-        echo -e "${RED}✗ ch7 基础测试超时${NC}"
-    else
-        echo -e "${RED}✗ ch7 基础测试失败${NC}"
-    fi
+    echo -e "${RED}✗ ch7 基础测试失败${NC}"
+    cargo clean
     exit 1
 fi

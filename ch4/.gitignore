@@ -9,4 +9,5 @@
 target
 Cargo.lock
 tg-user
+tg-kernel-vm
 linker.ld
