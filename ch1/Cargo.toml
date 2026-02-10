@@ -1,9 +1,9 @@
 [package]
 name = "tg-ch1"
 description = "Chapter 1 of rCore Tutorial: A minimal bare-metal application running in RISC-V S-mode."
-version = "0.3.1-preview.1"
+version = "0.3.1-preview.2"
 edition = "2024"
-authors = ["YdrMaster <ydrml@hotmail.com>"]
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
 homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace/tree/test"
 documentation = "https://docs.rs/tg-ch1"
