@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch2"
 description = "Chapter 2 of rCore Tutorial: Batch processing system with privilege levels and trap handling."
-version = "0.3.1-preview.2"
+version = "0.3.1-preview.3"
 edition = "2024"
 authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
