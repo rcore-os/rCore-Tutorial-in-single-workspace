@@ -1,5 +1,11 @@
 #!/bin/bash
 # ch4 测试脚本
+#
+# 用法：
+#   ./test.sh          # 运行全部测试（等价于 ./test.sh all）
+#   ./test.sh base     # 仅运行基础测试
+#   ./test.sh exercise # 仅运行练习测试
+#   ./test.sh all      # 运行基础 + 练习测试
 
 set -e
 
@@ -23,12 +29,22 @@ ensure_tg_checker() {
 
 ensure_tg_checker
 
+# 使用 pipefail 确保管道中任意命令失败都能被捕获
+set -o pipefail
+
 run_base() {
     echo "运行 ch4 基础测试..."
-    if cargo run 2>&1 | tg-checker --ch 4; then
+    echo -e "${YELLOW}────────── cargo run 输出 ──────────${NC}"
+
+    # 使用 tee 将 cargo run 的输出同时显示在终端和传递给 tg-checker
+    if cargo run 2>&1 | tee /dev/stderr | tg-checker --ch 4; then
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${GREEN}✓ ch4 基础测试通过${NC}"
         return 0
     else
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${RED}✗ ch4 基础测试失败${NC}"
         return 1
     fi
@@ -36,10 +52,16 @@ run_base() {
 
 run_exercise() {
     echo "运行 ch4 练习测试..."
-    if cargo run --features exercise 2>&1 | tg-checker --ch 4 --exercise; then
+    echo -e "${YELLOW}────────── cargo run --features exercise 输出 ──────────${NC}"
+
+    if cargo run --features exercise 2>&1 | tee /dev/stderr | tg-checker --ch 4 --exercise; then
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${GREEN}✓ ch4 练习测试通过${NC}"
         return 0
     else
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${RED}✗ ch4 练习测试失败${NC}"
         return 1
     fi
