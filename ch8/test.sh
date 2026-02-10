@@ -1,5 +1,11 @@
 #!/bin/bash
 # ch8 测试脚本
+#
+# 用法：
+#   ./test.sh          # 运行全部测试（等价于 ./test.sh all）
+#   ./test.sh base     # 运行基础测试
+#   ./test.sh exercise # 运行练习测试
+#   ./test.sh all      # 运行全部测试（base + exercise）
 
 set -e
 
@@ -23,15 +29,25 @@ ensure_tg_checker() {
 
 ensure_tg_checker
 
+# 使用 pipefail 确保管道中任意命令失败都能被捕获
+set -o pipefail
+
 run_base() {
     echo "运行 ch8 基础测试..."
     cargo clean
     export CHAPTER=-8
-    if cargo run 2>&1 | tg-checker --ch 8; then
+    echo -e "${YELLOW}────────── cargo run 输出 ──────────${NC}"
+
+    # 使用 tee 将 cargo run 的输出同时显示在终端和传递给 tg-checker
+    if cargo run 2>&1 | tee /dev/stderr | tg-checker --ch 8; then
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${GREEN}✓ ch8 基础测试通过${NC}"
         cargo clean
         return 0
     else
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${RED}✗ ch8 基础测试失败${NC}"
         cargo clean
         return 1
@@ -42,11 +58,18 @@ run_exercise() {
     echo "运行 ch8 练习测试..."
     cargo clean
     export CHAPTER=8
-    if cargo run --features exercise 2>&1 | tg-checker --ch 8 --exercise; then
+    echo -e "${YELLOW}────────── cargo run --features exercise 输出 ──────────${NC}"
+
+    # 使用 tee 将 cargo run 的输出同时显示在终端和传递给 tg-checker
+    if cargo run --features exercise 2>&1 | tee /dev/stderr | tg-checker --ch 8 --exercise; then
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${GREEN}✓ ch8 练习测试通过${NC}"
         cargo clean
         return 0
     else
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
         echo -e "${RED}✗ ch8 练习测试失败${NC}"
         cargo clean
         return 1

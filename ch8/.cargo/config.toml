@@ -1,6 +1,15 @@
+# 交叉编译目标：RISC-V 64 位裸机
 [build]
 target = "riscv64gc-unknown-none-elf"
 
+# QEMU 运行配置
+# 使用 qemu-system-riscv64 运行编译产物
+# -machine virt        ：QEMU virt 虚拟机平台
+# -nographic           ：无图形界面，输出到终端
+# -bios none           ：不使用 BIOS（内核直接启动）
+# -drive ...           ：挂载 easy-fs 磁盘镜像（包含用户程序）
+# -device ...          ：VirtIO 块设备
+# -kernel              ：内核 ELF 文件
 [target.riscv64gc-unknown-none-elf]
 runner = [
     "qemu-system-riscv64",
