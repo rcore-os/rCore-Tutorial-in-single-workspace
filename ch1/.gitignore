@@ -1,11 +1,5 @@
-**/.*/*
-!**/.cargo/*
-!**/.github/*
-!**/.vscode/settings.json
-
+target
 *.asm
 *.bin
-!/**/m_entry.asm
-target
+*.img
 Cargo.lock
-linker.ld
