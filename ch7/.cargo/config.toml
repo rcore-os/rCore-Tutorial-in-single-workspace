@@ -1,17 +1,17 @@
+# 默认编译目标：RISC-V 64 位裸机平台
 [build]
 target = "riscv64gc-unknown-none-elf"
 
+# QEMU 运行器配置（与第六章相同：挂载 fs.img 块设备）
 [target.riscv64gc-unknown-none-elf]
 runner = [
     "qemu-system-riscv64",
-    "-machine",
-    "virt",
-    "-nographic",
-    "-bios",
-    "none",
-    "-drive",
-    "file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0",
-    "-device",
-    "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
-    "-kernel",
+    "-machine", "virt",           # QEMU virt 虚拟平台
+    "-nographic",                 # 无图形界面
+    "-bios", "none",              # 不加载外部 BIOS
+    "-drive", "file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0",
+                                  # 挂载 easy-fs 磁盘镜像
+    "-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
+                                  # 创建 VirtIO 块设备
+    "-kernel",                    # 后接内核 ELF 文件
 ]

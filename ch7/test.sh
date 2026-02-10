@@ -1,5 +1,10 @@
 #!/bin/bash
 # ch7 测试脚本
+#
+# 用法：
+#   ./test.sh          # 运行基础测试（等价于 ./test.sh base）
+#   ./test.sh base     # 运行基础测试
+#   ./test.sh all      # 运行全部测试（ch7 无练习测试，等价于 base）
 
 set -e
 
@@ -23,15 +28,37 @@ ensure_tg_checker() {
 
 ensure_tg_checker
 
-echo "运行 ch7 基础测试..."
-cargo clean
-export CHAPTER=-7
-if cargo run 2>&1 | tg-checker --ch 7; then
-    echo -e "${GREEN}✓ ch7 基础测试通过${NC}"
+# 使用 pipefail 确保管道中任意命令失败都能被捕获
+set -o pipefail
+
+run_base() {
+    echo "运行 ch7 基础测试..."
     cargo clean
-    exit 0
-else
-    echo -e "${RED}✗ ch7 基础测试失败${NC}"
-    cargo clean
-    exit 1
-fi
+    export CHAPTER=-7
+    echo -e "${YELLOW}────────── cargo run 输出 ──────────${NC}"
+
+    # 使用 tee 将 cargo run 的输出同时显示在终端和传递给 tg-checker
+    if cargo run 2>&1 | tee /dev/stderr | tg-checker --ch 7; then
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
+        echo -e "${GREEN}✓ ch7 基础测试通过${NC}"
+        cargo clean
+        return 0
+    else
+        echo ""
+        echo -e "${YELLOW}────────── 测试结果 ──────────${NC}"
+        echo -e "${RED}✗ ch7 基础测试失败${NC}"
+        cargo clean
+        return 1
+    fi
+}
+
+case "${1:-base}" in
+    base|all)
+        run_base
+        ;;
+    *)
+        echo "用法: $0 [base|all]"
+        exit 1
+        ;;
+esac
