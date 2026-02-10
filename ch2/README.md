@@ -156,11 +156,26 @@ Hello world from user mode program!
 - 正常的用户程序会打印输出，然后通过 `exit` 系统调用退出
 - 出错的用户程序（如非法指令、访存错误）会被内核杀死，然后继续运行下一个
 
-### 2.4 运行测试
+### 2.4 检查tg-ch2内核是否通过基础测试
 
 ```bash
 ./test.sh
 ```
+结果
+```
+运行 ch2 基础测试...
+========== Testing ch2 base ==========
+Expected patterns: 4, Not expected: 1
+
+[PASS] found <Hello, world from user mode program!>
+[PASS] found <Test power_3 OK!>
+[PASS] found <Test power_5 OK!>
+[PASS] found <Test power_7 OK!>
+[PASS] not found <FAIL: T.T>
+```
+
+Test PASSED: 5/5
+✓ ch2 基础测试通过
 
 ---
 
