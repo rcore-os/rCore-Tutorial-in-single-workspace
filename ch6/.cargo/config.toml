@@ -1,17 +1,19 @@
+# 默认编译目标：RISC-V 64 位裸机平台
 [build]
 target = "riscv64gc-unknown-none-elf"
 
+# QEMU 运行器配置
+# cargo run 时自动调用此命令执行编译产物
+# 与前几章不同：本章需要挂载 fs.img 磁盘镜像作为 VirtIO 块设备
 [target.riscv64gc-unknown-none-elf]
 runner = [
     "qemu-system-riscv64",
-    "-machine",
-    "virt",
-    "-nographic",
-    "-bios",
-    "none",
-    "-drive",
-    "file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0",
-    "-device",
-    "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
-    "-kernel",
+    "-machine", "virt",           # 使用 QEMU virt 虚拟平台
+    "-nographic",                 # 无图形界面，输出重定向到终端
+    "-bios", "none",              # 不加载外部 BIOS（tg-sbi 内建）
+    "-drive", "file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0",
+                                  # 挂载 easy-fs 磁盘镜像
+    "-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
+                                  # 创建 VirtIO 块设备，绑定到 MMIO 总线
+    "-kernel",                    # 后接内核 ELF 文件路径（由 cargo 自动填充）
 ]

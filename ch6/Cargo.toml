@@ -1,13 +1,13 @@
 [package]
 name = "tg-ch6"
 description = "Chapter 6 of rCore Tutorial: File system with easy-fs and virtio block device."
-version = "0.3.0-preview.1"
-edition = "2021"
-authors = ["tkf2019 <kaifu6821@qq.com>"]
+version = "0.3.1-preview.2"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
 homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace/tree/test"
 documentation = "https://docs.rs/tg-ch6"
-license = "MIT OR Apache-2.0"
+license = "GPL-3.0"
 readme = "README.md"
 keywords = ["rcore", "tutorial", "no-std", "riscv", "filesystem"]
 categories = ["no-std", "embedded"]

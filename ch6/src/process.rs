@@ -1,3 +1,17 @@
+//! 进程管理模块
+//!
+//! 与第五章相比，本章的 `Process` 新增了**文件描述符表**（`fd_table`）字段，
+//! 每个进程拥有自己的 fd_table，统一管理标准 I/O 和磁盘文件。
+//!
+//! ## 文件描述符表
+//!
+//! | fd | 用途 |
+//! |----|------|
+//! | 0 | 标准输入（stdin） |
+//! | 1 | 标准输出（stdout） |
+//! | 2 | 标准错误（stderr） |
+//! | 3+ | 普通文件（通过 open 系统调用分配） |
+
 use crate::{build_flags, map_portal, parse_flags, Sv39, Sv39Manager};
 use alloc::{alloc::alloc_zeroed, vec::Vec};
 use core::alloc::Layout;
@@ -14,22 +28,32 @@ use xmas_elf::{
     program, ElfFile,
 };
 
-/// 进程。
+/// 进程结构体
+///
+/// 与第五章相比新增了 `fd_table` 字段。
 pub struct Process {
-    /// 不可变
+    /// 进程标识符（PID），创建后不可变
     pub pid: ProcId,
-    /// 可变
+    /// 用户态上下文（含 satp，支持跨地址空间切换）
     pub context: ForeignContext,
+    /// 进程的独立地址空间
     pub address_space: AddressSpace<Sv39, Sv39Manager>,
     /// 文件描述符表
+    ///
+    /// 每个 fd 对应一个 `Option<Mutex<FileHandle>>`：
+    /// - `Some(...)`: 有效的文件句柄
+    /// - `None`: 该 fd 已关闭或未使用
+    ///
+    /// 预留 fd 0/1/2 分别为 stdin/stdout/stderr。
     pub fd_table: Vec<Option<Mutex<FileHandle>>>,
-    /// 堆底
+    /// 堆底地址
     pub heap_bottom: usize,
-    /// 当前程序 break 位置
+    /// 当前程序 break 位置（堆顶）
     pub program_brk: usize,
 }
 
 impl Process {
+    /// exec：用新程序替换当前进程（保留 PID 和 fd_table）
     pub fn exec(&mut self, elf: ElfFile) {
         let proc = Process::from_elf(elf).unwrap();
         self.address_space = proc.address_space;
@@ -38,10 +62,13 @@ impl Process {
         self.program_brk = proc.program_brk;
     }
 
+    /// fork：复制当前进程创建子进程
+    ///
+    /// 深拷贝地址空间和文件描述符表。
+    /// 子进程继承父进程的所有已打开文件。
     pub fn fork(&mut self) -> Option<Process> {
-        // 子进程 pid
         let pid = ProcId::new();
-        // 复制父进程地址空间
+        // 复制父进程的完整地址空间
         let parent_addr_space = &self.address_space;
         let mut address_space: AddressSpace<Sv39, Sv39Manager> = AddressSpace::new();
         parent_addr_space.cloneself(&mut address_space);
@@ -50,7 +77,8 @@ impl Process {
         let context = self.context.context.clone();
         let satp = (8 << 60) | address_space.root_ppn().val();
         let foreign_ctx = ForeignContext { context, satp };
-        // 复制父进程文件符描述表
+        // 复制父进程的文件描述符表
+        // 子进程继承父进程所有已打开的文件
         let mut new_fd_table: Vec<Option<Mutex<FileHandle>>> = Vec::new();
         for fd in self.fd_table.iter_mut() {
             if let Some(file) = fd {
@@ -69,6 +97,12 @@ impl Process {
         })
     }
 
+    /// 从 ELF 文件创建新进程
+    ///
+    /// 与第五章相同的 ELF 解析流程，但新增了文件描述符表的初始化：
+    /// - fd 0 = stdin（可读）
+    /// - fd 1 = stdout（可写）
+    /// - fd 2 = stderr（可写）
     pub fn from_elf(elf: ElfFile) -> Option<Self> {
         let entry = match elf.header.pt2 {
             HeaderPt2::Header64(pt2)
@@ -85,6 +119,7 @@ impl Process {
 
         let mut address_space = AddressSpace::new();
         let mut max_end_va: usize = 0;
+        // 遍历 ELF LOAD 段，映射到地址空间
         for program in elf.program_iter() {
             if !matches!(program.get_type(), Ok(program::Type::Load)) {
                 continue;
@@ -121,7 +156,7 @@ impl Process {
         // 堆底从 ELF 加载的最高地址的下一页开始
         let heap_bottom = VAddr::<Sv39>::new(max_end_va).ceil().base().val();
 
-        // 映射用户栈
+        // 映射用户栈（2 页 = 8 KiB）
         let stack = unsafe {
             alloc_zeroed(Layout::from_size_align_unchecked(
                 2 << Sv39::PAGE_BITS,
@@ -136,6 +171,7 @@ impl Process {
         // 映射异界传送门
         map_portal(&address_space);
 
+        // 创建用户态上下文
         let mut context = LocalContext::user(entry);
         let satp = (8 << 60) | address_space.root_ppn().val();
         *context.sp_mut() = 1 << 38;
@@ -143,20 +179,18 @@ impl Process {
             pid: ProcId::new(),
             context: ForeignContext { context, satp },
             address_space,
+            // 初始化文件描述符表：预留 stdin(0)、stdout(1)、stderr(2)
             fd_table: vec![
-                // Stdin
-                Some(Mutex::new(FileHandle::empty(true, false))),
-                // Stdout
-                Some(Mutex::new(FileHandle::empty(false, true))),
-                // Stderr
-                Some(Mutex::new(FileHandle::empty(false, true))),
+                Some(Mutex::new(FileHandle::empty(true, false))),  // fd 0: stdin（可读）
+                Some(Mutex::new(FileHandle::empty(false, true))),  // fd 1: stdout（可写）
+                Some(Mutex::new(FileHandle::empty(false, true))),  // fd 2: stderr（可写）
             ],
             heap_bottom,
             program_brk: heap_bottom,
         })
     }
 
-    /// 修改程序 break 位置，返回旧的 break 地址，失败返回 None
+    /// 修改程序 break 位置（实现 sbrk 系统调用）
     pub fn change_program_brk(&mut self, size: isize) -> Option<usize> {
         let old_brk = self.program_brk;
         let new_brk = self.program_brk as isize + size;
@@ -169,16 +203,12 @@ impl Process {
         let new_brk_ceil = VAddr::<Sv39>::new(new_brk).ceil();
 
         if size > 0 {
-            // 扩展堆
             if new_brk_ceil.val() > old_brk_ceil.val() {
-                // 需要映射新页面
                 self.address_space
                     .map(old_brk_ceil..new_brk_ceil, &[], 0, build_flags("U_WRV"));
             }
         } else if size < 0 {
-            // 收缩堆
             if old_brk_ceil.val() > new_brk_ceil.val() {
-                // 需要取消映射页面
                 self.address_space.unmap(new_brk_ceil..old_brk_ceil);
             }
         }
