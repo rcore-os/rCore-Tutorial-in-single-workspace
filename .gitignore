@@ -2,6 +2,7 @@
 !**/.cargo/*
 !/.github/*
 !/.vscode/settings.json
+!/.devcontainer/devcontainer.json
 
 /target
 *.asm
