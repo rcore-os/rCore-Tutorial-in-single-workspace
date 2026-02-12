@@ -1,6 +1,15 @@
 fn main() {
     use std::{env, fs, path::PathBuf};
 
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_NOBIOS");
+    println!("cargo:rerun-if-env-changed=TARGET");
+
+    // 仅在 RISC-V 目标下注入链接脚本，避免主机平台 dry-run 链接失败。
+    if !env::var("TARGET").unwrap_or_default().starts_with("riscv64") {
+        return;
+    }
+
     let ld = &PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("linker.ld");
     fs::write(
         ld,
@@ -11,8 +20,6 @@ fn main() {
         },
     )
     .unwrap();
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_NOBIOS");
     println!("cargo:rustc-link-arg=-T{}", ld.display());
 }
 

@@ -2,42 +2,62 @@
 
 Signal handling abstractions for the rCore tutorial operating system.
 
-## Overview
+## 设计目标
 
-This crate defines the `Signal` trait and related types for Unix-like signal handling in the rCore tutorial kernel. It provides the interface that signal implementations must follow.
+- 定义“信号子系统的接口层”，把实现细节与内核调用方解耦。
+- 抽象统一的信号处理行为，支持不同实现（教学扩展或实验变体）。
+- 以 trait 形式约束 `fork`、mask、投递、处理、返回等关键语义。
 
-## Features
+## 总体架构
 
-- **Signal trait**: Abstract interface for signal management
-- **SignalResult**: Enumeration of possible signal handling outcomes
-- **Standard signal support**: Re-exports signal definitions from `tg-signal-defs`
-- **no_std compatible**: Designed for bare-metal kernel environments
+- `Signal` trait：信号管理核心接口。
+- `SignalResult`：信号处理结果枚举，指导上层调度决策。
+- 复用 `tg-signal-defs` 导出的 `SignalNo`、`SignalAction`。
 
-## Usage
+## 主要特征
+
+- trait 驱动，便于替换具体实现。
+- 结果类型覆盖继续执行、忽略、终止、挂起等路径。
+- `no_std` 兼容，适合内核态。
+
+## 功能实现要点
+
+- `handle_signals(&mut LocalContext)` 将信号处理与上下文切换关联。
+- `sig_return` 提供用户 handler 返回后恢复现场的统一入口。
+- `from_fork` 支撑子进程继承/重建信号状态。
+
+## 对外接口
+
+- trait：
+  - `Signal`
+- 类型：
+  - `SignalResult`
+  - `SignalNo`（re-export）
+  - `SignalAction`（re-export）
+
+## 使用示例
 
 ```rust
-use tg_signal::{Signal, SignalAction, SignalNo, SignalResult};
+use tg_signal::{Signal, SignalResult};
+use tg_kernel_context::LocalContext;
 
-// Implement the Signal trait for your signal handler
-impl Signal for MySignalHandler {
-    fn from_fork(&mut self) -> Box<dyn Signal> { /* ... */ }
-    fn add_signal(&mut self, signal: SignalNo) { /* ... */ }
-    fn handle_signals(&mut self, ctx: &mut LocalContext) -> SignalResult { /* ... */ }
-    // ... other methods
+fn drive_signal(sig: &mut dyn Signal, ctx: &mut LocalContext) -> SignalResult {
+    sig.handle_signals(ctx)
 }
 ```
 
-## Core Types
+- 章节内真实用法：
+  - `ch7/src/main.rs` 根据 `SignalResult` 决定进程后续状态。
+  - `ch8/src/main.rs` 延续并扩展同一信号处理流程。
 
-- `Signal` - Trait defining the signal handling interface
-- `SignalResult` - Result type for signal handling operations (NoSignal, Handled, ProcessKilled, etc.)
-- `SignalAction` - Signal handler configuration structure
-- `SignalNo` - Signal number enumeration
+## 与 ch1~ch8 的关系
 
-## Related Crates
-
-- `tg-signal-defs` - Signal number and action definitions
-- `tg-signal-impl` - A concrete implementation of the Signal trait
+- 直接依赖章节：`ch7`、`ch8`。
+- 关键职责：定义信号处理抽象接口，供内核主循环统一驱动。
+- 关键引用文件：
+  - `ch7/Cargo.toml`
+  - `ch7/src/main.rs`
+  - `ch8/src/main.rs`
 
 ## License
 

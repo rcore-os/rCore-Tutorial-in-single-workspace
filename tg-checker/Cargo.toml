@@ -1,7 +1,7 @@
 [package]
 name = "tg-checker"
 description = "A test output checker for rCore-Tutorial, validates kernel output against expected patterns."
-version = "0.4.0-preview.1"
+version = "0.4.1-preview.1"
 edition = "2024"
 authors = ["Ivans-11 <w-yf22@mails.tsinghua.edu.cn>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"

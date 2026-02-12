@@ -1,7 +1,7 @@
 [package]
 name = "tg-kernel-context"
 description = "Kernel context management for rCore tutorial OS, including task context switching."
-version = "0.4.0-preview.1"
+version = "0.4.1-preview.1"
 edition = "2024"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
 homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"

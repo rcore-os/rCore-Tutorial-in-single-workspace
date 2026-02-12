@@ -1,7 +1,7 @@
 [package]
 name = "tg-syscall"
 description = "System call definitions and interfaces for rCore tutorial OS."
-version = "0.4.0-preview.1"
+version = "0.4.1-preview.1"
 edition = "2024"
 authors = ["YdrMaster <ydrml@hotmail.com>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -15,7 +15,7 @@ categories = ["no-std", "embedded"]
 [dependencies]
 spin = "0.9"
 bitflags = "1.2"
-tg-signal-defs = { path = "../tg-signal-defs", version = "0.4.0-preview.1" }
+tg-signal-defs = { path = "../tg-signal-defs", version = "0.4.1-preview.1" }
 
 [features]
 kernel = []

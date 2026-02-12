@@ -2,43 +2,76 @@
 
 A simple filesystem implementation for the rCore tutorial operating system.
 
-## Overview
+## 设计目标
 
-This crate provides a lightweight filesystem (EasyFS) implementation designed for educational purposes. It features a classic Unix-like filesystem structure with inodes, block caching, and a simple yet functional virtual filesystem interface.
+- 提供教学友好的简化文件系统实现（EasyFS）。
+- 让章节内核在 `no_std` 环境中具备“文件 + 目录 + 管道”基础能力。
+- 统一块设备抽象，便于接入 virtio-block 或镜像构建工具。
 
-## Features
+## 总体架构
 
-- **Block-based storage**: Uses 512-byte blocks as the fundamental storage unit
-- **Inode-based structure**: Unix-like inode system for file metadata management
-- **Block caching**: Efficient block cache layer for improved I/O performance
-- **Bitmap allocation**: Bitmap-based block and inode allocation
-- **Pipe support**: IPC pipe implementation with dedicated `PipeReader`/`PipeWriter` types
-- **no_std compatible**: Designed for bare-metal kernel environments
+- 设备层：`BlockDevice` trait。
+- 缓存层：块缓存与同步机制。
+- 布局层：位图、inode、目录项等磁盘格式定义。
+- 接口层：
+  - `EasyFileSystem`
+  - `Inode`
+  - `FileHandle`
+  - `PipeReader` / `PipeWriter`
 
-## Usage
+## 主要特征
 
-This crate is primarily used within the rCore tutorial kernel (ch6+) for file operations.
+- 块设备抽象（默认 512B block）。
+- inode 风格文件系统结构。
+- 块缓存 + 位图分配。
+- 支持 pipe IPC。
+- 可用于内核运行期与构建期镜像准备（`build.rs`）。
+
+## 功能实现要点
+
+- 文件系统元数据与数据块均通过块缓存统一读写。
+- inode 提供目录查找、文件读写、清理等高层接口。
+- 管道使用独立读写端对象，服务进程间流式通信。
+
+## 对外接口
+
+- trait：
+  - `BlockDevice`
+- 常量：
+  - `BLOCK_SZ`
+- 核心类型：
+  - `EasyFileSystem`
+  - `Inode`
+  - `FileHandle`
+  - `PipeReader`, `PipeWriter`
+- 函数：
+  - `make_pipe()`
+  - `get_block_cache(...)`
+  - `block_cache_sync_all()`
+
+## 使用示例
 
 ```rust
-use tg_easy_fs::{BlockDevice, EasyFileSystem, Inode, FileHandle};
-use tg_easy_fs::{make_pipe, PipeReader, PipeWriter};
+use tg_easy_fs::{EasyFileSystem, BlockDevice};
 
-// File operations
-let file = FileHandle::new(readable, writable, inode);
-
-// Pipe operations
-let (reader, writer): (PipeReader, Arc<PipeWriter>) = make_pipe();
+fn open_fs(dev: alloc::sync::Arc<dyn BlockDevice>) {
+    let _efs = EasyFileSystem::open(dev);
+}
 ```
 
-## Architecture
+- 章节内真实用法：
+  - `ch6/src/fs.rs` 中进行文件系统与文件接口调用。
+  - `ch6/build.rs`、`ch7/build.rs`、`ch8/build.rs` 用于准备镜像内容。
 
-- `BlockDevice` - Trait for block device abstraction
-- `EasyFileSystem` - Main filesystem structure
-- `Inode` - Virtual filesystem node interface
-- `BlockCache` - Block caching layer
-- `FileHandle` - File descriptor with read/write offset tracking
-- `PipeReader` / `PipeWriter` - IPC pipe endpoints (thread-safe)
-- `make_pipe()` - Creates a pipe pair for inter-process communication
+## 与 ch1~ch8 的关系
+
+- 直接依赖章节：`ch6` 到 `ch8`（含 `build-dependencies`）。
+- 关键职责：提供文件系统、文件描述符与管道能力。
+- 关键引用文件：
+  - `ch6/Cargo.toml`
+  - `ch6/src/fs.rs`
+  - `ch6/build.rs`
+  - `ch8/src/main.rs`
 
 ## License
 
