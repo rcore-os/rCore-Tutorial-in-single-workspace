@@ -1,121 +1,198 @@
-﻿# 模块化的 rCore-Tutorial
+# rCore-Tutorial-in-single-workspace（组件化教学版）
 
-[![CI](https://github.com/YdrMaster/rCore-Tutorial-in-single-workspace/actions/workflows/workflow.yml/badge.svg?branch=main)](https://github.com/YdrMaster/rCore-Tutorial-in-single-workspace/actions)
-[![issue](https://img.shields.io/github/issues/YdrMaster/rCore-Tutorial-in-single-workspace)](https://github.com/YdrMaster/rCore-Tutorial-in-single-workspace/issues)
-![license](https://img.shields.io/github/license/YdrMaster/rCore-Tutorial-in-single-workspace)
+面向操作系统课程教学与自学的组件化 rCore Tutorial 操作系统内核实验仓库。  
+仓库同时包含：
 
-- 只需要维护一个分支！
-- 支持 Windows 直接调试！
+- `ch1~ch8`：8 个渐进章节（每章是一个可独立运行的内核 crate + 指导文档）
+- `tg-*`：可复用内核组件 crate（内存、虚存、上下文、同步、信号、文件系统等）
+- `tg-user`：用户态测试程序集合
+- `tg-checker`：测试输出检测工具
+- `tg-linker`：为 ch1~ch8的rCore Tutorial教学操作系统内核提供链接脚本生成功能
 
-  > - 需要安装 Rust 环境和 Windows Qemu
-  > - 当然 Linux 也支持，其实就是跨平台
+目标是让你既能按章节学习内核演进，也能按组件视角开发和复用内核模块。
 
-## 目录
+## 1. 先看这段：如何开始
 
-- [宗旨](#宗旨)
-  - [史书的另一种形态](#史书的另一种形态)
-  - [协作政策](#协作政策)
-- [运行系统](#运行系统)
-- [设计稿和报告](#设计稿和报告)
-- [进度](#进度)
+### 1.1 环境要求
 
-## 宗旨
+- Rust toolchain：本仓库使用 `stable`（见 `rust-toolchain.toml`）
+- 目标架构：`riscv64gc-unknown-none-elf`
+- 组件：`rust-src`、`llvm-tools-preview`（`rust-toolchain.toml` 已声明）
+- QEMU：`qemu-system-riscv64`（建议 >= 7.0）
+- 推荐工具：`cargo-binutils`、`cargo-clone`
 
-本项目目标是实现一个存在于单独仓库、单独分支的完整操作系统教程。
+### 1.2 获取代码
 
-“一个操作系统教程”定义为由一系列章节组成的，用于学习操作系统的文本和代码资料。用户可按照自然的顺序阅读这些章节，逐步了解操作系统的发展史和原理性的技术细节。因此，在本文的后续部分，将用户称为学生，将使用过程称为学习。
-
-我假设学生在学习本教程前对 Rust 语言有充分的了解，因为我希望在编写时尽量使用 Rust 带来的方便，不必受受众的掣肘。
-
-我希望，学生在学习本教程时可以专注于 Rust 和操作系统本身。因此，教程不要求用户精通操作 git，`git clone` 只是获取教程的手段之一，与下载 zip 或从他人处拷贝没有本质区别（当然，版本管理总是有益的）；并且会尽量跨平台，为此，可能需要在构建系统中增加一些平台相关的操作。
-
-本教程**并不期望在章节设置或教学内容上有所创新**，也不是为了实验任何新的内核技术，rCore-Tutorial-v3 足够优秀。本项目仅关注**教程的构建过程和学生的学习体验**（换句话说，如果为了这两点，修改章节设置和教学内容也可以接受）。在此基础之上，我希望尽量使用 Rust 的机制减少“构造一个操作系统”的代码量，以及使得库构建规范化、可迁移。
-
-### 史书的另一种形态
-
-rCore-Tutorial-v3 的教材部分别出心裁地为每一章取了一种古生物的名字，将操作系统的发展史和动物的演化史联系起来，为常常枯燥的教材带来了新奇的趣味。随着每个章节，学生可以了解到一个现代内核，是如何从蒙昧年代一步步发展来的。
-
-阅读教材会带来快乐——收获知识、进步的快乐；阅读历史也会带来快乐——带入那些天才人物、风云故事的快乐。然而，一旦将教材与一部真正的史书相比，就会发现我们似乎缺了什么。从古至今、由简至繁——这是一部编年史。编年史直白、清晰，利于建立概念，然而却不利于理解一个复杂的人物。对于操作系统来说，就是不利于理解一个真正的现代内核子系统的细节。子系统的功能常常限于相关其他子系统尚不存在而无法完整介绍；而增加一个子系统时，又需要修改以前的子系统来适应新部件的功能。复杂的系统，要么不得不多次修改，要么只能放在后面的章节，这导致教程书可以是极好的入门，但却无法常读常新。
-
-幸好，历史已经告诉我们另外的选择。编年史是历史研究的重要工具，但堪称“史家之绝唱”的还是纪传体。每次将视角聚焦到一个重要的人物，将他的经历作为线索，往往使历史更丰满。或许我们需要另一部纪传体作品，通过无序的介绍内核的各个子模块，为离开了蹒跚学步的内核研究者带来一部更有效的工具书。这样一本工具书，必然天然需要模块化——模块就是章节本身。
-
-本项目仍然聚焦一个更好的 Tutorial。但其模块化的经验有助于另外的作品。如果有这样一个项目，可以称为 rCore-Manual，它是一本手册，供操作系统研究者随时翻阅。正如 rCore-Tutorial 不需要介绍原始的 rCore，它们是 rCore 的精神续作。
-
-### 协作政策
-
-本项目**不是、也无意成为相关工作的典范**。如果你：
-
-- 认为项目的操作非常合适，欢迎共同开发；
-- 你不喜欢某些更新，请发起讨论，或从任何提交分叉；
-- 认同项目的目标但不认同其设计，可以创建己的仓库；
-
-因此，本项目使用 [WTFPL](LICENSE) 开源，如果你不喜欢，可以改名字或在你的分叉里直接删除它，这都是它本身支持的。
-
-另外，本项目具有实验性。这意味着它随时可能发生设计变更、破坏性重构、移动、废弃或删除。
-
-## 运行系统
-
-- `cargo qemu --ch <n>`
-
-  在 qemu 运行第 `n` 章的`[unoptimized + debuginfo]`版的操作系统。
-
-可选参数：
-
-- `--lab` 只对 ch1 有效，执行 ch1-lab
-- `--features <features>` 目前只有对 ch3 有效的 <features> 为 `coop`
-- `--release` ：运行 `[optimized]` 版内核
-
-## 编译系统
-- `cargo make --ch <n>`
-
- 编译第 `n` 章的`[unoptimized + debuginfo]`版的操作系统。
-
-可选参数：
-
-- `--lab` 只对 ch1 有效，执行 ch1-lab
-- `--features <features>` 只有对 ch3 有效的 <features> 为 `coop`
-- `--release` 生成 `[optimized]` 版内核
-
-
-## 清空系统
-- 只清空第 `n` 章的编译生成的文件：`cargo clean -p ch<n>`
-- 彻底清空所有章节/工具生成物：根目录下直接 `cargo clean`
-
-## 设计稿和报告
-
-- [crate 分类](docs/design/20220814-crate-types.md)
-- [内核地址隔离](docs/design/20220823-kpti.md)
-- [3.5 章进展报告](https://github.com/YdrMaster/slides/blob/main/20220824-%E6%A8%A1%E5%9D%97%E5%8C%96%E8%BF%9B%E5%B1%95.pdf)
-
-## 进度
-
-- [x] [§1](ch1/README.md)（[实验参考](ch1-lab/README.md)）
-- [x] [§2](ch2/README.md)
-- [x] [§3](ch3/README.md)
-- [x] [§4](ch4/README.md)
-- [x] [§5](ch5/README.md) by [ZFL](https://github.com/zflcs)
-- [x] [§6](ch6/README.md) by [TKF](https://github.com/tkf2019)
-- [x] [§7](ch7/README.md) by [BHY](https://github.com/scPointer)
-- [x] [§8](ch8/README.md) by [ZFL](https://github.com/zflcs)
-- [ ] §9
-
-## 使用示例：`--dir` 参数
-
-当你希望在仓库外或不把包加入根 workspace 的情况下构建并运行某个包（例如 `myos` 或 `ch1` 目录），可以使用 `--dir` 指定包目录：
-
-- 构建包（仅打印命令）：
-
+#### 获取整个组件化 rCore Tutorial 操作系统内核实验仓库
 ```bash
-cargo make --dir ./myos --print-cmd --nobios
+git clone https://github.com/rcore-os/rCore-Tutorial-in-single-workspace.git
+cd rCore-Tutorial-in-single-workspace
+```
+#### 获取某个操作系统内核或内核功能组件
+```bash
+cargo clone tg-ch3  #tg-chX 是发布到 crates.io上的组件化内核， X=1..8 代表8个内核 
+cd tg-ch3  # 进入 tg-ch1内核
 ```
 
-- 在 QEMU 中运行（打印构建/objcopy/qemu 命令，并用 `--nobios` 以无 BIOS 模式加载内核）：
+### 1.3 最短上手路径（建议）
 
 ```bash
-cargo qemu --dir ./ch1 --print-cmd --nobios
+cd ch3   # 或 cd tg-ch3
+cargo run
 ```
 
-行为说明：
-- `--dir ./foo` 会等价于对 `cargo` 使用 `--manifest-path ./foo/Cargo.toml` 并同时设置 `--target-dir ./foo/target`，因此生成的可执行文件会放在 `./foo/target/riscv64gc-unknown-none-elf/{debug|release}/<pkg>`。
-- `--print-cmd` 会在执行前打印 `cargo build`、`rust-objcopy` 和 `qemu-system-*` 的完整命令行，便于调试。
-- `--nobios` 在构建时加入 `nobios` 特性，并在运行时把 QEMU 的 `-bios none`，使内核被直接加载到 0x80000000（与默认 RustSBI 加载地址不同）。
+如果你想直接做基本功能测试（例如 ch3）：
+```bash
+cd ch3  # 或 tg-ch3  cargo clone tg-ch3 ; cd tg-ch3
+cargo build   
+./test.sh  base
+```
+
+如果你想直接做练习章（例如 ch3）：
+
+```bash
+cd ch3  # 或 tg-ch3  cargo clone tg-ch3 ; cd tg-ch3
+cargo build --features exercise
+./test.sh exercise
+```
+
+## 2. 仓库结构总览
+
+| 路径 | 作用 | 你通常在什么时候用 |
+|---|---|---|
+| `ch1` ~ `ch8` | 章节内核 + 实验指导 | 按课程顺序学习、做章节实验 |
+| `ch1-lab` | ch1 参考实验 | 做第一章补充练习时 |
+| `tg-console` | 控制台输出与日志 | 需要统一日志/输出接口 |
+| `tg-linker` | 链接脚本生成工具 | 构建内核镜像、管理链接符号 |
+| `tg-sbi` | SBI 封装（含 `nobios` 支持） | 与固件/定时器/关机交互 |
+| `tg-syscall` | syscall 编号与 trait 框架 | 定义/实现系统调用 |
+| `tg-kernel-context` | 上下文切换与执行上下文 | Trap、任务/线程切换 |
+| `tg-kernel-alloc` | 内核内存分配器 | 需要 `#[global_allocator]` 时 |
+| `tg-kernel-vm` | 地址空间与页表管理 | ch4+ 虚存、映射、权限检查 |
+| `tg-task-manage` | 任务/进程/线程管理抽象 | 调度器与任务关系管理 |
+| `tg-easy-fs` | 教学文件系统实现 | ch6+ 文件、目录、pipe |
+| `tg-sync` | 同步原语（mutex/semaphore/condvar） | ch8 并发同步 |
+| `tg-signal-defs` | 信号号与结构定义 | ch7+ 信号语义定义 |
+| `tg-signal` | 信号处理 trait 抽象 | 信号框架扩展点 |
+| `tg-signal-impl` | 信号处理具体实现 | 直接复用信号实现 |
+| `tg-user` | 用户程序与测试用例 | 内核构建期打包/拉取用户态测例 |
+| `tg-checker` | 输出匹配检测工具 | 自动判定章节测试是否通过 |
+| `docs/design` | 设计文档 | 需要理解架构演进时 |
+
+## 3. 章节与练习地图
+
+| 章节 | 主题 | 默认运行 | 练习模式 |
+|---|---|---|---|
+| `ch1` | 裸机与最小执行环境 | `cargo run` | 无独立 exercise |
+| `ch2` | Batch OS、Trap、基本 syscall | `cargo run` | 无独立 exercise |
+| `ch3` | 多道程序与分时 | `cargo run` | `cargo run --features exercise` |
+| `ch4` | 地址空间与页表 | `cargo run` | `cargo run --features exercise` |
+| `ch5` | 进程与调度 | `cargo run` | `cargo run --features exercise` |
+| `ch6` | 文件系统 | `cargo run` | `cargo run --features exercise` |
+| `ch7` | IPC（pipe/signal） | `cargo run` | 基础测试为主 |
+| `ch8` | 线程与并发同步 | `cargo run` | `cargo run --features exercise` |
+
+5 个常见练习章：`ch3`、`ch4`、`ch5`、`ch6`、`ch8`。
+
+## 4. 常用开发与测试流程
+
+### 4.1 进入某章开发
+
+```bash
+cd ch<N>
+cargo build
+cargo run
+```
+
+### 4.2 运行章节测试脚本
+
+```bash
+./test.sh          # 默认（通常等价于 all 或 base）
+./test.sh base     # 基础测试
+./test.sh exercise # 练习测试（若该章支持）
+./test.sh all      # 全量测试（若该章支持）
+```
+
+### 4.3 使用 `tg-checker` 做输出检测
+
+先安装（本地路径）：
+
+```bash
+cargo install --path tg-checker
+```
+
+基础测试示例（以 ch2 为例）：
+
+```bash
+cargo run 2>&1 | tg-checker --ch 2
+```
+
+练习测试示例（以 ch3 为例）：
+
+```bash
+cargo run --features exercise 2>&1 | tg-checker --ch 3 --exercise
+```
+
+## 5. `tg-*` 内核功能组件开发工作流（开发者重点）
+
+### 5.1 先理解 workspace 边界
+
+根目录 `Cargo.toml` 的 workspace **主要管理内核功能组件 crate**（如 `tg-*`），并显式排除了 `ch1~ch8`、`tg-user`、`tg-checker`。  
+这意味着：
+
+- 在根目录执行 `cargo check --workspace`，重点检查内核功能组件层
+- 章节内核需要进入各章节目录单独构建和测试
+
+### 5.2 修改组件后如何验证
+
+建议流程：
+
+1. 在根目录先验证组件本身：
+   ```bash
+   cargo check -p tg-kernel-vm
+   ```
+2. 切到依赖该组件的章节（例如 `ch4`）做集成验证：
+   ```bash
+   cd ch4
+   cargo run --features exercise
+   ./test.sh exercise
+   ```
+
+### 5.3 何时改成本地路径依赖
+
+某些章节练习要求你直接改组件实现（例如 `ch4` 对 `tg-kernel-vm`、`ch6` 对 `tg-easy-fs`）。  
+此时按章节文档把依赖改为本地 `path`，再做章节测试。
+
+## 6. 推荐学习/开发顺序
+
+1. `ch1 -> ch2`：跑通启动、Trap、基础 syscall
+2. `ch3 -> ch4`：完成任务调度到地址空间
+3. `ch5 -> ch6`：完成进程与文件系统
+4. `ch7 -> ch8`：完成 IPC、线程与并发同步
+5. 回到 `tg-*`：按组件抽象复盘与重构
+
+## 7. 常见问题（FAQ）
+
+### Q1：为什么我在根目录 `cargo run` 不会直接跑某个章节？
+
+因为章节 crate 不在根 workspace 默认成员里。请进入 `ch<N>` 目录运行。
+
+### Q2：为什么 exercise 测试和 base 测试结果不同？
+
+`exercise` 会启用章节额外需求（例如新增 syscall 或扩展行为），与基础模式测例不同是正常的。
+
+### Q3：如何快速定位“实现错了还是输出格式错了”？
+
+先使用章节 `./test.sh`，再用 `tg-checker` 管线检测输出，可快速区分行为错误与输出不匹配。
+
+## 8. 相关文档入口
+
+- 章节文档：`ch1/README.md` ~ `ch8/README.md`
+- 练习说明：`ch3/exercise.md`、`ch4/exercise.md`、`ch5/exercise.md`、`ch6/exercise.md`、`ch8/exercise.md`
+- 设计文档：`docs/design/20220814-crate-types.md`、`docs/design/20220823-kpti.md`
+
+---
+
+如果你是课程开发者，建议先读完本 README，把`ch1`~`ch8`的README.md看看，并运行一下，再从 `ch3` 或 `ch4` 开始做一个完整练习闭环（实现 -> 测试 -> 回归 -> 文档化），可以最快理解本仓库的“章节驱动 + 组件复用”开发模式。
+
+## License: GNU GENERAL PUBLIC LICENSE v3
