@@ -4,10 +4,8 @@
 !/.vscode/settings.json
 !/.devcontainer/devcontainer.json
 
-/target
+target
 *.asm
 *.bin
-!/rustsbi-qemu.bin
-!/**/m_entry.asm
+rustsbi-qemu.bin
 Cargo.lock
-checker/

@@ -1,0 +1,9 @@
+$:
+  vscode:
+    - runner:
+        cpus: 16
+      docker:
+        image: docker.cnb.cool/learningos/rcore-single:latest
+      services:
+        - vscode
+        - docker
