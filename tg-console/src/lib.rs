@@ -1,4 +1,10 @@
 //! 提供可定制实现的 `print!`、`println!` 和 `log::Log`。
+//!
+//! 教程阅读建议：
+//!
+//! 1. 先看 [`Console`] trait：理解“真正输出设备”如何被抽象；
+//! 2. 再看 `init_console`：理解全局单例如何注入；
+//! 3. 最后看 `_print` 与 `Logger::log`：理解格式化输出和日志分级路径。
 
 #![no_std]
 #![deny(warnings, missing_docs)]
@@ -29,12 +35,18 @@ pub trait Console: Sync {
 }
 
 /// 库找到输出的方法：保存一个对象引用，这是一种单例。
+///
+/// 各章节会在启动阶段调用 `init_console(&ConsoleImpl)`，
+/// 后续所有 `print!`/`println!` 都会走到这个单例。
 static CONSOLE: Once<&'static dyn Console> = Once::new();
 
 /// 打印缓冲区大小。
 const BUFFER_SIZE: usize = 64;
 
 /// 打印缓冲区，用于收集格式化输出后一次性输出，避免抢占导致输出交错。
+///
+/// 教学意义：在内核场景中，逐字输出非常容易被抢占打断，
+/// 同一行日志可能被多个任务交叉写入；先拼接再一次输出可显著改善可读性。
 struct PrintBuffer {
     buffer: [u8; BUFFER_SIZE],
     pos: usize,
@@ -93,6 +105,7 @@ impl Write for PrintBuffer {
 
 /// 用户调用这个函数设置输出的方法。
 pub fn init_console(console: &'static dyn Console) {
+    // 初始化输出后，也顺带注册 log 框架入口（Logger）。
     CONSOLE.call_once(|| console);
     log::set_logger(&Logger).unwrap();
 }
@@ -129,6 +142,7 @@ pub fn test_log() {
 #[doc(hidden)]
 #[inline]
 pub fn _print(args: fmt::Arguments) {
+    // 注意：这里故意不直接调用底层 put_char，而是经由 PrintBuffer 聚合输出。
     let mut buffer = PrintBuffer::new();
     buffer.write_fmt(args).unwrap();
     buffer.flush();
@@ -174,6 +188,7 @@ impl log::Log for Logger {
     #[inline]
     fn log(&self, record: &log::Record) {
         use log::Level::*;
+        // ANSI 颜色仅用于教学调试体验，不影响日志语义。
         let color_code: u8 = match record.level() {
             Error => 31,
             Warn => 93,

@@ -27,6 +27,12 @@
 //!
 //! `virtio-drivers` 库需要一个 `Hal` 实现来处理 DMA 内存分配和地址转换。
 //! 由于内核使用恒等映射，物理地址 == 虚拟地址，因此转换非常简单。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `BLOCK_DEVICE`：理解驱动实例如何被文件系统全局复用；
+//! - 再看 `BlockDevice` trait 实现：理解文件系统读写如何下沉到块设备；
+//! - 最后看 `VirtioHal`：理解 DMA 分配与地址转换为何能“近似直通”。
 
 use crate::{build_flags, Sv39, KERNEL_SPACE};
 use alloc::{

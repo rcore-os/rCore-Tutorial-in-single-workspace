@@ -7,7 +7,10 @@ extern crate alloc;
 
 use user_lib::{close, open, read, OpenFlags};
 
-#[no_mangle]
+// 教学目标：
+// 实现最小版 cat，验证按块循环 read 直到 EOF 的文件读取模式。
+
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     let fd = open("filea\0", OpenFlags::RDONLY);
     if fd == -1 {

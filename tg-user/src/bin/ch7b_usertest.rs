@@ -27,7 +27,10 @@ const TEST_NUM: usize = TESTS.len();
 
 use user_lib::{exec, fork, waitpid};
 
-#[no_mangle]
+// 教学目标：
+// ch7 基础回归入口：在 ch6 基础上增加信号与管道相关测例。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let mut pids = [0; TEST_NUM];
     for (i, &test) in TESTS.iter().enumerate() {

@@ -12,6 +12,12 @@
 //!
 //! `Fd` 枚举统一了文件描述符表中的所有类型，使 read/write 系统调用可以
 //! 通过相同的接口操作普通文件和管道。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `Fd` 枚举：把“文件/管道/标准IO”统一抽象的设计意图先看懂；
+//! - 再看 `Fd::{read, write}`：理解系统调用层如何避免分支扩散；
+//! - 最后看 `FS` 与 `read_all`：区分“程序加载路径”和“运行时 I/O 路径”。
 
 use crate::virtio_block::BLOCK_DEVICE;
 use alloc::{string::String, sync::Arc, vec::Vec};

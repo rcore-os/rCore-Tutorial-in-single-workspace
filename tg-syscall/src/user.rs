@@ -2,6 +2,10 @@ use crate::{ClockId, SignalAction, SignalNo, Stat, SyscallId, TimeSpec};
 use bitflags::*;
 use native::*;
 
+// 教程阅读建议：
+// - 先看 `native::syscall*` 系列，理解 ecall 调用约定；
+// - 再看本文件的高级封装函数，理解用户态接口如何映射到 syscall 参数。
+
 /// 向文件描述符写入数据。
 ///
 /// see <https://man7.org/linux/man-pages/man2/write.2.html>.

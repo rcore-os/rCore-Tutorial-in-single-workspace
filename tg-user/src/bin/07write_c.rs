@@ -9,7 +9,10 @@ use user_lib::sched_yield;
 const WIDTH: usize = 10;
 const HEIGHT: usize = 3;
 
-#[no_mangle]
+// 教学目标：
+// 与 write_a/write_b 组成三任务调度观测样例。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     for i in 0..HEIGHT {
         for _ in 0..WIDTH {

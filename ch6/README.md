@@ -35,6 +35,43 @@ ch6/
     └── virtio_block.rs # VirtIO 块设备驱动
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+本章建议按“块设备 -> 文件系统 -> fd_table -> 文件 syscall”逐层阅读。
+
+| 阅读顺序 | 文件 | 重点问题 |
+|---|---|---|
+| 1 | `src/virtio_block.rs` | VirtIO 驱动如何把块设备能力暴露给 easy-fs？ |
+| 2 | `src/fs.rs` | `FS`、`open`、`read_all` 如何构成“按文件加载程序”的路径？ |
+| 3 | `src/process.rs` | 进程的 `fd_table` 如何初始化并在 `fork` 时继承？ |
+| 4 | `src/main.rs` 的 `impls::IO` | `open/read/write/close` 如何经由 fd 映射到具体文件对象？ |
+| 5 | `src/main.rs` 的 `kernel_space` | MMIO 映射为何是块设备可用的前提？ |
+
+配套建议：结合 `tg-easy-fs` 的 `layout/efs/vfs` 注释阅读，能更完整理解“磁盘块 -> 文件语义”的抽象过程。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能说明“用户程序从内嵌镜像迁移到 fs.img”的核心变化
+- [ ] 能解释 VirtIO MMIO 映射为何是文件系统可用前提
+- [ ] 能从代码追踪 `open/read/write/close` 经 fd_table 到具体文件对象的路径
+- [ ] 能在 shell 中运行至少一个文件读写相关用户程序并解释结果
+- [ ] 能执行 `./test.sh base`（练习时补充 `./test.sh exercise`）
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 块设备驱动接入 | `ch6/src/virtio_block.rs` | 启动日志出现 VirtIO MMIO 映射，文件系统可读写 |
+| 文件系统封装 | `ch6/src/fs.rs` 的 `FS/open/read_all` | `initproc` 能从文件系统成功加载 |
+| 进程 fd 表 | `ch6/src/process.rs` 的 `fd_table` | `fork` 后子进程可继承并使用已打开 fd |
+| 文件 syscall 实现 | `ch6/src/main.rs` 的 `impls::IO` | `open/read/write/close` 行为与期望一致 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

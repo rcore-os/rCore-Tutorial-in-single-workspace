@@ -14,7 +14,10 @@ static TESTS: &[&str] = &[
     "ch5_stride5",
 ];
 
-#[no_mangle]
+// 教学目标：
+// 统一启动不同优先级负载，观测 stride 调度在长时间运行下的分配效果。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let mut pid = [0isize; 6];
     for (i, test) in TESTS.iter().enumerate() {

@@ -26,7 +26,7 @@ impl EasyFileSystem {
         total_blocks: u32,
         inode_bitmap_blocks: u32,
     ) -> Arc<Mutex<Self>> {
-        // calculate block size of areas & create bitmaps
+        // 第一步：计算各区域块数并初始化 bitmap
         let inode_bitmap = Bitmap::new(1, inode_bitmap_blocks as usize);
         let inode_num = inode_bitmap.maximum();
         let inode_area_blocks =
@@ -46,7 +46,7 @@ impl EasyFileSystem {
             inode_area_start_block: 1 + inode_bitmap_blocks,
             data_area_start_block: 1 + inode_total_blocks + data_bitmap_blocks,
         };
-        // clear all blocks
+        // 第二步：清盘（教学实现中直接全盘置零，简单直观）
         for i in 0..total_blocks {
             get_block_cache(i as usize, Arc::clone(&block_device))
                 .lock()
@@ -56,7 +56,7 @@ impl EasyFileSystem {
                     }
                 });
         }
-        // initialize SuperBlock
+        // 第三步：写入 SuperBlock
         get_block_cache(0, Arc::clone(&block_device)).lock().modify(
             0,
             |super_block: &mut SuperBlock| {
@@ -69,8 +69,7 @@ impl EasyFileSystem {
                 );
             },
         );
-        // write back immediately
-        // create a inode for root node "/"
+        // 第四步：创建根目录 inode（固定为 inode 0）
         assert_eq!(efs.alloc_inode(), 0);
         let (root_inode_block_id, root_inode_offset) = efs.get_disk_inode_pos(0);
         get_block_cache(root_inode_block_id as usize, Arc::clone(&block_device))
@@ -83,7 +82,7 @@ impl EasyFileSystem {
     }
     /// Open a block device as a filesystem
     pub fn open(block_device: Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
-        // read SuperBlock
+        // 打开时先读 SuperBlock，恢复布局信息。
         get_block_cache(0, Arc::clone(&block_device))
             .lock()
             .read(0, |super_block: &SuperBlock| {

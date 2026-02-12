@@ -15,6 +15,12 @@
 //! - `fetch`：从就绪队列头部取出下一个要执行的进程
 //!
 //! 练习题要求实现 **stride 调度算法**，需要修改此模块。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `ProcManager`：理解“存储结构(BTreeMap) + 调度结构(VecDeque)”双结构搭配；
+//! - 再看 `Manage` 与 `Schedule` trait：理解抽象层如何为后续替换调度算法留接口；
+//! - 最后结合 `ch5/src/main.rs` 中对 `PROCESSOR` 的调用观察状态流转。
 
 use crate::process::Process;
 use alloc::collections::{BTreeMap, VecDeque};

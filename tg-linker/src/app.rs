@@ -1,4 +1,7 @@
 /// 应用程序元数据。
+///
+/// 链接器会把“应用起始地址表 + 应用数据”打包到镜像中，
+/// `AppMeta` 是运行期读取这些信息的入口结构。
 #[repr(C)]
 pub struct AppMeta {
     base: u64,
@@ -13,7 +16,7 @@ impl AppMeta {
     /// 返回由链接脚本定义的应用程序元数据的静态引用。
     #[inline]
     pub fn locate() -> &'static Self {
-        extern "C" {
+        unsafe extern "C" {
             static apps: AppMeta;
         }
         // SAFETY: `apps` 是由链接脚本定义的静态符号，在程序运行期间始终有效。
@@ -24,6 +27,7 @@ impl AppMeta {
     /// 遍历链接进来的应用程序。
     #[inline]
     pub fn iter(&'static self) -> AppIterator {
+        // 迭代器按链接顺序输出每个 app 的字节切片。
         AppIterator { meta: self, i: 0 }
     }
 }
@@ -56,6 +60,7 @@ impl Iterator for AppIterator {
                 let size = slice[i + 1] - pos;
                 let base = self.meta.base as usize + i * self.meta.step as usize;
                 if base != 0 {
+                    // 章节中常用该模式把 app 拷贝到固定虚拟地址（如 0x8040_0000）再执行。
                     // SAFETY: pos 指向有效的应用数据，base 是调用者指定的目标地址，
                     // 调用者负责确保 base 处有足够的内存空间
                     core::ptr::copy_nonoverlapping::<u8>(pos as _, base as _, size);

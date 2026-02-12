@@ -36,9 +36,11 @@ static TESTS: &[&str] = &[
     "ch6_file3",
 ];
 
+// 教学目标：
+// ch6 章节综合回归入口：串行运行关键测例并断言退出状态。
 /// 辅助测例，运行所有其他测例。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     for test in TESTS {
         println!("Usertests: Running {}", test);

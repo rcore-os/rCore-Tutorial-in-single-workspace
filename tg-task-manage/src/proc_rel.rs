@@ -31,7 +31,7 @@ impl ProcRel {
             .children
             .iter()
             .enumerate()
-            .find(|(_, &id)| id == child_pid);
+            .find(|&(_, &id)| id == child_pid);
         if let Some((idx, _)) = pair {
             let dead_child = self.children.remove(idx);
             self.dead_children.push((dead_child, exit_code));
@@ -41,8 +41,10 @@ impl ProcRel {
     pub fn wait_any_child(&mut self) -> Option<(ProcId, isize)> {
         if self.dead_children.is_empty() {
             if self.children.is_empty() {
+                // 没有任何子进程
                 None
             } else {
+                // 有子进程，但都还没退出
                 Some((ProcId::from_usize(-2 as _), -1))
             }
         } else {
@@ -55,7 +57,7 @@ impl ProcRel {
             .dead_children
             .iter()
             .enumerate()
-            .find(|(_, &(id, _))| id == child_pid);
+            .find(|&(_, &(id, _))| id == child_pid);
         if let Some((idx, _)) = pair {
             // 等待的子进程确已结束
             Some(self.dead_children.remove(idx))
@@ -64,12 +66,12 @@ impl ProcRel {
                 .children
                 .iter()
                 .enumerate()
-                .find(|(_, &id)| id == child_pid);
+                .find(|&(_, &id)| id == child_pid);
             if let Some(_) = pair {
                 // 等待的子进程正在运行
                 Some((ProcId::from_usize(-2 as _), -1))
             } else {
-                // 等待的子进程不存在
+                // 等待的子进程不存在（不是自己的孩子或 pid 无效）
                 None
             }
         }

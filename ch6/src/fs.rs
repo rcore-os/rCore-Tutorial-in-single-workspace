@@ -12,6 +12,12 @@
 //!
 //! 第五章的程序通过 `APPS` 内存表加载，而本章通过文件系统从磁盘读取。
 //! `exec` 系统调用的实现从 `APPS.get(name)` 变为 `FS.open(name) + read_all()`。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `FS` 的初始化：理解块设备与文件系统是如何绑定的；
+//! - 再看 `open`：理解 CREATE/TRUNC/RDONLY 等标志的行为；
+//! - 最后看 `read_all`：把握“按块读取 -> 拼接 ELF 数据”的加载路径。
 
 use crate::virtio_block::BLOCK_DEVICE;
 use alloc::{string::String, sync::Arc, vec::Vec};

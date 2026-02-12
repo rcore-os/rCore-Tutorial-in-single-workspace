@@ -38,6 +38,43 @@ ch8/
     └── virtio_block.rs # VirtIO 块设备驱动
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+本章建议按“进程/线程拆分 -> 双层管理器 -> 同步阻塞/唤醒”主线阅读。
+
+| 阅读顺序 | 文件 | 重点问题 |
+|---|---|---|
+| 1 | `src/process.rs` | `Process` 与 `Thread` 如何分离资源与执行职责？ |
+| 2 | `src/processor.rs` | `PThreadManager` 如何同时管理 PID 与 TID 两层关系？ |
+| 3 | `src/main.rs` 初始化路径 | `init_thread`、`init_sync_mutex` 如何把线程与同步 syscall 接入系统？ |
+| 4 | `src/main.rs` Trap 主循环 | `SEMAPHORE_DOWN/MUTEX_LOCK/CONDVAR_WAIT` 返回 `-1` 时为何转为阻塞态？ |
+| 5 | `src/main.rs` 的 `impls::Thread/SyncMutex` | 线程创建、join、锁/信号量/条件变量的唤醒路径如何闭环？ |
+
+配套建议：结合 `tg-sync` 与 `tg-task-manage(thread feature)` 注释阅读，重点把“阻塞队列 -> re_enque -> 再调度”串起来。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能清楚区分 `Process`（资源容器）与 `Thread`（执行单元）的职责边界
+- [ ] 能说明 `PThreadManager` 如何维护 PID/TID 双层关系
+- [ ] 能解释 `thread_create/gettid/waittid` 的核心语义与返回值
+- [ ] 能解释阻塞型同步原语中“阻塞 -> 唤醒 -> 重新入队”的完整路径
+- [ ] 能执行 `./test.sh base`（练习时补充 `./test.sh exercise`）
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 进程线程解耦 | `ch8/src/process.rs` | 能描述共享资源和独立上下文分别放在哪一层 |
+| 双层调度管理 | `ch8/src/processor.rs` | 能解释为何调度粒度从进程变为线程 |
+| 线程系统调用 | `ch8/src/main.rs` 的 `impls::Thread` | 运行线程测试程序可看到创建与等待成功 |
+| 同步阻塞/唤醒 | `ch8/src/main.rs` 的 `impls::SyncMutex` + Trap 分支 | 锁/信号量/条件变量场景可重现阻塞与唤醒 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

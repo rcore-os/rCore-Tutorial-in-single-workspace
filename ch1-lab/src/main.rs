@@ -7,6 +7,11 @@ extern crate tg_console;
 
 use tg_sbi;
 
+// 教程阅读建议：
+// 1) 先看 `_start`：理解“无运行时环境”下如何手动设栈并跳转；
+// 2) 再看 `rust_main`：理解控制台初始化与日志输出链路；
+// 3) 最后看 `panic`：理解 no_std 程序异常时如何终止系统。
+
 /// Supervisor 汇编入口。
 ///
 /// 设置栈并跳转到 Rust。

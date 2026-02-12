@@ -1,5 +1,10 @@
 #![no_std]
 #![deny(warnings)]
+//!
+//! 教程阅读建议：
+//!
+//! - 用户态读 `user.rs`：看 syscall 封装如何把参数放入 a0-a5/a7；
+//! - 内核态读 `kernel/mod.rs`：看 syscall 号如何分发到各子系统 trait。
 
 #[cfg(all(feature = "kernel", feature = "user"))]
 compile_error!("You can only use one of `supervisor` or `user` features at a time");
@@ -9,6 +14,7 @@ mod io;
 mod time;
 
 include!(concat!(env!("OUT_DIR"), "/syscalls.rs"));
+// 由构建脚本生成的 syscall 编号常量（与课程章节保持同步）。
 
 pub use fs::*;
 pub use io::*;

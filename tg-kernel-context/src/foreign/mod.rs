@@ -9,6 +9,8 @@ use spin::Lazy;
 /// 传送门缓存。
 ///
 /// 映射到公共地址空间，在传送门一次往返期间暂存信息。
+///
+/// 可以把它理解成“跨地址空间调用帧”，传送门代码只认这块结构体布局。
 #[repr(C)]
 pub struct PortalCache {
     a0: usize,       //    (a0) 目标控制流 a0
@@ -110,6 +112,11 @@ impl ForeignContext {
     /// - `self.context` 中的 `sepc` 指向有效的代码地址
     pub unsafe fn execute(&mut self, portal: &mut impl ForeignPortal, key: impl SlotKey) -> usize {
         use core::mem::replace;
+        // 执行顺序：
+        // 1) 保存原属性并强制切到“特权+关中断”；
+        // 2) 准备 PortalCache；
+        // 3) 跳入公共空间传送门；
+        // 4) 返回后恢复线程属性并回收返回值。
         // 异界传送门需要特权态执行
         let supervisor = replace(&mut self.context.supervisor, true);
         // 异界传送门不能打开中断
@@ -134,6 +141,7 @@ impl ForeignContext {
         self.context.interrupt = interrupt;
         // 从传送门读取上下文
         *self.context.a_mut(0) = cache.a0;
+        // 返回的 sstatus 可用于上层判断 trap 退出态。
         sstatus
     }
 }

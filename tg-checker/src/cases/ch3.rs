@@ -4,6 +4,7 @@ use super::TestCase;
 
 /// ch3 基础测试
 pub fn base() -> TestCase {
+    // ch3 base 关注任务切换与让出 CPU 后的输出完整性。
     TestCase {
         expected: vec![
             // ch3b_yield0
@@ -19,6 +20,7 @@ pub fn base() -> TestCase {
 
 /// ch3 exercise 测试
 pub fn exercise() -> TestCase {
+    // ch3 exercise 额外覆盖 sleep/trace 等实验功能。
     TestCase {
         expected: vec![
             // ch3_sleep

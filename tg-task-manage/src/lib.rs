@@ -1,4 +1,9 @@
 //! 任务管理 lib
+//!
+//! 教程阅读建议：
+//!
+//! - 从 `Manage`/`Schedule` 两个 trait 入手，理解“对象存储”和“调度策略”解耦；
+//! - 再看 `PManager`/`PThreadManager`，理解父子进程、线程归属与 wait 语义。
 
 #![no_std]
 #![deny(warnings, missing_docs)]

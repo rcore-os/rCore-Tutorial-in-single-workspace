@@ -238,6 +238,8 @@ pub enum SyscallResult {
 
 pub fn handle(caller: Caller, id: SyscallId, args: [usize; 6]) -> SyscallResult {
     use SyscallId as Id;
+    // 分发策略：按 syscall 号转发到对应子系统 trait。
+    // 好处是章节实现可以按模块渐进补全（IO/Process/Memory/...），互不耦合。
     match id {
         Id::WRITE => IO.call(id, |io| io.write(caller, args[0], args[1], args[2])),
         Id::READ => IO.call(id, |io| io.read(caller, args[0], args[1], args[2])),
@@ -334,6 +336,7 @@ impl<T: 'static + ?Sized> Container<T> {
 
     #[inline]
     fn call(&self, id: SyscallId, f: impl FnOnce(&T) -> isize) -> SyscallResult {
+        // 若某子系统尚未 init，返回 Unsupported，便于早期章节按需启用功能。
         self.0
             .get()
             .map_or(SyscallResult::Unsupported(id), |clock| {

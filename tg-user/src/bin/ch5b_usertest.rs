@@ -22,7 +22,10 @@ const TEST_NUM: usize = TESTS.len();
 
 use user_lib::{exec, fork, waitpid};
 
-#[no_mangle]
+// 教学目标：
+// 以“fork + exec + waitpid”方式批量回归基础测例（偏向早期章节能力）。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let mut pids = [0; TEST_NUM];
     for (i, &test) in TESTS.iter().enumerate() {

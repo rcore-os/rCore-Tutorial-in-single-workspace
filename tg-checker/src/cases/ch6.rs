@@ -4,6 +4,7 @@ use super::TestCase;
 
 /// ch6 base test
 pub fn base() -> TestCase {
+    // ch6 base 在进程能力之外，新增文件系统基础读写验证。
     TestCase {
         expected: vec![
             // inherited from ch5b
@@ -28,6 +29,7 @@ pub fn base() -> TestCase {
 
 /// ch6 exercise test
 pub fn exercise() -> TestCase {
+    // ch6 exercise 增强覆盖 fstat/link/unlink/批量 open 等文件接口。
     TestCase {
         expected: vec![
             // inherited from ch5 exercise (without set_priority)

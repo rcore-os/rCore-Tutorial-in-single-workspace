@@ -4,6 +4,7 @@ use super::TestCase;
 
 /// ch7 base test
 pub fn base() -> TestCase {
+    // ch7 base 叠加信号与管道相关基础功能验证。
     TestCase {
         expected: vec![
             // inherited from ch6b

@@ -24,7 +24,10 @@ const TEST_NUM: usize = TESTS.len();
 
 use user_lib::{exec, fork, waitpid};
 
-#[no_mangle]
+// 教学目标：
+// 基础版 ch6 回归入口，采用 fork+exec 并行启动后统一 waitpid 回收。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let mut pids = [0; TEST_NUM];
     for (i, &test) in TESTS.iter().enumerate() {

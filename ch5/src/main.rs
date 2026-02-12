@@ -23,6 +23,12 @@
 //! | 资源回收 | 内核直接回收 | wait 系统调用回收 |
 //! | 用户交互 | 无 | Shell 命令行界面 |
 //! | 进程管理 | 简单列表 | ProcManager + 调度器 |
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `rust_main`：建立“initproc -> 调度 -> trap -> 状态迁移”的全局主线；
+//! - 再看 `map_portal` 与 `kernel_space`：理解进程切换时地址空间一致性保障；
+//! - 最后看 `impls::Process`：重点理解 fork/exec/wait 的语义边界。
 
 // 不使用标准库，裸机环境没有操作系统提供系统调用支持
 #![no_std]
@@ -94,9 +100,27 @@ use stub::{build_flags, parse_flags};
 #[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 
-// 定义内核入口点，设置启动栈大小为 32 页 = 128 KiB
+// 定义内核入口点，设置启动栈大小为 32 页 = 128 KiB。
+//
+// 这里不再调用 tg_linker::boot0! 宏，避免外部已发布版本与 Rust 2024
+// 在属性语义上的兼容差异影响本 crate 的发布校验。
 #[cfg(target_arch = "riscv64")]
-tg_linker::boot0!(rust_main; stack = 32 * 4096);
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text.entry")]
+unsafe extern "C" fn _start() -> ! {
+    const STACK_SIZE: usize = 32 * 4096;
+    #[unsafe(link_section = ".boot.stack")]
+    static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
+
+    core::arch::naked_asm!(
+        "la sp, {stack} + {stack_size}",
+        "j  {main}",
+        stack = sym STACK,
+        stack_size = const STACK_SIZE,
+        main = sym rust_main,
+    )
+}
 
 /// 物理内存容量 = 48 MiB
 const MEMORY: usize = 48 << 20;

@@ -4,6 +4,11 @@
 //! 实现 `BlockDevice` trait 以供 easy-fs 使用。
 //!
 //! 本模块与第六/七章相同。
+//!
+//! 教程阅读建议：
+//!
+//! - 本文件在三章里保持稳定，目的是让你把注意力集中到并发语义变化；
+//! - 建议重点复盘 `virt_to_phys`：它是“驱动可在分页内核中工作”的关键桥接点。
 
 use crate::{build_flags, Sv39, KERNEL_SPACE};
 use alloc::{

@@ -1,6 +1,11 @@
 //! 信号模块的具体实现。
 //!
 //! 本模块实现了 [`tg_signal::Signal`] trait，提供完整的信号处理功能。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `SignalImpl` 的四个核心字段：`received/mask/handling/actions`；
+//! - 再看 `handle_signals` 的状态机分支（Frozen、用户处理函数、默认动作）。
 
 #![no_std]
 #![deny(warnings, missing_docs)]
@@ -131,6 +136,9 @@ impl Signal for SignalImpl {
     }
 
     fn handle_signals(&mut self, current_context: &mut LocalContext) -> SignalResult {
+        // 状态机入口：
+        // A. 若已在处理信号，则只处理可恢复情形（例如 Frozen + SIGCONT）；
+        // B. 否则从 pending 集合提取一个可投递信号并执行默认或用户动作。
         if self.is_handling_signal() {
             match self.handling.as_ref().unwrap() {
                 // 如果当前正在暂停状态
@@ -180,6 +188,7 @@ impl Signal for SignalImpl {
         let handling_signal = self.handling.take();
         match handling_signal {
             Some(HandlingSignal::UserSignal(old_ctx)) => {
+                // 用户 handler 执行完毕，恢复被中断前上下文。
                 //println!("return to {:x} a0 {}", old_ctx.pc(), old_ctx.a(0));
                 *current_context = old_ctx;
                 true

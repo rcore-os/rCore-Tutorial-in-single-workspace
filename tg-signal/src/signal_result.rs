@@ -13,3 +13,7 @@ pub enum SignalResult {
     /// 需要暂停当前进程，直到其他进程给出继续执行的信号
     ProcessSuspended,
 }
+
+// 教程提示：
+// `SignalResult` 本质上是“trap 返回前调度决策”的枚举化结果，
+// 调用方可据此决定：直接回用户态、切换任务、或结束当前进程。

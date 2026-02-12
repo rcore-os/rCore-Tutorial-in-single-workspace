@@ -6,7 +6,10 @@ extern crate user_lib;
 
 const LEN: usize = 100;
 
-#[no_mangle]
+// 教学目标：
+// 长时间计算 + 周期输出，验证用户程序执行稳定性（参数为 3 的版本）。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let p = 3u64;
     let m = 998244353u64;

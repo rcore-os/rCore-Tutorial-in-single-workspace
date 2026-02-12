@@ -6,7 +6,9 @@ use core::{
 };
 use customizable_buddy::{BuddyAllocator, LinkedListBuddy, UsizeBuddy};
 
-/// 初始化全局分配器和内核堆分配器。
+/// 初始化用户态全局分配器。
+///
+/// 教学说明：用户程序同样需要 `alloc` 支持，因此也要在启动时初始化一个小堆。
 struct StaticCell<T> {
     inner: UnsafeCell<T>,
 }
@@ -58,6 +60,7 @@ static GLOBAL: Global = Global;
 unsafe impl GlobalAlloc for Global {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        // 分配失败直接走 Rust 统一错误处理（通常会 panic）。
         if let Ok((ptr, _)) = heap_mut().allocate_layout::<u8>(layout) {
             ptr.as_ptr()
         } else {
@@ -67,6 +70,6 @@ unsafe impl GlobalAlloc for Global {
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        heap_mut().deallocate_layout(NonNull::new(ptr).unwrap(), layout)
+        unsafe { heap_mut().deallocate_layout(NonNull::new(ptr).unwrap(), layout) }
     }
 }

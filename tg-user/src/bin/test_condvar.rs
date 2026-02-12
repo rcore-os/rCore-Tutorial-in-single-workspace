@@ -18,6 +18,9 @@ static mut A: usize = 0;
 const CONDVAR_ID: usize = 0;
 const MUTEX_ID: usize = 0;
 
+// 教学目标：
+// 演示条件变量基本用法：线程在条件不满足时等待，被 signal 后继续执行。
+
 unsafe fn first() -> isize {
     sleep(10);
     println!("First work, Change A --> 1 and wakeup Second");
@@ -42,7 +45,7 @@ unsafe fn second() -> isize {
     exit(0)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     // create condvar & mutex
     assert_eq!(condvar_create() as usize, CONDVAR_ID);

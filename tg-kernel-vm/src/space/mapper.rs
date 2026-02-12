@@ -1,4 +1,4 @@
-﻿use crate::{AddressSpace, PageManager};
+use crate::{AddressSpace, PageManager};
 use core::{ops::Range, ptr::NonNull};
 use page_table::{Decorator, Pos, Pte, Update, VmFlags, VmMeta, PPN};
 
@@ -33,6 +33,7 @@ impl<'a, Meta: VmMeta, M: PageManager<Meta>> Mapper<'a, Meta, M> {
 impl<Meta: VmMeta, M: PageManager<Meta>> Decorator<Meta> for Mapper<'_, Meta, M> {
     #[inline]
     fn arrive(&mut self, pte: &mut Pte<Meta>, target_hint: Pos<Meta>) -> Pos<Meta> {
+        // 到达叶子位置：写入最终 PTE（VPN -> PPN 映射）。
         assert!(!pte.is_valid());
         *pte = self.flags.build_pte(self.range.start);
         self.range.start += 1;
@@ -51,6 +52,7 @@ impl<Meta: VmMeta, M: PageManager<Meta>> Decorator<Meta> for Mapper<'_, Meta, M>
         pte: Pte<Meta>,
         _target_hint: Pos<Meta>,
     ) -> Option<NonNull<Pte<Meta>>> {
+        // 中间页表存在时，仅在“该页表属于本地址空间”才继续向下走。
         if self.space.page_manager.check_owned(pte) {
             Some(self.space.page_manager.p_to_v(pte.ppn()))
         } else {
@@ -60,6 +62,7 @@ impl<Meta: VmMeta, M: PageManager<Meta>> Decorator<Meta> for Mapper<'_, Meta, M>
 
     #[inline]
     fn block(&mut self, _level: usize, pte: Pte<Meta>, _target_hint: Pos<Meta>) -> Update<Meta> {
+        // 中间页表不存在：按需分配一个新页作为下一层页表。
         assert!(!pte.is_valid());
         let mut flags = VmFlags::VALID;
         let page = self.space.page_manager.allocate(1, &mut flags);

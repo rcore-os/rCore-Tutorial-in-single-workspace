@@ -32,6 +32,43 @@ ch4/
     └── process.rs      # 进程结构：地址空间、ELF 加载、堆管理
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+本章建议按“地址空间建立 -> 进程装载 -> 跨地址空间执行 -> 用户指针翻译”阅读。
+
+| 阅读顺序 | 文件 | 重点问题 |
+|---|---|---|
+| 1 | `src/main.rs` 的 `kernel_space` | 内核恒等映射、堆映射、传送门映射分别解决什么问题？ |
+| 2 | `src/process.rs` 的 `new` | ELF 如何被映射到用户地址空间，用户栈与 `satp` 如何初始化？ |
+| 3 | `src/main.rs` 的 `schedule` | 异界传送门如何支撑跨地址空间执行与返回？ |
+| 4 | `src/main.rs` 的 `impls` | 系统调用里 `translate()` 如何做权限检查与地址翻译？ |
+| 5 | `src/process.rs` 的 `change_program_brk` | `sbrk` 如何驱动堆页映射的扩张与回收？ |
+
+配套建议：先读本章再回看 `tg-kernel-vm` 与 `tg-kernel-context/foreign`，会更容易理解抽象设计。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能说明本章为何必须引入 Sv39 与每进程独立地址空间
+- [ ] 能从代码解释“内核恒等映射 + 用户地址空间映射 + 传送门映射”三者关系
+- [ ] 能说明 `translate()` 在 syscall 中如何完成权限检查与地址翻译
+- [ ] 能解释 `sbrk` 扩容/缩容时页映射范围如何变化
+- [ ] 能执行 `./test.sh base`（练习时补充 `./test.sh exercise`）
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 内核地址空间建立 | `ch4/src/main.rs` 的 `kernel_space` | 启动日志出现 `.text/.rodata/.data/(heap)` 映射信息 |
+| ELF 装载到用户空间 | `ch4/src/process.rs` 的 `Process::new` | 用户程序入口为虚拟地址（如 `0x10000`）并可运行 |
+| 跨地址空间执行 | `ch4/src/main.rs` 的 `schedule` + `MultislotPortal` | 用户态与内核态可正常往返，无地址空间切换崩溃 |
+| 用户指针翻译与检查 | `ch4/src/main.rs` 的 `impls`（`translate`） | 非法用户地址会被拒绝而不是直接越界访问 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

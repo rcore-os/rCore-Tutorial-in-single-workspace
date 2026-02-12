@@ -6,9 +6,11 @@ extern crate user_lib;
 
 use user_lib::{close, open, unlink, write, OpenFlags};
 
+// 教学目标：
+// 反复 open/write/close/unlink，验证文件资源回收与目录项一致性。
 /// 测试大量 open/unlink，输出 Test mass open/unlink OK! 就算正确。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let test_str = "some random long long long long long long long long string";
     let fname = "fname3\0";

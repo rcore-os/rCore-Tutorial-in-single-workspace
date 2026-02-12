@@ -4,6 +4,7 @@ use super::TestCase;
 
 /// ch5 base test
 pub fn base() -> TestCase {
+    // ch5 base 叠加 fork/exit/wait 基础进程管理能力验证。
     TestCase {
         expected: vec![
             // inherited from ch2b
@@ -31,6 +32,7 @@ pub fn base() -> TestCase {
 
 /// ch5 exercise test
 pub fn exercise() -> TestCase {
+    // ch5 exercise 继续覆盖 spawn / set_priority 等扩展系统调用。
     TestCase {
         expected: vec![
             // inherited from ch4 exercise (without trace related)

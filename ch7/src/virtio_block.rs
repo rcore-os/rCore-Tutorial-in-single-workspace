@@ -1,6 +1,11 @@
 //! VirtIO 块设备驱动模块（与第六章相同）
 //!
 //! 连接 QEMU 虚拟块设备（fs.img）与 easy-fs 文件系统。
+//!
+//! 教程阅读建议：
+//!
+//! - 可与 `ch6/src/virtio_block.rs` 对照阅读：两章驱动逻辑几乎一致；
+//! - 学习重点放在“上层 IO 语义变化（管道/信号）”，而非底层块设备差异。
 
 use crate::{build_flags, Sv39, KERNEL_SPACE};
 use alloc::{

@@ -11,6 +11,12 @@
 //! | 1 | 标准输出（stdout） |
 //! | 2 | 标准错误（stderr） |
 //! | 3+ | 普通文件（通过 open 系统调用分配） |
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `from_elf`：理解用户地址空间与初始 fd_table 如何构建；
+//! - 再看 `fork`：观察地址空间和文件描述符的继承规则；
+//! - 最后看 `change_program_brk`：理解用户堆扩缩时的页映射变化。
 
 use crate::{build_flags, map_portal, parse_flags, Sv39, Sv39Manager};
 use alloc::{alloc::alloc_zeroed, vec::Vec};

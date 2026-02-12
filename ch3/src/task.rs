@@ -8,6 +8,12 @@
 //! 第二章的批处理系统中，用户上下文直接在 `rust_main` 的局部变量中管理。
 //! 本章将其封装到 `TaskControlBlock` 中，每个任务拥有独立的 TCB，
 //! 包含用户上下文、完成状态和独立的用户栈，支持多任务并发。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `TaskControlBlock` 字段：理解“上下文 + 栈 + 状态位”最小任务模型；
+//! - 再看 `handle_syscall`：理解系统调用结果如何映射成调度事件；
+//! - 最后对照 `ch3/src/main.rs`：把“事件生成”和“事件消费”串成闭环。
 
 use tg_kernel_context::LocalContext;
 use tg_syscall::{Caller, SyscallId};

@@ -2,6 +2,11 @@
 //!
 //! 与第五章完全相同：PROCESSOR 全局管理器 + ProcManager 进程管理器。
 //! 调度算法仍为简单的 FIFO/RR。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `Processor`：理解为何用 `UnsafeCell` 承载全局可变状态；
+//! - 再看 `ProcManager`：把握“实体管理(Manage) + 调度队列(Schedule)”分层。
 
 use crate::process::Process;
 use alloc::collections::{BTreeMap, VecDeque};

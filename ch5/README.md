@@ -33,6 +33,42 @@ ch5/
     └── processor.rs    # 处理器管理：进程管理器、调度队列
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+本章建议按“进程数据结构 -> 管理器 -> syscall 语义”阅读，重点把 `fork/exec/wait` 串起来。
+
+| 阅读顺序 | 文件 | 重点问题 |
+|---|---|---|
+| 1 | `src/process.rs` | `from_elf`、`fork`、`exec` 分别如何改变进程执行映像？ |
+| 2 | `src/processor.rs` | `ProcManager` 如何维护就绪队列与实体映射？ |
+| 3 | `src/main.rs` 初始化路径 | `initproc` 如何被加载并进入调度体系？ |
+| 4 | `src/main.rs` Trap + syscall 分支 | `exit`/`wait`/`exec` 在内核中的状态迁移如何发生？ |
+
+配套建议：结合 `tg-task-manage` 的 `PManager`/`ProcRel` 注释阅读，可快速厘清父子进程关系与回收机制。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能描述 `fork -> exec -> wait` 的完整语义链路
+- [ ] 能从源码解释父子进程关系如何被建立、等待与回收
+- [ ] 能解释 `initproc` 与 `user_shell` 在系统启动后的角色
+- [ ] 能在 Shell 中运行至少一个 fork/wait 相关用户程序并解释输出
+- [ ] 能执行 `./test.sh base`（练习时补充 `./test.sh exercise`）
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 进程创建与替换 | `ch5/src/process.rs` 的 `fork/exec/from_elf` | 子进程 PID、父子返回值与预期一致 |
+| 进程调度与实体管理 | `ch5/src/processor.rs` | 能解释 `ready_queue` 如何决定下一运行进程 |
+| 退出与回收 | `ch5/src/main.rs` 的 syscall 分支（`EXIT/WAIT`） | `waitpid` 能拿到子进程退出码 |
+| 启动进程链 | `ch5/src/main.rs` 初始化 `initproc` | 进入 shell 并可执行命令 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

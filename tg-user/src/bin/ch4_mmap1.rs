@@ -6,9 +6,11 @@ extern crate user_lib;
 
 use user_lib::mmap;
 
+// 教学目标：
+// 映射只读页后尝试写入，期望触发异常并由内核终止进程。
 // 理想结果：程序触发访存异常，被杀死。不输出 error 就算过。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let start: usize = 0x10000000;
     let len: usize = 4096;

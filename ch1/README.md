@@ -22,6 +22,39 @@ ch1/
     └── main.rs         # 程序源码：入口、主函数、panic 处理
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+建议把本章源码阅读聚焦在一个文件：`src/main.rs`。
+
+| 阅读顺序 | 位置 | 重点问题 |
+|---|---|---|
+| 1 | `_start` | 为什么裸机入口要手动设栈，且不能依赖标准运行时？ |
+| 2 | `rust_main` | 最小执行环境中，`console_putchar` 和 `shutdown` 如何构成完整闭环？ |
+| 3 | `panic_handler` | `#![no_std]` 下发生异常时，系统如何收口与退出？ |
+
+配套建议：阅读 `tg-sbi/src/lib.rs` 中的 SBI 调用封装，理解 `console_putchar`/`shutdown` 的底层调用路径。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能在 `ch1` 目录执行 `cargo run`，看到 `Hello, world!` 并正常关机退出
+- [ ] 能解释 `#![no_std]` 与 `#![no_main]` 在裸机实验中的必要性
+- [ ] 能从 `src/main.rs` 说明 `_start -> rust_main -> panic_handler` 的控制流
+- [ ] 能说明 `tg-sbi` 在本章承担的最小职责（输出字符与关机）
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 裸机入口与手动设栈 | `ch1/src/main.rs` 的 `_start` | `cargo run` 可启动且无运行时依赖报错 |
+| SBI 最小服务调用 | `ch1/src/main.rs` 的 `rust_main`；`tg-sbi/src/lib.rs` | 看到串口输出后正常关机 |
+| 无标准库异常处理 | `ch1/src/main.rs` 的 `panic_handler` | 人为触发 panic 时可打印信息并异常关机 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

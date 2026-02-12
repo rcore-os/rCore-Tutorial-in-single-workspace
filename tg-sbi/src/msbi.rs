@@ -5,16 +5,21 @@
 //! - 控制台 I/O（UART）
 //! - 定时器管理
 //! - 系统重置
+//!
+//! 设计定位：这是“够用即可”的教学最小实现，
+//! 只覆盖 ch1~ch8 需要的 SBI 功能，不追求完整 SBI 规范实现。
 
 use core::arch::asm;
 
 const UART_BASE: usize = 0x1000_0000;
+// 说明：该地址是 QEMU virt 机器常用 UART MMIO 基址。
+// 本实现假定运行环境与教学配置一致（单核 + QEMU virt）。
 
 /// UART 操作（16550 兼容）。
 mod uart {
     use super::UART_BASE;
 
-    const THR: usize = UART_BASE; // 发送保持寄存器
+    const THR: usize = UART_BASE; // 发送保持寄存器（与接收寄存器共享偏移 0）
     const LSR: usize = UART_BASE + 5; // 线路状态寄存器
 
     /// 检查 UART 是否准备好发送。
@@ -44,7 +49,8 @@ mod uart {
         // 检查数据就绪状态。
         let lsr = unsafe { (LSR as *const u8).read_volatile() };
         if lsr & 1 != 0 {
-            // SAFETY: 从 UART THR 寄存器读取。我们已通过 LSR 数据就绪位验证数据可用。
+            // SAFETY: 读取偏移 0 的数据寄存器（16550 语义下即接收缓冲区 RBR）。
+            // 代码中沿用 THR 常量名，是因为读写共用同一偏移地址。
             Some(unsafe { (THR as *const u8).read_volatile() })
         } else {
             None
@@ -118,6 +124,8 @@ fn handle_console_putchar(c: usize) -> SbiRet {
 
 /// 处理 Legacy 控制台 getchar（EID 0x02）。
 fn handle_console_getchar() -> SbiRet {
+    // 简化实现：忙等直到收到字符。
+    // 教学场景下这样实现最直接，但在真实系统中可能需要更细粒度的阻塞/唤醒机制。
     loop {
         if let Some(c) = uart::getchar() {
             return SbiRet::success(c as usize);
@@ -135,7 +143,7 @@ fn handle_timer(time: u64) -> SbiRet {
     unsafe {
         (CLINT_MTIMECMP as *mut u64).write_volatile(time);
     }
-    // 清除挂起的 S-mode 定时器中断
+    // 清除挂起的 S-mode 定时器中断（STIP），避免“旧中断状态”干扰下一次调度。
     // SAFETY: 修改 mip CSR 以清除 STIP 位是有效的 M-mode 操作。
     // 这是确认定时器中断所必需的。
     unsafe {
@@ -168,6 +176,7 @@ fn handle_system_reset(fid: usize) -> SbiRet {
             }
         }
     }
+    // 触发 reset/shutdown 后理论上不会返回，循环仅用于满足返回类型。
     loop {}
 }
 
@@ -177,7 +186,9 @@ fn handle_base(fid: usize) -> SbiRet {
         fid::BASE_GET_SBI_VERSION => SbiRet::success(0x01000000), // SBI v1.0.0
         fid::BASE_GET_IMPL_ID => SbiRet::success(0xFFFF),         // Custom implementation
         fid::BASE_GET_IMPL_VERSION => SbiRet::success(1),
-        fid::BASE_PROBE_EXTENSION => SbiRet::success(1), // All extensions supported
+        // 教学简化：统一返回 1，表示“支持该扩展”。
+        // 在完整实现中应按 eid 逐项判断。
+        fid::BASE_PROBE_EXTENSION => SbiRet::success(1),
         fid::BASE_GET_MVENDORID => SbiRet::success(0),
         fid::BASE_GET_MARCHID => SbiRet::success(0),
         fid::BASE_GET_MIMPID => SbiRet::success(0),
@@ -188,6 +199,11 @@ fn handle_base(fid: usize) -> SbiRet {
 /// 从汇编调用的主 M-mode 陷阱处理程序。
 ///
 /// 此函数处理来自 S-mode 的 ecall，并根据扩展 ID 和功能 ID 分发到相应的处理程序。
+///
+/// 参数来源约定（由 `m_entry.asm` 保存并传入）：
+/// - `a0`：第一个参数（也常作为返回值承载位）
+/// - `fid`：功能号（a6）
+/// - `eid`：扩展号（a7）
 ///
 /// # Safety
 ///
@@ -204,7 +220,9 @@ pub fn m_trap_handler(
     fid: usize,
     eid: usize,
 ) -> SbiRet {
-    // 检查 mcause，仅处理来自 S-mode 的 ecall（cause = 9）
+    // 只处理 “S-mode ecall”：
+    // - 这是 S 态内核调用 SBI 的标准入口
+    // - 其余陷阱在本最小实现中统一视为不支持
     let mcause: usize;
     // SAFETY: 读取 mcause CSR 是有效的 M-mode 操作，它告诉我们陷阱的原因。
     // 我们需要此信息来验证这是一个 S-mode ecall。
@@ -216,7 +234,7 @@ pub fn m_trap_handler(
         return SbiRet::not_supported();
     }
 
-    // 根据 EID 处理 SBI 调用
+    // 根据 EID 分发到对应的 SBI 服务处理函数
     match eid {
         eid::CONSOLE_PUTCHAR => handle_console_putchar(a0),
         eid::CONSOLE_GETCHAR => handle_console_getchar(),

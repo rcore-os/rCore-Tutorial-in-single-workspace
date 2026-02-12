@@ -32,6 +32,12 @@
 //! | 同步 | 无 | Mutex / Semaphore / Condvar |
 //! | task-manage feature | `proc` | `thread` |
 //! | 新增依赖 | — | tg-sync |
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `rust_main`：抓住“线程创建 + 双层管理 + trap 分发”总流程；
+//! - 再看主循环中 `SEMAPHORE_DOWN/MUTEX_LOCK/CONDVAR_WAIT` 分支：理解阻塞态切换；
+//! - 最后看 `impls`：把线程、信号、同步三类系统调用如何交织串起来。
 
 // 不使用标准库
 #![no_std]
@@ -98,9 +104,27 @@ fn parse_flags(s: &str) -> Result<VmFlags<Sv39>, ()> {
 #[cfg(not(target_arch = "riscv64"))]
 use stub::{build_flags, parse_flags};
 
-// 内核入口，栈 = 32 页 = 128 KiB
+// 内核入口，栈 = 32 页 = 128 KiB。
+//
+// 这里不再调用 tg_linker::boot0! 宏，避免外部已发布版本与 Rust 2024
+// 在属性语义上的兼容差异影响本 crate 的发布校验。
 #[cfg(target_arch = "riscv64")]
-tg_linker::boot0!(rust_main; stack = 32 * 4096);
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text.entry")]
+unsafe extern "C" fn _start() -> ! {
+    const STACK_SIZE: usize = 32 * 4096;
+    #[unsafe(link_section = ".boot.stack")]
+    static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
+
+    core::arch::naked_asm!(
+        "la sp, {stack} + {stack_size}",
+        "j  {main}",
+        stack = sym STACK,
+        stack_size = const STACK_SIZE,
+        main = sym rust_main,
+    )
+}
 
 /// 物理内存容量 = 48 MiB
 const MEMORY: usize = 48 << 20;

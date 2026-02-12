@@ -54,6 +54,7 @@ impl SignalSet {
     }
     /// 寻找不在mask中的最小的 1 的位置，如果有，返回其位置，如没有则返回 None。
     pub fn find_first_one(&self, mask: SignalSet) -> Option<usize> {
+        // (self & !mask) 保留“待处理且未屏蔽”的信号，再用 trailing_zeros 取最低位优先级。
         let ans = (self.0 & !mask.0).trailing_zeros() as usize;
         if ans == 64 {
             None

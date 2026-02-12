@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::{spawn, wait, waitpid};
 
-#[no_mangle]
+// 教学目标：
+// 对比 wait 与 waitpid：验证“任意等待”和“指定 pid 等待”的语义区别。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let cpid = spawn("ch5_exit0");
     assert!(cpid >= 0, "child pid invalid");

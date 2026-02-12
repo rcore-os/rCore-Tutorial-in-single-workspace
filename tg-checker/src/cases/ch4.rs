@@ -4,6 +4,7 @@ use super::TestCase;
 
 /// ch4 base test
 pub fn base() -> TestCase {
+    // ch4 base 在 ch3 基础上加入地址空间/堆增长相关验证（sbrk）。
     TestCase {
         expected: vec![
             "Test write A OK!",
@@ -17,6 +18,7 @@ pub fn base() -> TestCase {
 
 /// ch4 exercise test
 pub fn exercise() -> TestCase {
+    // ch4 exercise 重点增加 mmap/munmap 与 trace 相关测试输出。
     TestCase {
         expected: vec![
             r"get_time OK! (\d+)",

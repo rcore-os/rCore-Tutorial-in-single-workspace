@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::{fork, getpid, wait};
 
-#[no_mangle]
+// 教学目标：
+// 用最小案例验证 fork 后父子分支、wait 返回值与子进程退出码传递。
+
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     assert_eq!(wait(&mut 0i32), -1);
     println!("sys_wait without child process test passed!");

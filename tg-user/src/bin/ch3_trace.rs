@@ -12,11 +12,14 @@ const SYS_SCHED_YIELD: usize = 124;
 const SYS_CLOCK_GETTIME: usize = 113;
 const SYS_TRACE: usize = 410;
 
+// 教学目标：
+// 验证 trace 扩展接口：系统调用计数、任意地址读写检查、函数地址探测。
+
 fn write_const(var: &u8, new_val: u8) {
     trace_write(var as *const _, new_val);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let t1 = get_time() as usize;
     get_time();
@@ -42,6 +45,7 @@ extern "C" fn main() -> i32 {
 
     #[allow(unused_mut)]
     let mut var = 111u8;
+    // 先读后写，检查 trace 接口在用户地址空间上的一致性。
     assert_eq!(Some(111), trace_read(&var as *const u8));
     write_const(&var, (t1 ^ t2 ^ t3 ^ t4 ^ t5) as u8);
     assert_eq!((t1 ^ t2 ^ t3 ^ t4 ^ t5) as u8, unsafe {

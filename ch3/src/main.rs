@@ -10,6 +10,12 @@
 //! - **协作式调度**：任务通过 `yield` 系统调用主动让出 CPU
 //! - **抢占式调度**：通过时钟中断强制切换任务，实现时间片轮转
 //! - **系统调用**：`write`、`exit`、`yield`、`clock_gettime`
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `rust_main` 主循环：理解“轮转 + 时钟中断 + ecall”三类事件交织；
+//! - 再看 `TaskControlBlock` 的使用方式：理解任务上下文与生命周期；
+//! - 最后看 `impls::Clock`：理解硬件时钟到用户态时间结构体的桥接。
 
 // 不使用标准库，裸机环境没有操作系统提供系统调用支持
 #![no_std]
@@ -49,9 +55,27 @@ core::arch::global_asm!(include_str!(env!("APP_ASM")));
 const APP_CAPACITY: usize = 32;
 
 // 定义内核入口点：分配 (APP_CAPACITY + 2) * 8 KiB = 272 KiB 的内核栈
-// 比第二章更大，因为需要同时容纳多个任务的内核上下文
+// 比第二章更大，因为需要同时容纳多个任务的内核上下文。
+//
+// 这里不再调用 tg_linker::boot0! 宏，避免外部已发布版本与 Rust 2024
+// 在属性语义上的兼容差异影响本 crate 的发布校验。
 #[cfg(target_arch = "riscv64")]
-tg_linker::boot0!(rust_main; stack = (APP_CAPACITY + 2) * 8192);
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text.entry")]
+unsafe extern "C" fn _start() -> ! {
+    const STACK_SIZE: usize = (APP_CAPACITY + 2) * 8192;
+    #[unsafe(link_section = ".boot.stack")]
+    static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
+
+    core::arch::naked_asm!(
+        "la sp, {stack} + {stack_size}",
+        "j  {main}",
+        stack = sym STACK,
+        stack_size = const STACK_SIZE,
+        main = sym rust_main,
+    )
+}
 
 // ========== 内核主函数 ==========
 

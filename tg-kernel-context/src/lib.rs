@@ -1,4 +1,10 @@
 //! 内核上下文控制。
+//!
+//! 教程阅读建议：
+//!
+//! 1. 先看 [`LocalContext`] 字段与 `user/thread` 构造；
+//! 2. 再看 `execute()`：理解 Rust 侧如何准备 CSR 和跳入裸汇编；
+//! 3. 最后看 `execute_naked()`：理解“保存调度上下文 <-> 恢复线程上下文”的对称流程。
 
 #![no_std]
 // #![deny(warnings)]
@@ -12,8 +18,11 @@ pub mod foreign;
 #[derive(Clone)]
 #[repr(C)]
 pub struct LocalContext {
+    /// 调度上下文保存区指针（由裸汇编切换时使用）。
     sctx: usize,
+    /// 通用寄存器 x1..x31 的镜像（x0 恒为 0，不保存）。
     x: [usize; 31],
+    /// 返回用户/内核线程时的 PC（对应 sepc）。
     sepc: usize,
     /// 是否以特权态切换。
     pub supervisor: bool,
@@ -137,11 +146,13 @@ impl LocalContext {
     pub unsafe fn execute(&mut self) -> usize {
         #[cfg(target_arch = "riscv64")]
         {
+            // 第一步：根据目标线程属性构造 sstatus（SPP/SPIE）。
             let mut sstatus = build_sstatus(self.supervisor, self.interrupt);
             // 保存 self 指针和 sepc，避免 release 模式下 csrrw 破坏寄存器后的问题
             let ctx_ptr = self as *mut Self;
             let mut sepc = self.sepc;
             let old_sscratch: usize;
+            // 第二步：切换到 execute_naked，执行真正的上下文保存/恢复。
             // SAFETY: 内联汇编执行上下文切换，调用者已确保处于 S 模式且 CSR 可被修改
             core::arch::asm!(
                 "   csrrw {old_ss}, sscratch, {ctx}
@@ -163,6 +174,7 @@ impl LocalContext {
                 execute_naked = sym execute_naked,
             );
             let _ = old_sscratch; // suppress unused warning
+            // 第三步：取回线程返回后的 sepc（比如 trap 后已更新到下一条指令）。
             (*ctx_ptr).sepc = sepc;
             sstatus
         }

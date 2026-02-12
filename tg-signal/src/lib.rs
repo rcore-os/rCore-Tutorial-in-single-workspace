@@ -2,6 +2,11 @@
 //!
 //! 本模块定义了信号处理的核心 trait [`Signal`]，
 //! 信号模块的实际实现见 `tg-signal-impl` crate。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 trait 方法语义（`add_signal` / `handle_signals` / `sig_return`）；
+//! - 再到 `tg-signal-impl` 看具体状态机实现。
 
 #![no_std]
 #![deny(warnings, missing_docs)]
@@ -42,6 +47,8 @@ pub trait Signal: Send + Sync {
     fn update_mask(&mut self, mask: usize) -> usize;
 
     /// 进程执行结果，可能是直接返回用户程序或存栈或暂停或退出
+    ///
+    /// 内核 trap 返回前通常会调用该函数做一次“信号注入”决策。
     fn handle_signals(&mut self, current_context: &mut LocalContext) -> SignalResult;
 
     /// 从信号处理函数中退出，返回值表示是否成功。`sys_sigreturn` 会使用

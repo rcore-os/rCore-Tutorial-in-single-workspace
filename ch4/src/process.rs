@@ -12,6 +12,12 @@
 //! - 上下文变为 `ForeignContext`（包含 satp，支持跨地址空间切换）
 //! - 用户栈映射到独立地址空间（不再在内核栈上分配）
 //! - 支持堆管理（`sbrk` 系统调用）
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `new`：理解 ELF 装载、用户栈映射与 satp 构造；
+//! - 再看 `change_program_brk`：理解 sbrk 对页映射范围的影响；
+//! - 最后结合 `ch4/src/main.rs`：对齐“进程对象创建”和“调度执行”两条路径。
 
 use crate::{build_flags, parse_flags, Sv39, Sv39Manager};
 use alloc::alloc::alloc_zeroed;

@@ -1,4 +1,9 @@
 //! 内存分配。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `init` 与 `transfer`：理解“先初始化，再把可用内存交给分配器”；
+//! - 再看 `HEAP` / `GlobalAlloc`：理解 Rust `alloc` 如何落到内核堆实现。
 
 #![no_std]
 #![deny(missing_docs)]
@@ -58,6 +63,7 @@ impl<T> StaticCell<T> {
 /// 此函数必须在使用任何堆分配之前调用，且只能调用一次。
 #[inline]
 pub fn init(base_address: usize) {
+    // 初始化 buddy 分配器：设置最小块阶数 + 初始基址。
     // SAFETY: 此函数只在内核初始化时调用一次，此时没有其他代码会访问 HEAP。
     // base_address 由调用者保证是有效的堆起始地址。
     heap_mut().init(
@@ -77,6 +83,7 @@ pub fn init(base_address: usize) {
 /// - 内存块的所有权将转移到分配器
 #[inline]
 pub unsafe fn transfer(region: &'static mut [u8]) {
+    // 将一段“现成内存”并入堆。常用于把启动后可回收区域纳入分配器管理。
     let ptr = NonNull::new(region.as_mut_ptr()).unwrap();
     // SAFETY: 由调用者保证内存块有效且不重叠
     heap_mut().transfer(ptr, region.len());

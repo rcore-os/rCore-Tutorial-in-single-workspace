@@ -11,6 +11,12 @@
 //! - `ProcessorInner = PThreadManager<Process, Thread, ThreadManager, ProcManager>`
 //! - `ThreadManager`：管理线程实体和就绪队列
 //! - `ProcManager`：管理进程实体
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `ProcessorInner` 类型别名：先建立“统一入口，双层实体”的心智模型；
+//! - 再看 `ThreadManager` 与 `ProcManager` 的 `Manage` 实现：理解两层对象如何独立维护；
+//! - 最后看 `Schedule<ThreadId>`：明确调度粒度已经从进程切换为线程。
 
 use crate::process::{Process, Thread};
 use alloc::collections::{BTreeMap, VecDeque};

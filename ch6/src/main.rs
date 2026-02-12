@@ -20,6 +20,12 @@
 //! | I/O 方式 | 仅 SBI 控制台 | 文件描述符表 + 文件句柄 |
 //! | 块设备 | 无 | VirtIO-blk 驱动 |
 //! | QEMU 参数 | 无磁盘 | 挂载 fs.img 块设备 |
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `rust_main`：掌握“内核初始化 -> 文件系统启动 -> initproc 加载”的主线；
+//! - 再看 `kernel_space`：理解 MMIO 与普通内存映射的差异；
+//! - 最后看 `impls`：理解系统调用如何经由 fd_table 访问文件系统。
 
 // 不使用标准库，裸机环境没有操作系统提供系统调用支持
 #![no_std]
@@ -86,9 +92,27 @@ fn parse_flags(s: &str) -> Result<VmFlags<Sv39>, ()> {
 #[cfg(not(target_arch = "riscv64"))]
 use stub::{build_flags, parse_flags};
 
-// 定义内核入口点，设置启动栈大小为 32 页 = 128 KiB
+// 定义内核入口点，设置启动栈大小为 32 页 = 128 KiB。
+//
+// 这里不再调用 tg_linker::boot0! 宏，避免外部已发布版本与 Rust 2024
+// 在属性语义上的兼容差异影响本 crate 的发布校验。
 #[cfg(target_arch = "riscv64")]
-tg_linker::boot0!(rust_main; stack = 32 * 4096);
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text.entry")]
+unsafe extern "C" fn _start() -> ! {
+    const STACK_SIZE: usize = 32 * 4096;
+    #[unsafe(link_section = ".boot.stack")]
+    static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
+
+    core::arch::naked_asm!(
+        "la sp, {stack} + {stack_size}",
+        "j  {main}",
+        stack = sym STACK,
+        stack_size = const STACK_SIZE,
+        main = sym rust_main,
+    )
+}
 
 /// 物理内存容量 = 48 MiB
 const MEMORY: usize = 48 << 20;

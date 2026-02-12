@@ -4,6 +4,7 @@ use super::TestCase;
 
 /// ch2 基础测试
 pub fn base() -> TestCase {
+    // ch2 以“用户态 hello + 计算程序”为主，重点确认用户程序可正常装载运行。
     TestCase {
         expected: vec![
             // ch2b_hello_world

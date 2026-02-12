@@ -38,7 +38,7 @@ impl ProcThreadRel {
             .children
             .iter()
             .enumerate()
-            .find(|(_, &id)| id == child_pid);
+            .find(|&(_, &id)| id == child_pid);
         if let Some((idx, _)) = pair {
             let dead_child = self.children.remove(idx);
             self.dead_children.push((dead_child, exit_code));
@@ -48,8 +48,10 @@ impl ProcThreadRel {
     pub fn wait_any_child(&mut self) -> Option<(ProcId, isize)> {
         if self.dead_children.is_empty() {
             if self.children.is_empty() {
+                // 没有任何子进程
                 None
             } else {
+                // 有子进程，但都还没退出
                 Some((ProcId::from_usize(-2 as _), -1))
             }
         } else {
@@ -62,7 +64,7 @@ impl ProcThreadRel {
             .dead_children
             .iter()
             .enumerate()
-            .find(|(_, &(id, _))| id == child_pid);
+            .find(|&(_, &(id, _))| id == child_pid);
         if let Some((idx, _)) = pair {
             // 等待的子进程确已结束
             Some(self.dead_children.remove(idx))
@@ -71,12 +73,12 @@ impl ProcThreadRel {
                 .children
                 .iter()
                 .enumerate()
-                .find(|(_, &id)| id == child_pid);
+                .find(|&(_, &id)| id == child_pid);
             if let Some(_) = pair {
                 // 等待的子进程正在运行
                 Some((ProcId::from_usize(-2 as _), -1))
             } else {
-                // 等待的子进程不存在
+                // 等待的子进程不存在（不是自己的孩子或 pid 无效）
                 None
             }
         }
@@ -87,7 +89,7 @@ impl ProcThreadRel {
     }
     /// 删除线程
     pub fn del_thread(&mut self, tid: ThreadId, exit_code: isize) {
-        let pair = self.threads.iter().enumerate().find(|(_, &id)| id == tid);
+        let pair = self.threads.iter().enumerate().find(|&(_, &id)| id == tid);
         if let Some((idx, _)) = pair {
             let dead_thread = self.threads.remove(idx);
             self.dead_threads.push((dead_thread, exit_code));
@@ -99,7 +101,7 @@ impl ProcThreadRel {
             .dead_threads
             .iter()
             .enumerate()
-            .find(|(_, &(id, _))| id == thread_tid);
+            .find(|&(_, &(id, _))| id == thread_tid);
         if let Some((idx, _)) = pair {
             // 等待的子进程确已结束
             Some(self.dead_threads.remove(idx).1)
@@ -108,12 +110,12 @@ impl ProcThreadRel {
                 .threads
                 .iter()
                 .enumerate()
-                .find(|(_, &id)| id == thread_tid);
+                .find(|&(_, &id)| id == thread_tid);
             if let Some(_) = pair {
-                // 等待的子进程正在运行
+                // 目标线程还在运行
                 Some(-2)
             } else {
-                // 等待的子进程不存在
+                // 目标线程不存在（不属于本进程或 tid 无效）
                 None
             }
         }

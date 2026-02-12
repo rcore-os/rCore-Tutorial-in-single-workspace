@@ -5,6 +5,9 @@ extern crate user_lib;
 
 use user_lib::*;
 
+// 教学目标：
+// 信号功能总回归：覆盖非法参数、用户处理函数、屏蔽/恢复、stop/cont、kill 特例等路径。
+
 fn func() {
     println!("user_sig_test succsess");
     sigreturn();
@@ -156,6 +159,7 @@ fn final_sig_test() {
 }
 
 fn run(f: fn()) -> bool {
+    // 每个子测试独立 fork 运行，避免互相污染信号处理状态。
     let pid = fork();
     if pid == 0 {
         f();
@@ -173,7 +177,7 @@ fn run(f: fn()) -> bool {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     let tests: [(fn(), &str); 8] = [
         (user_sig_test_failsignum, "user_sig_test_failsignum"),

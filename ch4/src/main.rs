@@ -11,6 +11,12 @@
 //! - **ELF 加载**：解析 ELF 格式的用户程序并映射到独立地址空间
 //! - **内核堆分配器**：支持动态内存分配（`alloc` crate）
 //! - **地址翻译**：系统调用中需要将用户虚拟地址翻译为物理地址
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `kernel_space`：建立“内核恒等映射 + 传送门映射”的总体视图；
+//! - 再看 `schedule`：理解跨地址空间执行与 trap 返回路径；
+//! - 最后看 `impls`：重点掌握 `translate()` 如何保证用户指针访问安全。
 
 // 不使用标准库，裸机环境没有操作系统提供系统调用支持
 #![no_std]
@@ -84,9 +90,27 @@ use stub::{build_flags, parse_flags};
 #[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 
-// 定义内核入口点：分配 24 KiB 内核栈
+// 定义内核入口点：分配 24 KiB 内核栈。
+//
+// 这里不再调用 tg_linker::boot0! 宏，避免外部已发布版本与 Rust 2024
+// 在属性语义上的兼容差异影响本 crate 的发布校验。
 #[cfg(target_arch = "riscv64")]
-tg_linker::boot0!(rust_main; stack = 6 * 4096);
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text.entry")]
+unsafe extern "C" fn _start() -> ! {
+    const STACK_SIZE: usize = 6 * 4096;
+    #[unsafe(link_section = ".boot.stack")]
+    static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
+
+    core::arch::naked_asm!(
+        "la sp, {stack} + {stack_size}",
+        "j  {main}",
+        stack = sym STACK,
+        stack_size = const STACK_SIZE,
+        main = sym rust_main,
+    )
+}
 
 // 物理内存容量 = 24 MiB（QEMU virt 平台的 RAM 大小）
 const MEMORY: usize = 24 << 20;

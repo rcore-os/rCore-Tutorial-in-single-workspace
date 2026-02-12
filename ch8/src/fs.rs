@@ -7,6 +7,12 @@
 //!
 //! 在第八章中，文件描述符表 `fd_table` 属于 `Process`（进程），
 //! 同一进程的所有线程共享同一个 `fd_table`。
+//!
+//! 教程阅读建议：
+//!
+//! - 先把 `Fd` 当成“线程共享资源的统一句柄”来理解；
+//! - 再看 `Fd::{readable, writable, read, write}`：理解多线程下 I/O 行为复用的边界；
+//! - 最后结合 `ch8/src/main.rs` 的系统调用实现，观察线程与共享 fd_table 的互动。
 
 use crate::virtio_block::BLOCK_DEVICE;
 use alloc::{string::String, sync::Arc, vec::Vec};

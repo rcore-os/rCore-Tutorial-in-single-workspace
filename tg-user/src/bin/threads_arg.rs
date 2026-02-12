@@ -13,6 +13,9 @@ struct Argument {
     pub rc: i32,
 }
 
+// 教学目标：
+// 验证 thread_create 参数传递（通过指针传入结构体）与退出码回收。
+
 fn thread_print(arg: *const Argument) -> isize {
     let arg = unsafe { &*arg };
     for _ in 0..1000 {
@@ -21,7 +24,7 @@ fn thread_print(arg: *const Argument) -> isize {
     exit(arg.rc)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     let mut v = Vec::new();
     let args = [

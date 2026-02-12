@@ -2,6 +2,10 @@ use crate::file::UserBuffer;
 use alloc::sync::{Arc, Weak};
 use spin::Mutex;
 
+// 教程阅读建议：
+// - 先看 `PipeRingBuffer`：理解固定大小环形缓冲区；
+// - 再看 `PipeReader::read` / `PipeWriter::write` 的返回值语义（>0 / 0 / -2）。
+
 const RING_BUFFER_SIZE: usize = 32;
 
 /// 管道环形缓冲区状态
@@ -64,6 +68,7 @@ impl PipeRingBuffer {
 
     /// 可读取的字节数
     fn available_read(&self) -> usize {
+        // 注意这里依赖 head/tail + status 共同判别空/满（仅靠 head==tail 不够）。
         if self.status == RingBufferStatus::Empty {
             0
         } else if self.tail > self.head {
@@ -84,6 +89,7 @@ impl PipeRingBuffer {
 
     /// 所有写端是否都已关闭
     fn all_write_ends_closed(&self) -> bool {
+        // `Weak` 升级失败表示最后一个写端 Arc 已被释放。
         self.write_end.as_ref().unwrap().upgrade().is_none()
     }
 }
@@ -172,6 +178,7 @@ impl PipeWriter {
 
 /// 创建一个管道，返回读端和写端
 pub fn make_pipe() -> (PipeReader, Arc<PipeWriter>) {
+    // 读端和写端共享同一个环形缓冲区对象。
     let buffer = Arc::new(Mutex::new(PipeRingBuffer::new()));
     let read_end = PipeReader {
         buffer: buffer.clone(),

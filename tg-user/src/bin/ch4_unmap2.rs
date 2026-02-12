@@ -6,9 +6,11 @@ extern crate user_lib;
 
 use user_lib::{mmap, munmap};
 
-// 理想结果：对于错误的 munmap 返回 -1
+// 教学目标：
+// 覆盖 munmap 参数错误路径（范围超界、地址未对齐）。
+// 理想结果：对于错误的 munmap 返回 -1。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let start: usize = 0x10000000;
     let len: usize = 4096;

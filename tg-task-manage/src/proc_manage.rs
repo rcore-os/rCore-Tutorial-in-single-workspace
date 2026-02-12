@@ -31,6 +31,7 @@ impl<P, MP: Manage<P, ProcId> + Schedule<ProcId>> PManager<P, MP> {
     }
     /// 找到下一个进程
     pub fn find_next(&mut self) -> Option<&mut P> {
+        // 调度队列 -> 进程实体：两步查找分离，便于替换调度算法或存储容器。
         if let Some(id) = self.manager.as_mut().unwrap().fetch() {
             if let Some(task) = self.manager.as_mut().unwrap().get_mut(id) {
                 self.current = Some(id);
@@ -64,6 +65,7 @@ impl<P, MP: Manage<P, ProcId> + Schedule<ProcId>> PManager<P, MP> {
             parent_rel.del_child(id, exit_code);
         }
         // 把当前进程的所有子进程转移到 0 号进程
+        // 这对应了教学内核中的“孤儿进程托管”简化策略。
         for i in children {
             self.rel_map.get_mut(&i).unwrap().parent = ProcId::from_usize(0);
             self.rel_map
@@ -99,6 +101,7 @@ impl<P, MP: Manage<P, ProcId> + Schedule<ProcId>> PManager<P, MP> {
     }
     /// wait 系统调用，返回结束的子进程 id 和 exit_code，正在运行的子进程不返回 None，返回 (-2, -1)
     pub fn wait(&mut self, child_pid: ProcId) -> Option<(ProcId, isize)> {
+        // child_pid = usize::MAX 表示 wait 任意子进程；否则等指定 pid。
         let id = self.current.unwrap();
         let current_rel = self.rel_map.get_mut(&id).unwrap();
         if child_pid.get_usize() == usize::MAX {

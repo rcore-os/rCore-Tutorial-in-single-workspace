@@ -76,6 +76,7 @@ impl BlockCache {
 
     pub fn sync(&mut self) {
         if self.modified {
+            // 写回策略：脏块才回写，减少无效 I/O。
             self.modified = false;
             self.block_device.write_block(self.block_id, &self.cache);
         }
@@ -107,9 +108,10 @@ impl BlockCacheManager {
         block_device: Arc<dyn BlockDevice>,
     ) -> Arc<Mutex<BlockCache>> {
         if let Some(pair) = self.queue.iter().find(|pair| pair.0 == block_id) {
+            // 命中缓存
             Arc::clone(&pair.1)
         } else {
-            // substitute
+            // 未命中：必要时替换一个“仅被缓存管理器持有”的块（strong_count == 1）
             if self.queue.len() == BLOCK_CACHE_SIZE {
                 // from front to tail
                 if let Some((idx, _)) = self
@@ -123,7 +125,7 @@ impl BlockCacheManager {
                     panic!("Run out of BlockCache!");
                 }
             }
-            // load block into mem and push back
+            // 载入新块并插入队尾（近似 FIFO）
             let block_cache = Arc::new(Mutex::new(BlockCache::new(
                 block_id,
                 Arc::clone(&block_device),

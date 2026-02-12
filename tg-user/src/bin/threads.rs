@@ -8,6 +8,9 @@ extern crate alloc;
 use alloc::vec;
 use user_lib::{exit, thread_create, waittid};
 
+// 教学目标：
+// 验证线程创建、并发输出和 waittid 回收流程（含批量创建场景）。
+
 pub fn thread_a() -> isize {
     for _ in 0..1000 {
         print!("a");
@@ -29,7 +32,7 @@ pub fn thread_c() -> isize {
     exit(3)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     let mut v = vec![
         thread_create(thread_a as *const () as usize, 0),

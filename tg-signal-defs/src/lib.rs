@@ -4,6 +4,8 @@
 //! - [`SignalNo`] - 信号编号枚举
 //! - [`SignalAction`] - 信号处理函数定义
 //! - [`MAX_SIG`] - 最大信号编号
+//!
+//! 教程提示：本 crate 只放“跨内核/用户共享的数据结构”，不包含处理逻辑。
 
 #![no_std]
 #![deny(warnings, missing_docs)]

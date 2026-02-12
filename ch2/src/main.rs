@@ -10,6 +10,12 @@
 //! - **Trap 处理**：用户程序通过 `ecall` 触发系统调用，或因异常陷入内核
 //! - **上下文保存与恢复**：进入/退出 Trap 时保存/恢复用户寄存器状态
 //! - **系统调用**：`write`（输出）和 `exit`（退出）
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `rust_main` 的 for-loop：理解批处理“逐个装载、逐个执行”；
+//! - 再看 `handle_syscall`：理解 a7/a0-a5/a0 的系统调用寄存器约定；
+//! - 最后看 `impls`：把内核态 trait 接口与用户态 syscall 行为对齐起来。
 
 // 不使用标准库，裸机环境没有操作系统提供系统调用支持
 #![no_std]
@@ -44,9 +50,27 @@ use tg_syscall::{Caller, SyscallId};
 #[cfg(target_arch = "riscv64")]
 core::arch::global_asm!(include_str!(env!("APP_ASM")));
 
-// 定义内核入口点：设置 8 页（32 KiB）的内核栈，然后跳转到 rust_main
+// 定义内核入口点：设置 8 页（32 KiB）的内核栈，然后跳转到 rust_main。
+//
+// 这里不再调用 tg_linker::boot0! 宏，避免外部已发布版本与 Rust 2024
+// 在属性语义上的兼容差异影响本 crate 的发布校验。
 #[cfg(target_arch = "riscv64")]
-tg_linker::boot0!(rust_main; stack = 8 * 4096);
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text.entry")]
+unsafe extern "C" fn _start() -> ! {
+    const STACK_SIZE: usize = 8 * 4096;
+    #[unsafe(link_section = ".boot.stack")]
+    static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
+
+    core::arch::naked_asm!(
+        "la sp, {stack} + {stack_size}",
+        "j  {main}",
+        stack = sym STACK,
+        stack_size = const STACK_SIZE,
+        main = sym rust_main,
+    )
+}
 
 // ========== 内核主函数 ==========
 

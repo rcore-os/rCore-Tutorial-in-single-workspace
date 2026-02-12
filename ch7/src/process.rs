@@ -7,6 +7,12 @@
 //!
 //! 2. **新增 signal 字段**：每个进程拥有独立的信号处理器（`Box<dyn Signal>`），
 //!    支持信号的接收、屏蔽、处理和继承。
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `from_elf`：理解新进程默认信号状态与 fd_table 初值；
+//! - 再看 `fork`：关注“地址空间/文件描述符/信号配置”分别如何继承；
+//! - 最后看 `exec`：理解“替换程序但保留进程身份”的资源边界。
 
 use crate::{build_flags, fs::Fd, map_portal, parse_flags, Sv39, Sv39Manager};
 use alloc::{alloc::alloc_zeroed, boxed::Box, vec::Vec};

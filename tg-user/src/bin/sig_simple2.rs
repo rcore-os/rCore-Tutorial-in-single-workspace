@@ -5,12 +5,15 @@ extern crate user_lib;
 
 use user_lib::*;
 
+// 教学目标：
+// 父进程向子进程发送 SIGUSR1，验证跨进程信号投递路径。
+
 fn func() {
     println!("user_sig_test succsess");
     sigreturn();
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     let pid = fork();
     if pid == 0 {

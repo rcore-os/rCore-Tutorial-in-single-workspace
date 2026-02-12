@@ -12,7 +12,7 @@ use visitor::Visitor;
 
 /// 地址空间。
 pub struct AddressSpace<Meta: VmMeta, M: PageManager<Meta>> {
-    /// 虚拟地址块
+    /// 虚拟地址块（只记录已映射 VPN 区间，便于 clone/unmap 管理）
     pub areas: Vec<Range<VPN<Meta>>>,
     page_manager: M,
 }
@@ -43,6 +43,7 @@ impl<Meta: VmMeta, M: PageManager<Meta>> AddressSpace<Meta, M> {
 
     /// 向地址空间增加映射关系。
     pub fn map_extern(&mut self, range: Range<VPN<Meta>>, pbase: PPN<Meta>, flags: VmFlags<Meta>) {
+        // map_extern 假设物理页已由外部准备好，此处只负责建立页表项。
         self.areas.push(range.start..range.end);
         let count = range.end.val() - range.start.val();
         let mut root = self.root();
@@ -62,6 +63,7 @@ impl<Meta: VmMeta, M: PageManager<Meta>> AddressSpace<Meta, M> {
         offset: usize,
         mut flags: VmFlags<Meta>,
     ) {
+        // map 的语义是“分配新物理页 + 拷贝初始数据 + 建立映射”。
         let count = range.end.val() - range.start.val();
         let size = count << Meta::PAGE_BITS;
         assert!(size >= data.len() + offset);
@@ -83,6 +85,8 @@ impl<Meta: VmMeta, M: PageManager<Meta>> AddressSpace<Meta, M> {
 
     /// 取消指定 VPN 范围的映射
     pub fn unmap(&mut self, range: Range<VPN<Meta>>) {
+        // 教学提醒：这里主要做“撤销页表映射”，并未回收物理页到分配器。
+        // 若课程实验需要严格回收，可在此基础上补充 deallocate 路径。
         // 从 areas 中移除该范围（可能需要拆分现有区域）
         let mut new_areas = Vec::new();
         for area in self.areas.drain(..) {
@@ -180,6 +184,7 @@ impl<Meta: VmMeta, M: PageManager<Meta>> AddressSpace<Meta, M> {
 
     /// 遍历地址空间，将其中的地址映射添加进自己的地址空间中，重新分配物理页并拷贝所有数据及代码
     pub fn cloneself(&self, new_addrspace: &mut AddressSpace<Meta, M>) {
+        // 这是“深拷贝地址空间”语义，不共享物理页（非 COW）。
         let root = self.root();
         let areas = &self.areas;
         for (_, range) in areas.iter().enumerate() {

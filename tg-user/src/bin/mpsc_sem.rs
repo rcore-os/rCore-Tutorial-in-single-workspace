@@ -22,6 +22,9 @@ static mut TAIL: usize = 0;
 const PRODUCER_COUNT: usize = 4;
 const NUMBER_PER_PRODUCER: usize = 100;
 
+// 教学目标：
+// 用三个信号量（互斥/空槽/已有数据）实现多生产者单消费者有界缓冲区。
+
 unsafe fn producer(id: *const usize) -> isize {
     let id = *id;
     for _ in 0..NUMBER_PER_PRODUCER {
@@ -48,7 +51,7 @@ unsafe fn consumer() -> isize {
     exit(0)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     // create semaphores
     assert_eq!(semaphore_create(1) as usize, SEM_MUTEX);

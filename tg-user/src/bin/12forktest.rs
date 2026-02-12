@@ -8,7 +8,10 @@ use user_lib::{exit, fork, wait};
 
 const MAX_CHILD: usize = 30;
 
-#[no_mangle]
+// 教学目标：
+// 验证 fork + wait 的基本父子进程管理语义，以及子进程回收数量是否正确。
+
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     for i in 0..MAX_CHILD {
         let pid = fork();
@@ -22,6 +25,7 @@ pub extern "C" fn main() -> i32 {
     }
     let mut exit_code: i32 = 0;
     for _ in 0..MAX_CHILD {
+        // 等待并回收所有子进程。
         if wait(&mut exit_code) <= 0 {
             panic!("wait stopped early");
         }

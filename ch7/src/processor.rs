@@ -2,6 +2,11 @@
 //!
 //! 与第六章完全相同：PROCESSOR 全局管理器 + ProcManager 进程管理器。
 //! 调度算法仍为简单的 FIFO/RR。
+//!
+//! 教程阅读建议：
+//!
+//! - 本文件结构刻意保持简洁，方便把“调度机制”与“信号机制”解耦理解；
+//! - 建议结合 `ch7/src/main.rs` 一起看：本文件只负责“谁可运行”，不负责“为何被杀死/阻塞”。
 
 use crate::process::Process;
 use alloc::collections::{BTreeMap, VecDeque};

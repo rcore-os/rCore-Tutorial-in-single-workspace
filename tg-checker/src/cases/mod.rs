@@ -3,6 +3,11 @@
 //! 每个章节有两种测试模式：
 //! - base: 基础测试 (ch2-ch8)
 //! - exercise: 练习测试 (ch3, ch4, ch5, ch6, ch8)
+//!
+//! 教程说明：
+//! - `expected` 里的每一项都必须匹配；
+//! - `not_expected` 里的每一项都必须“不匹配”；
+//! - 模式使用 Rust 正则表达式语法。
 
 mod ch2;
 mod ch3;
@@ -40,6 +45,7 @@ impl TestCase {
 /// # Returns
 /// 返回对应的测试用例，如果章节不存在或该章节没有对应模式的测试则返回 None
 pub fn get_test_case(chapter: u8, exercise: bool) -> Option<TestCase> {
+    // 统一入口：根据章节 + 模式路由到对应用例定义函数。
     match (chapter, exercise) {
         // Base tests (ch2-ch8)
         (2, false) => Some(ch2::base()),

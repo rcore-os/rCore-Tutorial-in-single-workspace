@@ -16,6 +16,12 @@
 //! | `semaphore_list` | 信号量列表（进程内所有线程共享） |
 //! | `mutex_list` | 互斥锁列表 |
 //! | `condvar_list` | 条件变量列表 |
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `Process` 与 `Thread` 的字段分工：明确“资源归进程、执行归线程”；
+//! - 再看 `fork/exec/from_elf`：理解跨线程模型后，进程复制与替换语义如何变化；
+//! - 最后结合 `processor.rs` 看线程生命周期与进程资源回收的关系。
 
 use crate::{
     build_flags, fs::Fd, map_portal, parse_flags, processor::ProcessorInner, Sv39, Sv39Manager,

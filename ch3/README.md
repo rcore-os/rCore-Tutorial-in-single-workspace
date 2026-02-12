@@ -30,6 +30,42 @@ ch3/
     └── task.rs         # 任务控制块（TCB）和调度事件定义
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+本章建议按“任务模型 -> 调度循环 -> 时钟中断/系统调用”顺序阅读。
+
+| 阅读顺序 | 文件 | 重点问题 |
+|---|---|---|
+| 1 | `src/task.rs` | `TaskControlBlock` 如何封装上下文、栈和任务状态？ |
+| 2 | `src/main.rs` 的主循环 | 轮转调度如何在多任务之间切换？ |
+| 3 | 时钟中断分支 | 抢占式调度中，时间片到期后发生了什么？ |
+| 4 | `yield` 与 syscall 分支 | 协作式让出与普通 syscall 返回路径有何区别？ |
+
+配套建议：结合 `tg-sbi::set_timer` 与 `clock_gettime` 实现，串起“硬件时钟 -> 内核调度 -> 用户可见时间”的链路。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能运行 `cargo run` 并说明抢占式调度（时钟中断）发生的证据
+- [ ] 能运行 `cargo run --features coop` 并说明协作式调度与抢占式差异
+- [ ] 能解释 `TaskControlBlock` 中“上下文/栈/完成状态”的作用
+- [ ] 能从 Trap 分支区分 `SupervisorTimer` 与 `UserEnvCall` 两类事件
+- [ ] 能完成 `./test.sh base`（以及练习时 `./test.sh exercise`）
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 任务控制块（TCB） | `ch3/src/task.rs` | 能说清 `init/execute/handle_syscall` 的职责 |
+| 抢占式调度 | `ch3/src/main.rs` 的时钟中断分支 | 日志出现 timeout/轮转切换行为 |
+| 协作式调度 | `ch3/src/main.rs` 的 `Event::Yield` 分支 | `--features coop` 下由用户主动让出 CPU |
+| 时间系统调用 | `ch3/src/main.rs` 的 `Clock` 实现 | 用户态 `clock_gettime` 返回时间单调递增 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

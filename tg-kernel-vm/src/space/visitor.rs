@@ -1,4 +1,4 @@
-﻿use crate::{AddressSpace, PageManager};
+use crate::{AddressSpace, PageManager};
 use core::ptr::NonNull;
 use page_table::{Pos, Pte, VmMeta};
 
@@ -22,6 +22,7 @@ impl<'a, Meta: VmMeta, M: PageManager<Meta>> Visitor<'a, Meta, M> {
 impl<'a, Meta: VmMeta, M: PageManager<Meta>> page_table::Visitor<Meta> for Visitor<'a, Meta, M> {
     #[inline]
     fn arrive(&mut self, pte: Pte<Meta>, _target_hint: Pos<Meta>) -> Pos<Meta> {
+        // arrive 表示已走到目标层；若有效则记录结果并停止遍历。
         if pte.is_valid() {
             self.ans = Some(pte);
         }
@@ -35,6 +36,7 @@ impl<'a, Meta: VmMeta, M: PageManager<Meta>> page_table::Visitor<Meta> for Visit
         pte: Pte<Meta>,
         _target_hint: Pos<Meta>,
     ) -> Option<NonNull<Pte<Meta>>> {
+        // meet 表示遇到中间页表项，返回下一层页表地址继续 walk。
         Some(self.space.page_manager.p_to_v(pte.ppn()))
     }
 

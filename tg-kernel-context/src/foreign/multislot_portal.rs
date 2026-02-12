@@ -5,7 +5,9 @@ use super::{MonoForeignPortal, PortalCache};
 /// 包含多个插槽的异界传送门。
 #[repr(C)]
 pub struct MultislotPortal {
+    /// 可并行服务的“槽位”数，通常可与 hart/thread 数量对应。
     slot_count: usize,
+    /// 传送门机器码长度（按 usize 对齐后）。
     text_size: usize,
 }
 
@@ -43,6 +45,8 @@ impl MultislotPortal {
     pub unsafe fn init_transit(transit: usize, slots: usize) -> &'static mut Self {
         // 判断 transit 满足对齐要求
         debug_assert!(transit.trailing_zeros() > sizeof!(usize).trailing_zeros());
+        // 内存布局：
+        // | MultislotPortal | portal text | cache[0] | cache[1] | ... |
         // SAFETY: 由调用者保证 transit 指向足够大小的有效内存
         PORTAL_TEXT.copy_to(transit + sizeof!(Self));
         // SAFETY: 由调用者保证 transit 对齐且指向有效内存，

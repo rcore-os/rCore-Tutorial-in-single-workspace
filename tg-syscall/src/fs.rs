@@ -1,5 +1,9 @@
 use bitflags::bitflags;
 
+// 教程说明：
+// 本文件定义用户/内核共享的文件元数据结构（尤其是 `Stat`）。
+// 这些类型通常作为 syscall 参数在用户态与内核态之间传递。
+
 bitflags! {
     /// 文件类型标志
     pub struct StatMode: u32 {
@@ -28,6 +32,9 @@ pub struct Stat {
 }
 
 impl Stat {
+    /// 构造一个全零初始化的 `Stat`。
+    ///
+    /// 常用于用户态先分配结构体，再通过 `fstat` 系统调用由内核回填。
     pub fn new() -> Self {
         Self {
             dev: 0,

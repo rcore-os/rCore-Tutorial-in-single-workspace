@@ -13,7 +13,9 @@ use user_lib::{
 // sem 0: used to sync child thread with main
 // sem 1-2: representing some kind of resource
 
-// 理想结果：未检测到死锁，子线程返回值均为 0
+// 教学目标：
+// 构造“可安全完成”的资源分配场景，验证不会误报死锁。
+// 理想结果：未检测到死锁，子线程返回值均为 0。
 
 const THREAD_N: usize = 4;
 const RES_TYPE: usize = 2;
@@ -40,7 +42,7 @@ fn deadlock_test(arg: usize) {
     exit(0);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     enable_deadlock_detect(true);
     semaphore_create(THREAD_N);

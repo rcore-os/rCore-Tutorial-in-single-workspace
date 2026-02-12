@@ -97,6 +97,7 @@ impl IntrMaskingInfo {
             sstatus::clear_sie();
         }
         if self.nested_level == 0 {
+            // 只在最外层临界区记录进入前状态，支持可重入的“嵌套关中断”。
             self.sie_before_masking = sie;
         }
         self.nested_level += 1;
@@ -143,6 +144,7 @@ impl<T> UPIntrFreeCell<T> {
 
     /// Panic if the data has been borrowed.
     pub fn exclusive_access(&self) -> UPIntrRefMut<'_, T> {
+        // 先关中断，再借用 RefCell，确保单核下不会被时钟中断打断而重入。
         INTR_MASKING_INFO.get_mut().enter();
         UPIntrRefMut(Some(self.inner.borrow_mut()))
     }

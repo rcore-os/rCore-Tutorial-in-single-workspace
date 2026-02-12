@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::{get_time, sched_yield};
 
-#[no_mangle]
+// 教学目标：
+// 通过 `get_time + sched_yield` 组合验证基础计时与让出 CPU 行为。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let current_time = get_time();
     assert!(current_time > 0);

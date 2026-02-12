@@ -15,6 +15,9 @@ fn spin_delay() {
 
 const MAX_TIME: isize = 4000;
 
+// 教学目标：
+// 固定优先级负载样例（prio=7）。
+
 fn count_during(prio: isize) -> isize {
     let start_time = get_time();
     let mut acc = 0;
@@ -31,7 +34,7 @@ fn count_during(prio: isize) -> isize {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let prio = 7;
     let count = count_during(prio);

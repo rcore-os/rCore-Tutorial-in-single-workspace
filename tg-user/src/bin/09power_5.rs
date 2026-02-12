@@ -6,7 +6,10 @@ extern crate user_lib;
 
 const LEN: usize = 100;
 
-#[no_mangle]
+// 教学目标：
+// 与 power_3/power_7 对照，验证不同计算强度下的执行行为（参数为 5）。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let p = 5u64;
     let m = 998244353u64;

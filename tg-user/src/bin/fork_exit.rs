@@ -7,7 +7,10 @@ use user_lib::{exit, fork, sched_yield, wait, waitpid};
 
 const MAGIC: i32 = -0x10384;
 
-#[no_mangle]
+// 教学目标：
+// 验证 waitpid 只等待目标子进程，且可正确获取退出码。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     println!("I am the parent. Forking the child...");
     let pid = fork();

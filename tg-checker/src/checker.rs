@@ -34,7 +34,7 @@ pub fn check(output: &str, test_case: &TestCase) -> CheckResult {
     let mut passed = 0;
     let total = test_case.expected.len() + test_case.not_expected.len();
 
-    // 检查期望出现的模式
+    // 先检查“必须出现”的模式
     for pattern in &test_case.expected {
         let re = Regex::new(pattern).expect("Invalid regex pattern");
         let found = re.is_match(output);
@@ -48,7 +48,7 @@ pub fn check(output: &str, test_case: &TestCase) -> CheckResult {
         });
     }
 
-    // 检查不应该出现的模式
+    // 再检查“禁止出现”的模式
     for pattern in &test_case.not_expected {
         let re = Regex::new(pattern).expect("Invalid regex pattern");
         let found = re.is_match(output);

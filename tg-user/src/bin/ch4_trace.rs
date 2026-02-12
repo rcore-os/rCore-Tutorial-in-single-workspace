@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::{mmap, munmap, trace_read, trace_write};
 
-#[no_mangle]
+// 教学目标：
+// 结合 trace 与 mmap/munmap，验证“地址合法性 + 只读页权限 + 解除映射后不可访问”。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     // 测试正常的内存读写
     #[allow(unused_mut)]

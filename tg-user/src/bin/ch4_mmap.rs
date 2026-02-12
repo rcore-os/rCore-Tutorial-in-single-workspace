@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::mmap;
 
-#[no_mangle]
+// 教学目标：
+// 验证最基本的 mmap 成功后可读可写语义。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let start: usize = 0x10000000;
     let len: usize = 4096;

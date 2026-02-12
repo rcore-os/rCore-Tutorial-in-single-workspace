@@ -8,7 +8,10 @@ use user_lib::{close, fork, pipe, pipe_read, pipe_write, wait};
 
 static STR: &str = "Hello, world!";
 
-#[no_mangle]
+// 教学目标：
+// 通过单条短消息验证管道双端关闭语义、父子通信和 EOF 行为。
+
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     // create pipe
     let mut pipe_fd = [0usize; 2];

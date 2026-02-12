@@ -6,9 +6,11 @@ extern crate user_lib;
 
 use user_lib::mmap;
 
-// 理想结果：对于错误的 mmap 返回 -1
+// 教学目标：
+// 覆盖 mmap 参数校验：地址对齐、prot 合法性、标志位范围等错误输入。
+// 理想结果：对于错误的 mmap 返回 -1。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let start: usize = 0x10000000;
     let len: usize = 4096;

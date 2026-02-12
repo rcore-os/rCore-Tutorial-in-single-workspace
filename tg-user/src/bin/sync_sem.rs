@@ -13,6 +13,9 @@ use user_lib::{sleep, thread_create, waittid};
 
 const SEM_SYNC: usize = 0;
 
+// 教学目标：
+// 通过一个同步信号量实现“second 等待 first”时序控制。
+
 unsafe fn first() -> isize {
     sleep(10);
     println!("First work and wakeup Second");
@@ -27,7 +30,7 @@ unsafe fn second() -> isize {
     exit(0)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     // create semaphores
     assert_eq!(semaphore_create(0) as usize, SEM_SYNC);

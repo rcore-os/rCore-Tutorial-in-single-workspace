@@ -9,12 +9,15 @@ use user_lib::*;
 const LF: u8 = 0x0au8;
 const CR: u8 = 0x0du8;
 
+// 教学目标：
+// 绑定 SIGINT 处理函数，交互式验证 ctrl-c 对用户进程的影响。
+
 fn func() {
     println!("signal_handler: caught signal SIGINT, and exit(1)");
     exit(1);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     println!("sig_ctrlc starting....  Press 'ctrl-c' or 'ENTER'  will quit.");
 

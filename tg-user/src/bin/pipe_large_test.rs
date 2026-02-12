@@ -10,7 +10,11 @@ use alloc::format;
 use user_lib::{close, fork, getpid, pipe, pipe_read, pipe_write, wait};
 
 const LENGTH: usize = 3000;
-#[no_mangle]
+
+// 教学目标：
+// 用大数据量管道传输覆盖“分段读写 + 校验一致性”的场景。
+
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     // create pipes
     // parent write to child
@@ -41,6 +45,7 @@ pub extern "C" fn main() -> i32 {
         close(up_pipe_fd[1]);
         // generate a long random string
         for ch in random_str.iter_mut().take(LENGTH) {
+            // 用当前 pid 作为简单填充值，便于复现实验结果。
             *ch = getpid() as u8;
         }
         // send it

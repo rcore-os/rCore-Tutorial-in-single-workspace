@@ -16,6 +16,9 @@ const ROUND: usize = 4;
 // A round: think -> wait for forks -> eat
 const GRAPH_SCALE: usize = 10;
 
+// 教学目标：
+// 用互斥锁实现哲学家就餐，展示“固定加锁顺序”规避死锁的方法。
+
 fn get_time_u() -> usize {
     get_time() as usize
 }
@@ -63,7 +66,7 @@ fn philosopher_dining_problem(id: *const usize) -> isize {
     exit(0)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     println!("Here comes {} philosophers!", N);
     let mut v = Vec::new();

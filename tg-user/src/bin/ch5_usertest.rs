@@ -29,9 +29,11 @@ static TESTS: &[&str] = &[
 
 static STEST: &str = "ch5_stride";
 
+// 教学目标：
+// 作为章节回归入口，批量运行 ch5 之前的关键测例并统一断言退出状态。
 /// 辅助测例，运行所有其他测例。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let mut pid = [0isize; 20];
     for (i, &test) in TESTS.iter().enumerate() {

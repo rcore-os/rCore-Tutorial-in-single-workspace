@@ -118,11 +118,11 @@ impl DiskInode {
     pub fn total_blocks(size: u32) -> u32 {
         let data_blocks = Self::_data_blocks(size) as usize;
         let mut total = data_blocks;
-        // indirect1
+        // indirect1：数据块数量超过 direct 容量时，需要额外 1 个一级索引块
         if data_blocks > INODE_DIRECT_COUNT {
             total += 1;
         }
-        // indirect2
+        // indirect2：超过一级索引覆盖范围后，需要二级索引块和若干一级索引块
         if data_blocks > INDIRECT1_BOUND {
             total += 1;
             // sub indirect1
@@ -171,12 +171,12 @@ impl DiskInode {
         self.size = new_size;
         let mut total_blocks = self.data_blocks();
         let mut new_blocks = new_blocks.into_iter();
-        // fill direct
+        // 阶段 1：填 direct 指针
         while current_blocks < total_blocks.min(INODE_DIRECT_COUNT as u32) {
             self.direct[current_blocks as usize] = new_blocks.next().unwrap();
             current_blocks += 1;
         }
-        // alloc indirect1
+        // 阶段 2：按需分配并填 indirect1
         if total_blocks > INODE_DIRECT_COUNT as u32 {
             if current_blocks == INODE_DIRECT_COUNT as u32 {
                 self.indirect1 = new_blocks.next().unwrap();
@@ -186,7 +186,7 @@ impl DiskInode {
         } else {
             return;
         }
-        // fill indirect1
+        // 将剩余数据块号写入一级索引块
         get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
@@ -195,7 +195,7 @@ impl DiskInode {
                     current_blocks += 1;
                 }
             });
-        // alloc indirect2
+        // 阶段 3：按需分配并填 indirect2
         if total_blocks > INODE_INDIRECT1_COUNT as u32 {
             if current_blocks == INODE_INDIRECT1_COUNT as u32 {
                 self.indirect2 = new_blocks.next().unwrap();
@@ -205,7 +205,7 @@ impl DiskInode {
         } else {
             return;
         }
-        // fill indirect2 from (a0, b0) -> (a1, b1)
+        // 按二维坐标写入二级索引：from (a0, b0) -> (a1, b1)
         let mut a0 = current_blocks as usize / INODE_INDIRECT1_COUNT;
         let mut b0 = current_blocks as usize % INODE_INDIRECT1_COUNT;
         let a1 = total_blocks as usize / INODE_INDIRECT1_COUNT;
@@ -241,13 +241,13 @@ impl DiskInode {
         let mut data_blocks = self.data_blocks() as usize;
         self.size = 0;
         let mut current_blocks = 0usize;
-        // direct
+        // 回收 direct
         while current_blocks < data_blocks.min(INODE_DIRECT_COUNT) {
             v.push(self.direct[current_blocks]);
             self.direct[current_blocks] = 0;
             current_blocks += 1;
         }
-        // indirect1 block
+        // 回收一级索引块及其指向的数据块
         if data_blocks > INODE_DIRECT_COUNT {
             v.push(self.indirect1);
             data_blocks -= INODE_DIRECT_COUNT;
@@ -266,7 +266,7 @@ impl DiskInode {
                 }
             });
         self.indirect1 = 0;
-        // indirect2 block
+        // 回收二级索引块及其下级索引/数据块
         if data_blocks > INODE_INDIRECT1_COUNT {
             v.push(self.indirect2);
             data_blocks -= INODE_INDIRECT1_COUNT;

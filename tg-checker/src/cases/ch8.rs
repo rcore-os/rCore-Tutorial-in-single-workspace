@@ -4,6 +4,7 @@ use super::TestCase;
 
 /// ch8 base test
 pub fn base() -> TestCase {
+    // ch8 base 重点覆盖线程/同步原语（mutex/semaphore/condvar）基础功能。
     TestCase {
         expected: vec![
             // inherited from ch6b (without sbrk)
@@ -42,6 +43,7 @@ pub fn base() -> TestCase {
 
 /// ch8 exercise test
 pub fn exercise() -> TestCase {
+    // ch8 exercise 增加死锁相关实验输出检查。
     TestCase {
         expected: vec![
             // inherited from ch6b (without sbrk)

@@ -28,6 +28,12 @@
 //! 启动数据段放在最后，以便启动完成后换栈。届时可放弃启动数据段，将其加入动态内存区。
 //!
 //! 用 [`KernelLayout`] 结构体定位、保存和访问内核内存布局。
+//!
+//! 教程阅读建议：
+//!
+//! - 初学者先看常量 `SCRIPT` / `NOBIOS_SCRIPT`，理解链接布局；
+//! - 再看 `boot0!` 宏，理解 `_start -> rust_main` 的启动桥接；
+//! - 最后看 `KernelLayout`，理解章节代码如何读取段边界和清零 `.bss`。
 
 #![no_std]
 #![deny(warnings, missing_docs)]
@@ -71,6 +77,10 @@ SECTIONS {
 /// 链接脚本（nobios 模式）。
 ///
 /// M-Mode 入口在 0x80000000，S-Mode 内核在 0x80200000。
+///
+/// 对应关系：
+/// - `tg-sbi` 的 `m_entry.asm` 放在 M 态区域；
+/// - 章节内核 `.text.entry` 在 S 态区域启动。
 pub const NOBIOS_SCRIPT: &[u8] = b"\
 OUTPUT_ARCH(riscv)
 ENTRY(_m_start)
@@ -157,6 +167,7 @@ macro_rules! boot0 {
 
             // SAFETY: 设置栈指针并跳转到高级语言入口。
             // __end 由链接脚本定义，指向启动栈的末尾。
+            // 注意：这里并不直接“调用”函数，而是跳转，避免无意义的返回路径。
             core::arch::naked_asm!(
                 "la sp, __end",
                 "j  {main}",
@@ -199,7 +210,7 @@ impl KernelLayout {
     /// 定位内核布局。
     #[inline]
     pub fn locate() -> Self {
-        extern "C" {
+        unsafe extern "C" {
             fn __start();
             fn __rodata();
             fn __data();
@@ -253,8 +264,9 @@ impl KernelLayout {
         while ptr < end {
             // SAFETY: ptr 在 [sbss, ebss) 范围内，这是有效的 .bss 段内存。
             // 使用 volatile write 确保多核场景下其他核能看到写入。
-            ptr.write_volatile(0);
-            ptr = ptr.offset(1);
+            unsafe { ptr.write_volatile(0) };
+            // SAFETY: ptr 仍位于同一有效 .bss 地址区间内，单步向后移动 1 字节。
+            ptr = unsafe { ptr.add(1) };
         }
     }
 

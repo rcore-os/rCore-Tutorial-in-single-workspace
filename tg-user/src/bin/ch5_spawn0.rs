@@ -8,7 +8,10 @@ use user_lib::{spawn, wait};
 
 const MAX_CHILD: usize = 16;
 
-#[no_mangle]
+// 教学目标：
+// 批量 spawn 子进程并统一 wait 回收，验证创建与回收数量一致性。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     for _ in 0..MAX_CHILD {
         let cpid = spawn("ch5_getpid");

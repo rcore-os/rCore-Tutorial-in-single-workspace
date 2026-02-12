@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::{close, open, read, write, OpenFlags};
 
-#[no_mangle]
+// 教学目标：
+// 验证最基本的文件创建、写入、关闭、重开和读取流程。
+
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     let test_str = "Hello, world!";
     let filea = "filea\0";

@@ -2,6 +2,11 @@ use super::UPIntrFreeCell;
 use alloc::collections::VecDeque;
 use tg_task_manage::ThreadId;
 
+// 教程说明：
+// `count` 含义采用经典信号量语义：
+// - count >= 0：可用资源数；
+// - count < 0：有 `-count` 个线程在等待队列中。
+
 /// Semaphore
 pub struct Semaphore {
     /// UPIntrFreeCell<SemaphoreInner>
@@ -31,6 +36,7 @@ impl Semaphore {
     pub fn up(&self) -> Option<ThreadId> {
         let mut inner = self.inner.exclusive_access();
         inner.count += 1;
+        // 若有等待者，交由调度器唤醒队首线程。
         inner.wait_queue.pop_front()
     }
     /// 当前线程试图获取信号量表示的资源，并返回结果
@@ -38,6 +44,7 @@ impl Semaphore {
         let mut inner = self.inner.exclusive_access();
         inner.count -= 1;
         if inner.count < 0 {
+            // 资源不足：当前线程进入等待队列。
             inner.wait_queue.push_back(tid);
             drop(inner);
             false

@@ -6,6 +6,10 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::*;
 
+// 教程阅读建议：
+// - 先看 `UserBuffer`：理解“跨页用户缓冲区”在内核中的统一抽象；
+// - 再看 `FileHandle`：理解 inode + offset + 读写权限如何组成最小文件描述符语义。
+
 /// Array of u8 slice that user communicate with os
 pub struct UserBuffer {
     /// U8 vec
@@ -36,6 +40,7 @@ impl IntoIterator for UserBuffer {
     type Item = *mut u8;
     type IntoIter = UserBufferIterator;
     fn into_iter(self) -> Self::IntoIter {
+        // 将“分段缓冲区”拍平为字节指针迭代器，便于 pipe/file 统一按字节处理。
         UserBufferIterator {
             buffers: self.buffers,
             current_buffer: 0,
@@ -57,6 +62,7 @@ impl Iterator for UserBufferIterator {
         if self.current_buffer >= self.buffers.len() {
             None
         } else {
+            // 依次遍历每个分片，读完当前分片后自动切到下一个分片。
             let r = &mut self.buffers[self.current_buffer][self.current_idx] as *mut _;
             if self.current_idx + 1 == self.buffers[self.current_buffer].len() {
                 self.current_idx = 0;
@@ -89,6 +95,7 @@ impl OpenFlags {
     /// Do not check validity for simplicity
     /// Return (readable, writable)
     pub fn read_write(&self) -> (bool, bool) {
+        // 与课程内核约定保持一致：RDONLY(0) -> 只读；WRONLY -> 只写；其他组合按读写处理。
         if self.is_empty() {
             (true, false)
         } else if self.contains(Self::WRONLY) {
@@ -147,6 +154,7 @@ impl FileHandle {
     pub fn read(&self, mut buf: UserBuffer) -> isize {
         let mut total_read_size: usize = 0;
         if let Some(inode) = &self.inode {
+            // 按分片循环读取，并维护文件偏移 offset。
             for slice in buf.buffers.iter_mut() {
                 let read_size = inode.read_at(self.offset.get(), slice);
                 if read_size == 0 {
@@ -165,6 +173,7 @@ impl FileHandle {
     pub fn write(&self, buf: UserBuffer) -> isize {
         let mut total_write_size: usize = 0;
         if let Some(inode) = &self.inode {
+            // 连续写入每个分片，偏移随写入量前移。
             for slice in buf.buffers.iter() {
                 let write_size = inode.write_at(self.offset.get(), slice);
                 assert_eq!(write_size, slice.len());

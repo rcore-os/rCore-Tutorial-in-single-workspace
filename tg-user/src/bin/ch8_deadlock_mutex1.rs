@@ -7,9 +7,11 @@ extern crate alloc;
 
 use user_lib::{enable_deadlock_detect, mutex_create, mutex_lock, mutex_unlock};
 
-// 理想结果：检测到死锁
+// 教学目标：
+// 同一线程重复加锁同一把阻塞互斥锁，触发死锁检测返回码。
+// 理想结果：检测到死锁。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     enable_deadlock_detect(true);
     let mid = mutex_create(true) as usize;

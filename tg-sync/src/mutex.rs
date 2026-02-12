@@ -41,10 +41,12 @@ impl Mutex for MutexBlocking {
     fn lock(&self, tid: ThreadId) -> bool {
         let mut mutex_inner = self.inner.exclusive_access();
         if mutex_inner.locked {
+            // 已被占用：把线程放入等待队列，交由调度器阻塞当前线程。
             mutex_inner.wait_queue.push_back(tid);
             drop(mutex_inner);
             false
         } else {
+            // 锁空闲：直接占有。
             mutex_inner.locked = true;
             true
         }
@@ -54,6 +56,7 @@ impl Mutex for MutexBlocking {
         let mut mutex_inner = self.inner.exclusive_access();
         assert!(mutex_inner.locked);
         if let Some(waking_task) = mutex_inner.wait_queue.pop_front() {
+            // 注意：这里不清 locked，语义是“把锁转交给被唤醒线程”。
             Some(waking_task)
         } else {
             mutex_inner.locked = false;

@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch6"
 description = "Chapter 6 of rCore Tutorial: File system with easy-fs and virtio block device."
-version = "0.3.1-preview.3"
+version = "0.4.0-preview.1"
 edition = "2024"
 authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -31,18 +31,18 @@ xmas-elf = "0.8.0"
 riscv = "0.10.1"
 spin = "0.9"
 
-tg-sbi = { version = "0.1.0-preview.1", features = ["nobios"] }
-tg-linker = { version = "0.1.0-preview.2" }
-tg-console = { version = "0.1.0-preview.2" }
-tg-kernel-context = { version = "0.1.0-preview.1", features = ["foreign"] }
-tg-kernel-alloc = { version = "0.1.0-preview.2" }
-tg-kernel-vm = { version = "0.1.0-preview.2" }
-tg-syscall = { version = "0.1.0-preview.2", features = ["kernel"] }
-tg-task-manage = { version = "0.1.0-preview.1", features = ["proc"] }
-tg-easy-fs = { version = "0.1.0-preview.2" }
+tg-sbi = { version = "0.4.0-preview.1", features = ["nobios"] }
+tg-linker = { version = "0.4.0-preview.1" }
+tg-console = { version = "0.4.0-preview.1" }
+tg-kernel-context = { version = "0.4.0-preview.1", features = ["foreign"] }
+tg-kernel-alloc = { version = "0.4.0-preview.1" }
+tg-kernel-vm = { version = "0.4.0-preview.1" }
+tg-syscall = { version = "0.4.0-preview.1", features = ["kernel"] }
+tg-task-manage = { version = "0.4.0-preview.2", features = ["proc"] }
+tg-easy-fs = { version = "0.4.0-preview.1" }
 
 [build-dependencies]
-tg-linker = { version = "0.1.0-preview.2" }
-tg-easy-fs = { version = "0.1.0-preview.2" }
+tg-linker = { version = "0.4.0-preview.1" }
+tg-easy-fs = { version = "0.4.0-preview.1" }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"

@@ -86,6 +86,7 @@ impl<P, T, MT: Manage<T, ThreadId> + Schedule<ThreadId>, MP: Manage<P, ProcId>>
                 }
             }
             if flag {
+                // 教学语义：最后一个线程退出时，进程对象也随之清理。
                 self.del_proc(pid, exit_code);
             }
             self.current = None;
@@ -167,6 +168,7 @@ impl<P, T, MT: Manage<T, ThreadId> + Schedule<ThreadId>, MP: Manage<P, ProcId>>
     }
     /// wait_tid 系统调用
     pub fn waittid(&mut self, thread_tid: ThreadId) -> Option<isize> {
+        // 返回值约定：-2 表示目标线程还活着，需要继续等待。
         let id = self.current.unwrap();
         let pid = self.tid2pid.get(&id).unwrap();
         let current_rel = self.rel_map.get_mut(pid).unwrap();

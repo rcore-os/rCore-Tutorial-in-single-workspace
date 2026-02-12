@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::{mmap, munmap};
 
-#[no_mangle]
+// 教学目标：
+// 验证“先映射-局部解除映射-再映射”后的连续地址可读写正确性。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let start: usize = 0x10000000;
     let len: usize = 4096;

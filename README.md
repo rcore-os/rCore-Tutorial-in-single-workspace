@@ -94,6 +94,25 @@ cargo build --features exercise
 
 5 个常见练习章：`ch3`、`ch4`、`ch5`、`ch6`、`ch8`。
 
+<a id="chapters-source-nav-map"></a>
+
+### 3.1 ch1~ch8 源码导航总表（配套注释版）
+
+下面这张表用于跨章节快速定位源码阅读入口；每章 README 里还有更细的“源码阅读导航索引”。
+
+| 章节（点击直达导航） | 建议先读的源码文件（顺序） | 关注主线 |
+|---|---|---|
+| [`ch1`](ch1/README.md#source-nav) | `src/main.rs` | 裸机最小启动：`_start -> rust_main -> panic` |
+| [`ch2`](ch2/README.md#source-nav) | `src/main.rs` | 批处理 + Trap + syscall 分发 |
+| [`ch3`](ch3/README.md#source-nav) | `src/task.rs` -> `src/main.rs` | 任务模型 + 抢占/协作调度 |
+| [`ch4`](ch4/README.md#source-nav) | `src/main.rs` -> `src/process.rs` | 页表与地址空间 + `translate` |
+| [`ch5`](ch5/README.md#source-nav) | `src/process.rs` -> `src/processor.rs` -> `src/main.rs` | `fork/exec/wait` 与进程关系管理 |
+| [`ch6`](ch6/README.md#source-nav) | `src/virtio_block.rs` -> `src/fs.rs` -> `src/main.rs` | 块设备到文件系统，再到 fd 系统调用 |
+| [`ch7`](ch7/README.md#source-nav) | `src/fs.rs` -> `src/process.rs` -> `src/main.rs` | 管道统一 fd 抽象 + 信号处理 |
+| [`ch8`](ch8/README.md#source-nav) | `src/process.rs` -> `src/processor.rs` -> `src/main.rs` | 线程化调度 + 同步原语阻塞/唤醒 |
+
+配套入口：[`ch1-lab` 导航索引](ch1-lab/README.md#source-nav)。
+
 ## 4. 常用开发与测试流程
 
 ### 4.1 进入某章开发
@@ -190,6 +209,23 @@ cargo run --features exercise 2>&1 | tg-checker --ch 3 --exercise
 - 章节文档：`ch1/README.md` ~ `ch8/README.md`
 - 练习说明：`ch3/exercise.md`、`ch4/exercise.md`、`ch5/exercise.md`、`ch6/exercise.md`、`ch8/exercise.md`
 - 设计文档：`docs/design/20220814-crate-types.md`、`docs/design/20220823-kpti.md`
+
+## 9. 高频错误速查表（学生版）
+
+> 使用方法：先按“现象”定位，再执行“快速定位命令”，最后按“优先修复动作”处理。
+
+| 现象 | 常见原因 | 快速定位命令 | 优先修复动作 |
+|---|---|---|---|
+| `can't find crate for core` 或目标不支持 | 未安装 RISC-V 目标 | `rustup target list --installed | rg riscv64gc-unknown-none-elf` | `rustup target add riscv64gc-unknown-none-elf` |
+| `qemu-system-riscv64: command not found` | QEMU 未安装或不在 PATH | `qemu-system-riscv64 --version` | 安装 `qemu-system-misc`（Linux）或 `qemu`（macOS） |
+| 在仓库根目录 `cargo run` 失败 | 章节 crate 不在根 workspace 默认成员 | `pwd`（确认当前目录） | 进入具体章节目录后再 `cargo run`，如 `cd ch4` |
+| `cargo clone: command not found` | 缺少构建依赖工具 | `cargo clone --version` | `cargo install cargo-clone` |
+| 构建阶段找不到 `rust-objcopy` | 缺少 `cargo-binutils/llvm-tools` | `rust-objcopy --version` | `cargo install cargo-binutils && rustup component add llvm-tools` |
+| ch6+ 运行时报块设备/镜像相关错误 | `fs.img` 未生成或路径不匹配 | `test -f target/riscv64gc-unknown-none-elf/debug/fs.img && echo ok || echo missing` | 在对应章节先 `cargo build`，再 `cargo run` |
+| 日志出现 `unsupported syscall` | syscall 未注册或用户/内核接口不一致 | `LOG=trace cargo run` | 检查 `tg_syscall::init_*` 与对应 `impls` 是否已实现并初始化 |
+| 运行中出现 `page fault` / `stval` 异常 | 用户指针未翻译、权限标志不匹配、映射缺失 | `LOG=trace cargo run` 并关注 trap 日志 | 优先检查 `translate()` 调用、`VmFlags` 权限、`map/unmap` 范围 |
+| `base` 能过但 `exercise` 失败 | 练习功能未实现或 feature 开关不一致 | `./test.sh base && ./test.sh exercise` | 对照 `exercise.md` 完成功能后使用 `--features exercise` 回归 |
+| 测试输出看似正确但仍判失败 | 输出格式与 checker 期望不一致 | `cargo run 2>&1 | tg-checker --ch <N> [--exercise]` | 先修行为再修日志格式，避免额外杂项输出污染 |
 
 ---
 

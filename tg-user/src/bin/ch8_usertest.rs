@@ -34,7 +34,10 @@ const TESTS: &[&str] = &[
 
 const TEST_NUM: usize = TESTS.len();
 
-#[no_mangle]
+// 教学目标：
+// ch8 综合回归入口：覆盖线程、同步、死锁检测等高级实验能力。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let mut pids = [0isize; TEST_NUM];
     for (i, &test) in TESTS.iter().enumerate() {

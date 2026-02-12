@@ -13,7 +13,9 @@ use user_lib::{
 // sem 0: used to sync child thread with main
 // sem 1-3: representing some kind of resource
 
-// 理想结果：检测到死锁，至少有一个子线程返回值不为 0
+// 教学目标：
+// 构造资源请求环路，验证信号量死锁检测可捕获并返回错误码。
+// 理想结果：检测到死锁，至少有一个子线程返回值不为 0。
 
 const SEM_BARRIER: usize = 0;
 const THREAD_N: usize = 3;
@@ -80,7 +82,7 @@ fn deadlock_test() {
     exit(0);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     enable_deadlock_detect(true);
     assert_eq!(semaphore_create(THREAD_N) as usize, SEM_BARRIER);

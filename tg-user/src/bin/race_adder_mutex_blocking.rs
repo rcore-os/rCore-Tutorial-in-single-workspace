@@ -13,6 +13,9 @@ static mut A: usize = 0;
 const PER_THREAD: usize = 500;
 const THREAD_COUNT: usize = 16;
 
+// 教学目标：
+// 通过“共享计数器 + 阻塞互斥锁”验证临界区互斥是否正确。
+
 unsafe fn f() -> isize {
     let mut t = 2usize;
     for _ in 0..PER_THREAD {
@@ -28,7 +31,7 @@ unsafe fn f() -> isize {
     exit(t as i32)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn main() -> i32 {
     let mut start_time: TimeSpec = TimeSpec::ZERO;
     let mut end_time: TimeSpec = TimeSpec::ZERO;

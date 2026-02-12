@@ -56,6 +56,8 @@ impl Condvar {
         tid: ThreadId,
         mutex: Arc<dyn Mutex>,
     ) -> (bool, Option<ThreadId>) {
+        // 教学提示：标准条件变量语义应包含“原子地解锁 + 入队 + 睡眠 + 被唤醒后重试加锁”。
+        // 此处为教学简化实现，便于在章节中聚焦主流程。
         let waking_tid = mutex.unlock().unwrap();
         (mutex.lock(tid), Some(waking_tid))
     }

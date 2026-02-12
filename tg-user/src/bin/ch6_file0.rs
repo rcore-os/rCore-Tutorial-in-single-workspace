@@ -6,9 +6,11 @@ extern crate user_lib;
 
 use user_lib::{close, open, read, write, OpenFlags};
 
+// 教学目标：
+// 覆盖文件系统最小闭环：创建 -> 写入 -> 读取 -> 内容比对。
 /// 测试文件基本读写，输出 Test file0 OK! 就算正确。
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let test_str = "Hello, world!";
     let fname = "fname\0";

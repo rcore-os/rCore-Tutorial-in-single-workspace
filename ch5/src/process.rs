@@ -13,6 +13,12 @@
 //! | 进程创建 | 仅从 ELF 加载 | 支持 fork 和 exec |
 //! | 地址空间 | 创建后不可变 | fork 复制、exec 替换 |
 //! | 进程关系 | 无 | 父子关系（PID） |
+//!
+//! 教程阅读建议：
+//!
+//! - 先看 `from_elf`：理解“进程初始化”与“程序装载”基础路径；
+//! - 再看 `fork`：重点理解地址空间深拷贝与上下文复制；
+//! - 最后看 `exec`：对比“保留 PID、替换执行映像”的设计含义。
 
 use crate::{build_flags, map_portal, parse_flags, Sv39, Sv39Manager};
 use alloc::alloc::alloc_zeroed;

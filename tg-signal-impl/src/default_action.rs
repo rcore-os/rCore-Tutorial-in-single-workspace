@@ -12,6 +12,7 @@ pub(crate) enum DefaultAction {
 
 impl From<SignalNo> for DefaultAction {
     fn from(signal_no: SignalNo) -> Self {
+        // 教学实现中仅保留“忽略/终止”两种核心行为，便于实验聚焦主流程。
         match signal_no {
             SignalNo::SIGCHLD | SignalNo::SIGURG => Self::Ignore,
             _ => Self::Terminate(-(signal_no as i32)),
@@ -21,6 +22,7 @@ impl From<SignalNo> for DefaultAction {
 
 impl Into<SignalResult> for DefaultAction {
     fn into(self) -> SignalResult {
+        // 将“动作语义”转换为内核调度层可消费的执行结果。
         match self {
             Self::Terminate(exit_code) => SignalResult::ProcessKilled(exit_code),
             Self::Ignore => SignalResult::Ignored,

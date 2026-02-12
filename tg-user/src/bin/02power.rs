@@ -9,7 +9,10 @@ const P: u32 = 3;
 const STEP: usize = 100000;
 const MOD: u32 = 10007;
 
-#[no_mangle]
+// 教学目标：
+// 通过纯计算负载 + 周期性输出，验证用户态计算与系统调用输出的稳定性。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let mut pow = [0u32; SIZE];
     let mut index: usize = 0;

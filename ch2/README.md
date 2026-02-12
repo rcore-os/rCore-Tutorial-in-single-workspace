@@ -26,6 +26,42 @@ ch2/
     └── main.rs         # 内核源码：批处理主循环、Trap 处理、系统调用
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+本章建议围绕 `src/main.rs` 建立“批处理 + Trap + 系统调用”主线。
+
+| 阅读顺序 | 位置 | 重点问题 |
+|---|---|---|
+| 1 | `rust_main` | 批处理循环如何逐个装载并执行用户程序？ |
+| 2 | Trap 分支（`scause` 匹配） | 用户态 `ecall` 与异常进入内核后，分支逻辑如何区分？ |
+| 3 | `handle_syscall` | `a7`/`a0~a5`/`a0` 的系统调用寄存器约定如何落到代码中？ |
+| 4 | `impls` 模块 | `IO` / `Process` trait 如何与 syscall 分发层对接？ |
+
+配套建议：结合 `tg-kernel-context` 和 `tg-syscall` 的注释阅读，理解上下文切换与 syscall 分发的职责边界。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能在 `ch2` 目录运行 `cargo run`，观察多个用户程序被依次装载与执行
+- [ ] 能解释 U/S 特权级切换与 `ecall` 触发 Trap 的基本路径
+- [ ] 能从代码定位 syscall 参数来源（`a0~a5`）与 syscall 号来源（`a7`）
+- [ ] 能说明为什么 syscall 返回前需要 `sepc += 4`（跳过 `ecall` 指令）
+- [ ] 能执行 `./test.sh base` 并通过基础测试
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 批处理主循环 | `ch2/src/main.rs` 的 `rust_main` | 日志中按顺序出现 app 装载与退出信息 |
+| Trap 分发 | `ch2/src/main.rs` 中 `scause::read().cause()` 匹配分支 | 非法行为可被识别并输出错误日志 |
+| 系统调用参数约定 | `ch2/src/main.rs` 的 `handle_syscall` | `write/exit` 行为与预期一致 |
+| syscall trait 对接 | `ch2/src/main.rs` 的 `impls` 模块 | `STDOUT` 可输出，非法 fd 被拒绝 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

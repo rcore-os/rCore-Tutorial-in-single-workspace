@@ -1,4 +1,9 @@
 #![no_std]
+//!
+//! 教程阅读建议：
+//!
+//! - `_start` 展示用户程序最小运行时（初始化控制台、堆、调用 main）；
+//! - 其余辅助函数（sleep/pipe_*）展示了常见 syscall 组合用法。
 
 mod heap;
 
@@ -9,14 +14,15 @@ use tg_console::log;
 pub use tg_console::{print, println};
 pub use tg_syscall::*;
 
-#[no_mangle]
-#[link_section = ".text.entry"]
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".text.entry")]
 pub extern "C" fn _start() -> ! {
+    // 用户态运行时初始化顺序与内核类似：先 I/O，再堆，再进入 main。
     tg_console::init_console(&Console);
     tg_console::set_log_level(option_env!("LOG"));
     heap::init();
 
-    extern "C" {
+    unsafe extern "C" {
         fn main() -> i32;
     }
 
@@ -58,6 +64,7 @@ impl tg_console::Console for Console {
 }
 
 pub fn sleep(period_ms: usize) {
+    // 轮询时钟 + 主动让出 CPU 的教学实现，便于理解 time/yield 系统调用协作。
     let mut time: TimeSpec = TimeSpec::ZERO;
     clock_gettime(ClockId::CLOCK_MONOTONIC, &mut time as *mut _ as _);
     let time = time + TimeSpec::from_millsecond(period_ms);

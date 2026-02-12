@@ -20,8 +20,8 @@ exclude = ["ch1","ch2","ch3","ch4","ch5","ch6","ch7","ch8","tg-user","tg-checker
 
 # 统一的包元数据，子 crate 可通过 `xxx.workspace = true` 继承
 [workspace.package]
-version = "0.1.0-preview.1"
-edition = "2021"
+version = "0.4.0-preview.1"
+edition = "2024"
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
 license = "MIT OR Apache-2.0"
 keywords = ["rcore", "os", "riscv", "tutorial"]
@@ -37,16 +37,16 @@ riscv = "0.10"
 numeric-enum-macro = "0.2"
 
 # 内部 crate 依赖
-tg-console = { path = "tg-console", version = "0.1.0-preview.2" }
-tg-linker = { path = "tg-linker", version = "0.1.0-preview.2" }
-tg-syscall = { path = "tg-syscall", version = "0.1.0-preview.2" }
-tg-kernel-context = { path = "tg-kernel-context", version = "0.1.0-preview.1" }
-tg-kernel-alloc = { path = "tg-kernel-alloc", version = "0.1.0-preview.2" }
-tg-kernel-vm = { path = "tg-kernel-vm", version = "0.1.0-preview.2" }
-tg-task-manage = { path = "tg-task-manage", version = "0.1.0-preview.1" }
-tg-easy-fs = { path = "tg-easy-fs", version = "0.1.0-preview.2" }
-tg-signal-defs = { path = "tg-signal-defs", version = "0.1.0-preview.1" }
-tg-signal = { path = "tg-signal", version = "0.1.0-preview.1" }
-tg-signal-impl = { path = "tg-signal-impl", version = "0.1.0-preview.1" }
-tg-sync = { path = "tg-sync", version = "0.1.0-preview.1" }
-tg-sbi = { path = "tg-sbi", version = "0.1.0-preview.1" }
+tg-console = { path = "tg-console", version = "0.4.0-preview.1" }
+tg-linker = { path = "tg-linker", version = "0.4.0-preview.1" }
+tg-syscall = { path = "tg-syscall", version = "0.4.0-preview.1" }
+tg-kernel-context = { path = "tg-kernel-context", version = "0.4.0-preview.1" }
+tg-kernel-alloc = { path = "tg-kernel-alloc", version = "0.4.0-preview.1" }
+tg-kernel-vm = { path = "tg-kernel-vm", version = "0.4.0-preview.1" }
+tg-task-manage = { path = "tg-task-manage", version = "0.4.0-preview.1" }
+tg-easy-fs = { path = "tg-easy-fs", version = "0.4.0-preview.1" }
+tg-signal-defs = { path = "tg-signal-defs", version = "0.4.0-preview.1" }
+tg-signal = { path = "tg-signal", version = "0.4.0-preview.1" }
+tg-signal-impl = { path = "tg-signal-impl", version = "0.4.0-preview.1" }
+tg-sync = { path = "tg-sync", version = "0.4.0-preview.1" }
+tg-sbi = { path = "tg-sbi", version = "0.4.0-preview.1" }

@@ -9,7 +9,10 @@ use user_lib::sched_yield;
 const WIDTH: usize = 10;
 const HEIGHT: usize = 5;
 
-#[no_mangle]
+// 教学目标：
+// 与 write_b/write_c 配合，验证 `sched_yield` 下的协作式调度与交错输出。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     for i in 0..HEIGHT {
         for _ in 0..WIDTH {

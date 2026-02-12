@@ -37,6 +37,43 @@ ch7/
     └── virtio_block.rs # VirtIO 块设备驱动
 ```
 
+<a id="source-nav"></a>
+
+## 源码阅读导航索引
+
+[返回根文档导航总表](../README.md#chapters-source-nav-map)
+
+本章建议按“统一 fd 抽象 -> 管道数据流 -> 信号状态机”三条线并行阅读。
+
+| 阅读顺序 | 文件 | 重点问题 |
+|---|---|---|
+| 1 | `src/fs.rs` | 为什么要用 `Fd` 枚举统一文件/管道/标准 I/O？ |
+| 2 | `src/main.rs` 的 `impls::IO` | `pipe`、`read`、`write` 如何共享同一套 fd_table 入口？ |
+| 3 | `src/process.rs` | 进程信号状态在 `from_elf`、`fork`、`exec` 中如何继承/重置？ |
+| 4 | `src/main.rs` Trap 主循环 | 为什么在 syscall 返回前处理信号，处理结果如何影响进程存活？ |
+| 5 | `src/main.rs` 的 `impls::Signal` | `kill/sigaction/sigprocmask/sigreturn` 的内核语义是什么？ |
+
+配套建议：结合 `tg-signal` / `tg-signal-impl` 注释阅读，重点关注 `handle_signals` 的决策流程。
+
+## DoD 验收标准（本章完成判据）
+
+- [ ] 能解释为什么要用统一 `Fd` 枚举承载“文件/管道/标准IO”
+- [ ] 能从代码说明 `pipe` 建立后父子进程如何通过读写端通信
+- [ ] 能说明信号的发送、注册、屏蔽、返回四个关键 syscall 语义
+- [ ] 能解释“syscall 返回前检查信号”对进程退出路径的影响
+- [ ] 能执行 `./test.sh base` 并通过本章基础测试
+
+## 概念-源码-测试三联表
+
+| 核心概念 | 源码入口 | 自测方式（命令/现象） |
+|---|---|---|
+| 统一 fd 抽象 | `ch7/src/fs.rs` 的 `Fd` 枚举 | 同一 `read/write` 入口可操作文件与管道 |
+| 管道通信 | `ch7/src/main.rs` 的 `impls::IO::pipe` | 运行 `ch7b_pipetest` 可观察父子通信成功 |
+| 信号状态管理 | `ch7/src/process.rs` 的 `signal` 字段与 `fork` 继承 | 子进程信号处理配置符合预期 |
+| 信号 syscall | `ch7/src/main.rs` 的 `impls::Signal` | `kill/sigaction/sigprocmask/sigreturn` 行为正确 |
+
+遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
 ## 一、环境准备
 
 ### 1.1 安装 Rust 工具链

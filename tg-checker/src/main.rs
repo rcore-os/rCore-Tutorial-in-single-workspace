@@ -29,7 +29,7 @@ struct Args {
 fn main() -> ExitCode {
     let args = Args::parse();
 
-    // List all available tests
+    // 1) 列出可用测试用例
     if args.list {
         println!("Available tests:");
         for (ch, exercise, desc) in cases::list_available_tests() {
@@ -39,7 +39,7 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    // Check that chapter is provided
+    // 2) 校验参数并确定章节
     let chapter = match args.ch {
         Some(ch) => ch,
         None => {
@@ -49,7 +49,7 @@ fn main() -> ExitCode {
         }
     };
 
-    // Get test case
+    // 3) 根据章节与模式选择测试模板
     let test_case = match cases::get_test_case(chapter, args.exercise) {
         Some(tc) => tc,
         None => {
@@ -60,14 +60,14 @@ fn main() -> ExitCode {
         }
     };
 
-    // Read program output from stdin
+    // 4) 从 stdin 读取被测程序输出（通常来自 qemu 输出重定向）
     let mut output = String::new();
     if let Err(e) = io::stdin().read_to_string(&mut output) {
         eprintln!("Error reading from stdin: {}", e);
         return ExitCode::FAILURE;
     }
 
-    // Print test info
+    // 5) 输出测试元信息
     let mode = if args.exercise { "exercise" } else { "base" };
     println!("========== Testing ch{} {} ==========", chapter, mode);
     println!(
@@ -77,10 +77,10 @@ fn main() -> ExitCode {
     );
     println!();
 
-    // Run checks
+    // 6) 执行正则检测
     let result = checker::check(&output, &test_case);
 
-    // Print result
+    // 7) 输出检测结果
     checker::print_result(&result, args.verbose);
 
     // Return exit code

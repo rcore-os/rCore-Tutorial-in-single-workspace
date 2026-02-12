@@ -6,7 +6,10 @@ extern crate user_lib;
 
 use user_lib::{get_time, sleep};
 
-#[no_mangle]
+// 教学目标：
+// 使用封装好的 `sleep` 接口验证“睡眠前后时间差”是否合理。
+
+#[unsafe(no_mangle)]
 extern "C" fn main() -> i32 {
     let start = get_time();
     println!("current time_msec = {}", start);

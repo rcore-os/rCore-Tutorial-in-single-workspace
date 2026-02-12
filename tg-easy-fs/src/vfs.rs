@@ -64,6 +64,7 @@ impl Inode {
 
     /// Find inode under current inode by name
     pub fn find(&self, name: &str) -> Option<Arc<Inode>> {
+        // 目录查找流程：目录 inode -> 遍历 dirent -> 定位子 inode 的磁盘位置。
         let fs = self.fs.lock();
         self.read_disk_inode(|disk_inode| {
             self.find_inode_id(name, disk_inode).map(|inode_id| {
@@ -88,6 +89,7 @@ impl Inode {
         if new_size < disk_inode.size {
             return;
         }
+        // 先按“新增块数”批量申请数据块，再一次性扩容 inode。
         let blocks_needed = disk_inode.blocks_num_needed(new_size);
         let mut v: Vec<u32> = Vec::new();
         for _ in 0..blocks_needed {
@@ -100,16 +102,16 @@ impl Inode {
     /// Attention: use find previously to ensure the new file not existing.
     pub fn create(&self, name: &str) -> Option<Arc<Inode>> {
         let mut fs = self.fs.lock();
-        // create a new file
-        // alloc a inode with an indirect block
+        // 1) 分配新 inode
         let new_inode_id = fs.alloc_inode();
-        // initialize inode
+        // 2) 初始化 inode 元数据
         let (new_inode_block_id, new_inode_block_offset) = fs.get_disk_inode_pos(new_inode_id);
         get_block_cache(new_inode_block_id as usize, Arc::clone(&self.block_device))
             .lock()
             .modify(new_inode_block_offset, |new_inode: &mut DiskInode| {
                 new_inode.initialize(DiskInodeType::File);
             });
+        // 3) 在当前目录追加 dirent 项
         self.modify_disk_inode(|root_inode| {
             // append file in the dirent
             let file_count = (root_inode.size as usize) / DIRENT_SZ;
@@ -127,7 +129,7 @@ impl Inode {
 
         let (block_id, block_offset) = fs.get_disk_inode_pos(new_inode_id);
         block_cache_sync_all();
-        // return inode
+        // 4) 返回新文件的 Inode 句柄
         Some(Arc::new(Self::new(
             block_id,
             block_offset,
