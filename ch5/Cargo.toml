@@ -1,7 +1,7 @@
 [package]
 name = "tg-ch5"
 description = "Chapter 5 of rCore Tutorial: Process management with fork, exec and wait syscalls."
-version = "0.4.1-preview.1"
+version = "0.4.2-preview.1"
 edition = "2024"
 authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -30,16 +30,16 @@ xmas-elf = "0.8.0"
 riscv = "0.10.1"
 spin = "0.9"
 
-tg-sbi = { version = "0.4.1-preview.1", features = ["nobios"] }
-tg-linker = { version = "0.4.1-preview.1" }
-tg-console = { version = "0.4.1-preview.1" }
-tg-kernel-context = { version = "0.4.1-preview.1", features = ["foreign"] }
-tg-kernel-alloc = { version = "0.4.1-preview.1" }
-tg-kernel-vm = { version = "0.4.1-preview.1" }
-tg-syscall = { version = "0.4.1-preview.1", features = ["kernel"] }
-tg-task-manage = { version = "0.4.1-preview.1", features = ["proc"] }
+tg-sbi = { version = "0.4.2-preview.1", features = ["nobios"] }
+tg-linker = { version = "0.4.2-preview.1" }
+tg-console = { version = "0.4.2-preview.1" }
+tg-kernel-context = { version = "0.4.2-preview.1", features = ["foreign"] }
+tg-kernel-alloc = { version = "0.4.2-preview.1" }
+tg-kernel-vm = { version = "0.4.2-preview.1" }
+tg-syscall = { version = "0.4.2-preview.1", features = ["kernel"] }
+tg-task-manage = { version = "0.4.2-preview.1", features = ["proc"] }
 
 [build-dependencies]
-tg-linker = { version = "0.4.1-preview.1" }
+tg-linker = { version = "0.4.2-preview.1" }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
