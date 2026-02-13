@@ -1,5 +1,5 @@
 {
-  "name": "rCore-Tutorial-in-single-workspace",
+  "name": "tg-rcore-tutorial",
   "image": "docker.cnb.cool/learningos/rcore-single",
 
   "customizations": {

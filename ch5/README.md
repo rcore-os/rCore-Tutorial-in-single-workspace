@@ -134,8 +134,8 @@ cd tg-ch5
 **方式二：获取所有实验**
 
 ```bash
-git clone https://github.com/rcore-os/rCore-Tutorial-in-single-workspace.git
-cd rCore-Tutorial-in-single-workspace/ch5
+git clone https://github.com/rcore-os/tg-rcore-tutorial.git
+cd tg-rcore-tutorial/ch5
 ```
 
 ## 二、编译与运行

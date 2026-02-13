@@ -1,6 +1,6 @@
-# rCore-Tutorial-in-single-workspace（组件化教学版）
+# TanGram-rCore-Tutorial
 
-面向操作系统课程教学与自学的组件化 rCore Tutorial 操作系统内核实验仓库。  
+面向操作系统课程教学与自学的组件化 Tangram rCore Tutorial 操作系统内核实验仓库。  
 仓库同时包含：
 
 - `ch1~ch8`：8 个渐进章节（每章是一个可独立运行的内核 crate + 指导文档）
@@ -25,8 +25,8 @@
 
 #### 方式 A：直接获取完整实验仓库（推荐）
 ```bash
-git clone https://github.com/rcore-os/rCore-Tutorial-in-single-workspace.git
-cd rCore-Tutorial-in-single-workspace
+git clone https://github.com/rcore-os/tg-rcore-tutorial.git
+cd tg-rcore-tutorial
 ```
 
 #### 方式 B：通过 crates.io 集合包获取（方案2：内嵌压缩包）
@@ -40,7 +40,7 @@ cargo install cargo-clone
 cargo clone tg-rcore-tutorial@0.4.2-preview.2
 cd tg-rcore-tutorial
 bash scripts/extract_workspace.sh
-cd workspace-full/rCore-Tutorial-in-single-workspace
+cd workspace-full/tg-rcore-tutorial
 ```
 
 解包后将得到完整教学目录（包含 `ch1~ch8`、`tg-*`、`tg-user`、`tg-checker`）。

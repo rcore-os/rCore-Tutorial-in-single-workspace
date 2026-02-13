@@ -126,8 +126,8 @@ cd tg-ch1
 获取所有8个实验和所依赖的tg-* crates.
 **方式二**
 ```bash
-git clone https://github.com/rcore-os/rCore-Tutorial-in-single-workspace.git
-cd rCore-Tutorial-in-single-workspace/ch1
+git clone https://github.com/rcore-os/tg-rcore-tutorial.git
+cd tg-rcore-tutorial/ch1
 ```
 
 ## 二、编译与运行
