@@ -13,6 +13,13 @@
 
 ## 1. 先看这段：如何开始
 
+### 1.0 基于Web IDE方式的快速试用
+不需要配置开发运行环境，只需有一个能上网的浏览器即可。
+ - [教程国内网址](https://cnb.cool/LearningOS/tg-rcore-tutorial/-/tree/test)
+   - 阅读[豆包提供的基于 cnb.cool  Web IDE 实践 tg-rcore-tutorial 简易指导书](https://www.doubao.com/thread/w8e8e758a5785b585)并按其提示操作
+ - [教程国外网址](https://github.com/LearningOS/tg-rcore-tutorial/tree/test)
+   - 阅读[豆包提供的基于 github 的codespaces Web IDE 实践 tg-rcore-tutorial 简易指导书](https://www.doubao.com/thread/w08032b33b2fa72e9)并按其提示操作
+
 ### 1.1 环境要求
 
 - Rust toolchain：本仓库使用 `stable`（见 `rust-toolchain.toml`）
