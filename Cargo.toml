@@ -1,7 +1,7 @@
 [package]
 name = "tg-rcore-tutorial"
 description = "Componentized rCore tutorial workspace bundle for OS teaching experiments."
-version = "0.4.2-preview.1"
+version = "0.4.2-preview.2"
 edition = "2024"
 repository = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
 homepage = "https://github.com/rcore-os/rCore-Tutorial-in-single-workspace"
@@ -16,16 +16,8 @@ include = [
     "LICENSE",
     ".gitignore",
     "src/**",
-    "ch1-lab/**",
-    "ch1/**",
-    "ch2/**",
-    "ch3/**",
-    "ch4/**",
-    "ch5/**",
-    "ch6/**",
-    "ch7/**",
-    "ch8/**",
-    "tg-*/**",
+    "bundle/rCore-Tutorial-in-single-workspace.tar.gz",
+    "scripts/extract_workspace.sh",
 ]
 
 [workspace]

@@ -23,12 +23,29 @@
 
 ### 1.2 获取代码
 
-#### 获取整个组件化 rCore Tutorial 操作系统内核实验仓库
+#### 方式 A：直接获取完整实验仓库（推荐）
 ```bash
 git clone https://github.com/rcore-os/rCore-Tutorial-in-single-workspace.git
 cd rCore-Tutorial-in-single-workspace
 ```
-#### 获取某个操作系统内核或内核功能组件
+
+#### 方式 B：通过 crates.io 集合包获取（方案2：内嵌压缩包）
+先安装 `cargo-clone`：
+```bash
+cargo install cargo-clone
+```
+
+再拉取集合包并一键解包完整工作区：
+```bash
+cargo clone tg-rcore-tutorial@0.4.2-preview.2
+cd tg-rcore-tutorial
+bash scripts/extract_workspace.sh
+cd workspace-full/rCore-Tutorial-in-single-workspace
+```
+
+解包后将得到完整教学目录（包含 `ch1~ch8`、`tg-*`、`tg-user`、`tg-checker`）。
+
+#### 获取某个操作系统内核或内核功能组件（单独 crate）
 ```bash
 cargo clone tg-ch3  #tg-chX 是发布到 crates.io上的组件化内核， X=1..8 代表8个内核 
 cd tg-ch3  # 进入 tg-ch1内核
