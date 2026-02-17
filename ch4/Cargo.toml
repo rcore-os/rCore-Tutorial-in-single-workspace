@@ -1,20 +1,43 @@
 [package]
-name = "ch4"
-version = "0.0.1"
-edition = "2021"
-authors = ["YdrMaster <ydrml@hotmail.com>"]
+name = "tg-ch4"
+description = "Chapter 4 of rCore Tutorial: Address space management with SV39 virtual memory."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial/tree/test"
+documentation = "https://docs.rs/tg-ch4"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "virtual-memory"]
+categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+#    ".cargo/config.toml",
+]
+
+[features]
+exercise = []
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
 
 [dependencies]
-sbi-rt = { version = "0.0.2", features = ["legacy"] }
 xmas-elf = "0.8.0"
 riscv = "0.10.1"
 
-linker = { path = "../linker" }
-rcore-console = { path = "../console" }
-kernel-context = { path = "../kernel-context", features = ["foreign"] }
-kernel-alloc = { path = "../kernel-alloc" }
-kernel-vm = { path = "../kernel-vm" }
-syscall = { path = "../syscall", features = ["kernel"] }
+tg-sbi = { version = "0.4.2-preview.1", features = ["nobios"] }
+tg-linker = { version = "0.4.2-preview.1" }
+tg-console = { version = "0.4.2-preview.1" }
+tg-kernel-context = { version = "0.4.2-preview.1", features = ["foreign"] }
+tg-kernel-alloc = { version = "0.4.2-preview.1" }
+tg-kernel-vm = { version = "0.4.2-preview.1" }
+tg-syscall = { version = "0.4.2-preview.1", features = ["kernel"] }
 
 [build-dependencies]
-linker = { path = "../linker" }
+tg-linker = { version = "0.4.2-preview.1" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"

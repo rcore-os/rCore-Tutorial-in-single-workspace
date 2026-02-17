@@ -1,0 +1,17 @@
+[package]
+name = "tg-task-manage"
+description = "Task and process management for rCore tutorial OS, including scheduling and relationships."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["zflcs <zhaofangliang@foxmail.com>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial"
+documentation = "https://docs.rs/tg-task-manage"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "task", "scheduler", "riscv"]
+categories = ["no-std", "embedded"]
+
+[features]
+proc = []
+thread = []

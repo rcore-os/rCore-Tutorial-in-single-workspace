@@ -1,27 +1,51 @@
 [package]
-name = "ch8"
-version = "0.0.1"
-edition = "2021"
-authors = ["zflcs <1491657576@qq.com>"]
+name = "tg-ch8"
+description = "Chapter 8 of rCore Tutorial: Concurrency with threads, mutex, semaphore and condvar."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>", "Yifan Wang <w-yf22@mails.tsinghua.edu.cn>", "Yu Chen <yuchen@tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial/tree/test"
+documentation = "https://docs.rs/tg-ch8"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "concurrency"]
+categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+#    ".cargo/config.toml",
+]
+
+[features]
+exercise = []
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
 
 [dependencies]
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "4ee80e5" }
-sbi-rt = { version = "0.0.2", features = ["legacy"] }
+virtio-drivers = "0.1.0"
 xmas-elf = "0.8.0"
 riscv = "0.10.1"
 spin = "0.9"
 
-linker = { path = "../linker" }
-rcore-console = { path = "../console" }
-kernel-context = { path = "../kernel-context", features = ["foreign"] }
-kernel-alloc = { path = "../kernel-alloc" }
-kernel-vm = { path = "../kernel-vm" }
-syscall = { path = "../syscall", features = ["kernel"] }
-rcore-task-manage = { path = "../task-manage", features = ["thread"] }
-easy-fs = { path = "../easy-fs" }
-signal = { path = "../signal" }
-signal-impl = { path = "../signal-impl" }
-sync = { path = "../sync" }
+tg-sbi = { version = "0.4.2-preview.1", features = ["nobios"] }
+tg-linker = { version = "0.4.2-preview.1" }
+tg-console = { version = "0.4.2-preview.1" }
+tg-kernel-context = { version = "0.4.2-preview.1", features = ["foreign"] }
+tg-kernel-alloc = { version = "0.4.2-preview.1" }
+tg-kernel-vm = { version = "0.4.2-preview.1" }
+tg-syscall = { version = "0.4.2-preview.1", features = ["kernel"] }
+tg-task-manage = { version = "0.4.2-preview.1", features = ["thread"] }
+tg-easy-fs = { version = "0.4.2-preview.1" }
+tg-signal = { version = "0.4.2-preview.1" }
+tg-signal-impl = { version = "0.4.2-preview.1" }
+tg-sync = { version = "0.4.2-preview.1" }
 
 [build-dependencies]
-linker = { path = "../linker" }
+tg-linker = { version = "0.4.2-preview.1" }
+tg-easy-fs = { version = "0.4.2-preview.1" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"

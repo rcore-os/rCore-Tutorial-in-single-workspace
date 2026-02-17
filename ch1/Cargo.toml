@@ -1,8 +1,22 @@
 [package]
-name = "ch1"
-version = "0.0.1"
-edition = "2021"
-authors = ["YdrMaster <ydrml@hotmail.com>"]
+name = "tg-ch1"
+description = "Chapter 1 of rCore Tutorial: A minimal bare-metal application running in RISC-V S-mode."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial/tree/test"
+documentation = "https://docs.rs/tg-ch1"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "bare-metal"]
+categories = ["no-std", "embedded"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
 
 [dependencies]
-sbi-rt = { version = "0.0.2", features = ["legacy"] }
+tg-sbi = { version = "0.4.2-preview.1", features = ["nobios"] }

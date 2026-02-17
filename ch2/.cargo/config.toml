@@ -1,0 +1,16 @@
+# 默认编译目标：RISC-V 64 位裸机平台
+# 使 cargo build 自动进行交叉编译，无需每次指定 --target
+[build]
+target = "riscv64gc-unknown-none-elf"
+
+# QEMU 运行器配置
+# cargo run 时自动调用此命令执行编译产物
+# 等价于：qemu-system-riscv64 -machine virt -nographic -bios none -kernel <编译产物>
+[target.riscv64gc-unknown-none-elf]
+runner = [
+    "qemu-system-riscv64",
+    "-machine", "virt",       # 使用 QEMU virt 虚拟平台
+    "-nographic",             # 无图形界面，输出重定向到终端
+    "-bios", "none",          # 不加载外部 BIOS/SBI 固件（tg-sbi 内建）
+    "-kernel",                # 后接 ELF 可执行文件路径（由 cargo 自动填充）
+]

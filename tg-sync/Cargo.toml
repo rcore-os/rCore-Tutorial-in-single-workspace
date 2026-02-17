@@ -1,0 +1,18 @@
+[package]
+name = "tg-sync"
+description = "Synchronization primitives for rCore tutorial OS, including mutex, semaphore, and condvar."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["zflcs <zhaofangliang@foxmail.com>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial"
+documentation = "https://docs.rs/tg-sync"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "sync", "mutex", "riscv"]
+categories = ["no-std", "embedded", "concurrency"]
+
+[dependencies]
+riscv = "0.10"
+spin = "0.9"
+tg-task-manage = { path = "../tg-task-manage", version = "0.4.2-preview.1" }

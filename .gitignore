@@ -2,8 +2,10 @@
 !**/.cargo/*
 !/.github/*
 !/.vscode/settings.json
+!/.devcontainer/devcontainer.json
 
-/target
+target
 *.asm
 *.bin
-!/rustsbi-qemu.bin
+rustsbi-qemu.bin
+Cargo.lock

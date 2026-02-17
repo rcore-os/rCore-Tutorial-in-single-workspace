@@ -1,0 +1,169 @@
+Prompt
+===========
+给出一条linux的命令，可以把当前目录下所有的Cargo.toml中的 包含 version的行的内容显示出来
+
+
+Result
+===========
+grep -r "version" --include="Cargo.toml" ./
+
+
+Prompt
+===========
+给出一条linux的命令，可以把当前目录下的所有ch*目录下的tg-user目录删除掉
+
+Result
+===========
+1. 先预览待删除的目录（强烈推荐）
+在执行删除前，先确认要删除的目录列表，避免误删：
+find . -type d -path "./ch*/tg-user"
+
+2. 执行删除操作
+确认列表无误后，执行以下命令删除这些tg-user目录：
+find . -type d -path "./ch*/tg-user" -exec rm -rf {} +
+
+进阶：限制匹配深度（可选）
+如果只想匹配当前目录下直接的ch*目录（而非深层级的ch*目录）中的tg-user，可添加-maxdepth参数：
+# 只匹配 ./chxxx/tg-user（深度≤3），不匹配 ./a/chxxx/tg-user
+find . -maxdepth 3 -type d -path "./ch*/tg-user" -exec rm -rf {} +
+
+Prompt
+===========
+给出一条linux的命令，可以把当前目录下所有的Cargo.toml中的 包含 license 的行的内容替换为 license = "GPL-3.0"
+
+Result
+===========
+1. 先预览待替换的行（强烈推荐）
+执行替换前，先确认要修改的行，避免误操作：
+grep -Hn "license" --include="Cargo.toml" ./
+
+2. 执行替换命令（修改文件）
+确认预览结果无误后，执行以下核心命令完成替换
+find . -type f -name "Cargo.toml" -exec sed -i 's/.*license.*/license = "GPL-3.0"/g' {} +
+
+可选：带备份的替换（更安全）
+------
+若担心误改，可让sed生成备份文件（后缀.bak），替换后验证无误再删除备份：
+# 替换后生成 Cargo.toml.bak 备份
+find . -type f -name "Cargo.toml" -exec sed -i.bak 's/.*license.*/license = "GPL-3.0"/g' {} +
+
+# 验证无误后删除备份
+find . -type f -name "Cargo.toml.bak" -exec rm -f {} +
+
+注意事项
+--------
+替换规则.*license.*会匹配所有包含 license 的行（包括注释行、自定义命名的 license 行），若只想替换标准的license = "xxx"行，可改用更精准的正则：
+# 仅替换以license开头、等号赋值的行（更精准）
+find . -type f -name "Cargo.toml" -exec sed -i 's/^license\s*=.*/license = "GPL-3.0"/g' {} +
+
+rm -rf/sed -i均为不可逆操作，务必先预览再执行。
+
+
+Prompt
+===========
+给出一条linux的命令，可以把当前目录下所有的Cargo.toml中的 包含 version = "0.4.1-preview.1" 这个字符串的行中的这个字符串 替换为 version = "0.4.2-preview.1"
+
+Result
+===========
+1. 先预览待替换的行（强烈推荐）
+执行替换前，先确认所有匹配的行，避免误操作：
+grep -r "version = \"0.4.1-preview.1\"" --include="Cargo.toml" ./
+
+2. 执行精准替换命令
+确认预览结果无误后，执行以下核心命令完成替换：
+find . -type f -name "Cargo.toml" -exec sed -i 's/version = "0.4.1-preview.1"/version = "0.4.2-preview.1"/g' {} +
+
+可选：带备份的替换（更安全）
+若担心误改，可让sed生成.bak后缀的备份文件，替换后验证无误再删除备份：
+# 替换并生成备份
+find . -type f -name "Cargo.toml" -exec sed -i.bak 's/version = "0.4.1-preview.1"/version = "0.4.2-preview.1"/g' {} +
+# 验证无误后删除备份
+find . -type f -name "Cargo.toml.bak" -exec rm -f {} +
+
+Prompt
+===========
+写一条命令，查找当前目录下所有的tg-开头的目录
+
+Result
+===========
+find . -type d -name "tg-*"
+
+
+Prompt
+===========
+给出一条linux的命令，可以把当前目录下所有的Cargo.toml中的 包含 version = "0.4.1-preview.1" 这个字符串的行中的这个字符串 替换为 version = "0.4.2-preview.1"
+
+Result
+============
+
+
+
+Prompt
+===========
+给出一条linux 脚本，在当前目录下的让如下给出的子目录顺序列表，顺序进入各个子目录，执行一条命令 “ cargo publish --dry-run --allow-dirty && cargo publish --allow-dirty ”。
+子目录顺序列表：
+===============
+tg-sbi
+tg-console
+tg-linker
+tg-kernel-context
+tg-kernel-alloc
+tg-kernel-vm
+tg-easy-fs
+tg-signal-defs
+tg-task-manage
+tg-syscall
+tg-signal
+tg-signal-impl
+tg-sync
+tg-user
+tg-checker
+ch1
+ch1-lab
+ch2
+ch3
+ch4
+ch5
+ch6
+ch7
+ch8
+
+Result
+=============
+publish_all.sh
+
+
+
+Prompt
+=============
+给出一条linux 脚本 clean_all.sh ，在当前目录下的让如下给出的子目录顺序列表，顺序进入各个子目录，执行命令  cargo clean  ， 然后在当前目录下执行 cargo clean， 然后依次在 ch2~ch8 目录下，执行 rm -rf tg-user 。
+子目录顺序列表：
+===============
+tg-sbi
+tg-console
+tg-linker
+tg-kernel-context
+tg-kernel-alloc
+tg-kernel-vm
+tg-easy-fs
+tg-signal-defs
+tg-task-manage
+tg-syscall
+tg-signal
+tg-signal-impl
+tg-sync
+tg-user
+tg-checker
+ch1
+ch1-lab
+ch2
+ch3
+ch4
+ch5
+ch6
+ch7
+ch8
+
+Result
+=============
+clean_all.sh

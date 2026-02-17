@@ -1,0 +1,18 @@
+[package]
+name = "tg-kernel-alloc"
+description = "Kernel memory allocator for rCore tutorial OS using buddy allocation."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial"
+documentation = "https://docs.rs/tg-kernel-alloc"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "kernel", "allocator", "riscv"]
+categories = ["no-std", "embedded", "memory-management"]
+
+[dependencies]
+log = "0.4"
+customizable-buddy = "0.0.3"
+page-table = "0.0.6"

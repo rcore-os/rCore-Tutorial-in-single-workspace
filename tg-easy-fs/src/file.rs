@@ -1,0 +1,206 @@
+use core::cell::Cell;
+
+use crate::Inode;
+use alloc::string::String;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use bitflags::*;
+
+// 教程阅读建议：
+// - 先看 `UserBuffer`：理解“跨页用户缓冲区”在内核中的统一抽象；
+// - 再看 `FileHandle`：理解 inode + offset + 读写权限如何组成最小文件描述符语义。
+
+/// Array of u8 slice that user communicate with os
+pub struct UserBuffer {
+    /// U8 vec
+    pub buffers: Vec<&'static mut [u8]>,
+}
+
+impl UserBuffer {
+    /// Create a `UserBuffer` by parameter
+    pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
+        Self { buffers }
+    }
+    /// 获取 `UserBuffer` 的总长度。
+    pub fn len(&self) -> usize {
+        let mut total: usize = 0;
+        for b in self.buffers.iter() {
+            total += b.len();
+        }
+        total
+    }
+
+    /// 检查 `UserBuffer` 是否为空。
+    pub fn is_empty(&self) -> bool {
+        self.buffers.is_empty()
+    }
+}
+
+impl IntoIterator for UserBuffer {
+    type Item = *mut u8;
+    type IntoIter = UserBufferIterator;
+    fn into_iter(self) -> Self::IntoIter {
+        // 将“分段缓冲区”拍平为字节指针迭代器，便于 pipe/file 统一按字节处理。
+        UserBufferIterator {
+            buffers: self.buffers,
+            current_buffer: 0,
+            current_idx: 0,
+        }
+    }
+}
+
+/// 用户缓冲区迭代器
+pub struct UserBufferIterator {
+    buffers: Vec<&'static mut [u8]>,
+    current_buffer: usize,
+    current_idx: usize,
+}
+
+impl Iterator for UserBufferIterator {
+    type Item = *mut u8;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_buffer >= self.buffers.len() {
+            None
+        } else {
+            // 依次遍历每个分片，读完当前分片后自动切到下一个分片。
+            let r = &mut self.buffers[self.current_buffer][self.current_idx] as *mut _;
+            if self.current_idx + 1 == self.buffers[self.current_buffer].len() {
+                self.current_idx = 0;
+                self.current_buffer += 1;
+            } else {
+                self.current_idx += 1;
+            }
+            Some(r)
+        }
+    }
+}
+
+bitflags! {
+  /// Open file flags
+  pub struct OpenFlags: u32 {
+      /// Read only
+      const RDONLY = 0;
+      /// Write only
+      const WRONLY = 1 << 0;
+      /// Read & Write
+      const RDWR = 1 << 1;
+      /// Allow create
+      const CREATE = 1 << 9;
+      /// Clear file and return an empty one
+      const TRUNC = 1 << 10;
+  }
+}
+
+impl OpenFlags {
+    /// Do not check validity for simplicity
+    /// Return (readable, writable)
+    pub fn read_write(&self) -> (bool, bool) {
+        // 与课程内核约定保持一致：RDONLY(0) -> 只读；WRONLY -> 只写；其他组合按读写处理。
+        if self.is_empty() {
+            (true, false)
+        } else if self.contains(Self::WRONLY) {
+            (false, true)
+        } else {
+            (true, true)
+        }
+    }
+}
+
+/// Cached file metadata in memory
+#[derive(Clone)]
+pub struct FileHandle {
+    /// FileSystem Inode
+    pub inode: Option<Arc<Inode>>,
+    /// Open options: able to read
+    pub read: bool,
+    /// Open options: able to write
+    pub write: bool,
+    /// Current offset
+    pub offset: Cell<usize>,
+}
+
+impl FileHandle {
+    /// 创建一个新的文件句柄。
+    pub fn new(read: bool, write: bool, inode: Arc<Inode>) -> Self {
+        Self {
+            inode: Some(inode),
+            read,
+            write,
+            offset: Cell::new(0),
+        }
+    }
+
+    /// 创建一个空的文件句柄（无 inode）。
+    pub fn empty(read: bool, write: bool) -> Self {
+        Self {
+            inode: None,
+            read,
+            write,
+            offset: Cell::new(0),
+        }
+    }
+
+    /// 是否可读。
+    pub fn readable(&self) -> bool {
+        self.read
+    }
+
+    /// 是否可写。
+    pub fn writable(&self) -> bool {
+        self.write
+    }
+
+    /// 从文件读取数据到用户缓冲区。
+    pub fn read(&self, mut buf: UserBuffer) -> isize {
+        let mut total_read_size: usize = 0;
+        if let Some(inode) = &self.inode {
+            // 按分片循环读取，并维护文件偏移 offset。
+            for slice in buf.buffers.iter_mut() {
+                let read_size = inode.read_at(self.offset.get(), slice);
+                if read_size == 0 {
+                    break;
+                }
+                self.offset.set(self.offset.get() + read_size);
+                total_read_size += read_size;
+            }
+            total_read_size as _
+        } else {
+            -1
+        }
+    }
+
+    /// 将用户缓冲区数据写入文件。
+    pub fn write(&self, buf: UserBuffer) -> isize {
+        let mut total_write_size: usize = 0;
+        if let Some(inode) = &self.inode {
+            // 连续写入每个分片，偏移随写入量前移。
+            for slice in buf.buffers.iter() {
+                let write_size = inode.write_at(self.offset.get(), slice);
+                assert_eq!(write_size, slice.len());
+                self.offset.set(self.offset.get() + write_size);
+                total_write_size += write_size;
+            }
+            total_write_size as _
+        } else {
+            -1
+        }
+    }
+}
+
+/// 文件系统管理器 trait。
+pub trait FSManager {
+    /// 打开文件。
+    fn open(&self, path: &str, flags: OpenFlags) -> Option<Arc<FileHandle>>;
+
+    /// 查找文件。
+    fn find(&self, path: &str) -> Option<Arc<Inode>>;
+
+    /// 创建硬链接。
+    fn link(&self, src: &str, dst: &str) -> isize;
+
+    /// 删除硬链接。
+    fn unlink(&self, path: &str) -> isize;
+
+    /// 列出目录内容。
+    fn readdir(&self, path: &str) -> Option<Vec<String>>;
+}

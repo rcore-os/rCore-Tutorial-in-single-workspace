@@ -1,0 +1,18 @@
+[package]
+name = "tg-linker"
+description = "Linker script generation utilities for rCore tutorial OS kernel."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial"
+documentation = "https://docs.rs/tg-linker"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "linker", "no-std", "riscv"]
+categories = ["no-std", "embedded"]
+
+[package.metadata.docs.rs]
+targets = ["riscv64gc-unknown-none-elf"]
+
+[dependencies]

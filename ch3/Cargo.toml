@@ -1,20 +1,41 @@
 [package]
-name = "ch3"
-version = "0.0.1"
-edition = "2021"
-authors = ["YdrMaster <ydrml@hotmail.com>"]
-
-[dependencies]
-sbi-rt = { version = "0.0.2", features = ["legacy"] }
-riscv = "0.10.1"
-
-linker = { path = "../linker" }
-rcore-console = { path = "../console" }
-kernel-context = { path = "../kernel-context" }
-syscall = { path = "../syscall", features = ["kernel"] }
-
-[build-dependencies]
-linker = { path = "../linker" }
+name = "tg-ch3"
+description = "Chapter 3 of rCore Tutorial: Multiprogramming and time-sharing multitasking."
+version = "0.4.2-preview.1"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial/tree/test"
+documentation = "https://docs.rs/tg-ch3"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "multitasking"]
+categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+#    ".cargo/config.toml",
+]
 
 [features]
 coop = []
+exercise = []
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+riscv = "0.10.1"
+
+tg-sbi = { version = "0.4.2-preview.1", features = ["nobios"] }
+tg-linker = { version = "0.4.2-preview.1" }
+tg-console = { version = "0.4.2-preview.1" }
+tg-kernel-context = { version = "0.4.2-preview.1" }
+tg-syscall = { version = "0.4.2-preview.1", features = ["kernel"] }
+
+[build-dependencies]
+tg-linker = { version = "0.4.2-preview.1" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
