@@ -195,7 +195,9 @@ qemu-system-riscv64 \
 Hello, world from user mode program!
 Test power OK!
 ...
-Test sbrk OK!
+Test sbrk almost OK!
+now write to deallocated page, should cause page fault.
+...
 ```
 
 与前几章不同，你会看到：
