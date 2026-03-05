@@ -1,92 +1,92 @@
 [submodule "tg-rcore-tutorial-user"]
 	path = tg-rcore-tutorial-user
-	url = git@github.com:rcore-os/tg-rcore-tutorial-user.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-user.git
 	branch = test
 [submodule "tg-rcore-tutorial-task-manage"]
 	path = tg-rcore-tutorial-task-manage
-	url = git@github.com:rcore-os/tg-rcore-tutorial-task-manage.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-task-manage.git
 	branch = test
 [submodule "tg-rcore-tutorial-syscall"]
 	path = tg-rcore-tutorial-syscall
-	url = git@github.com:rcore-os/tg-rcore-tutorial-syscall.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-syscall.git
 	branch = test
 [submodule "tg-rcore-tutorial-sync"]
 	path = tg-rcore-tutorial-sync
-	url = git@github.com:rcore-os/tg-rcore-tutorial-sync.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-sync.git
 	branch = test
 [submodule "tg-rcore-tutorial-signal-impl"]
 	path = tg-rcore-tutorial-signal-impl
-	url = git@github.com:rcore-os/tg-rcore-tutorial-signal-impl.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-signal-impl.git
 	branch = test
 [submodule "tg-rcore-tutorial-signal-defs"]
 	path = tg-rcore-tutorial-signal-defs
-	url = git@github.com:rcore-os/tg-rcore-tutorial-signal-defs.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-signal-defs.git
 	branch = test
 [submodule "tg-rcore-tutorial-signal"]
 	path = tg-rcore-tutorial-signal
-	url = git@github.com:rcore-os/tg-rcore-tutorial-signal.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-signal.git
 	branch = test
 [submodule "tg-rcore-tutorial-sbi"]
 	path = tg-rcore-tutorial-sbi
-	url = git@github.com:rcore-os/tg-rcore-tutorial-sbi.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-sbi.git
 	branch = test
 [submodule "tg-rcore-tutorial-linker"]
 	path = tg-rcore-tutorial-linker
-	url = git@github.com:rcore-os/tg-rcore-tutorial-linker.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-linker.git
 	branch = test
 [submodule "tg-rcore-tutorial-kernel-vm"]
 	path = tg-rcore-tutorial-kernel-vm
-	url = git@github.com:rcore-os/tg-rcore-tutorial-kernel-vm.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-kernel-vm.git
 	branch = test
 [submodule "tg-rcore-tutorial-kernel-context"]
 	path = tg-rcore-tutorial-kernel-context
-	url = git@github.com:rcore-os/tg-rcore-tutorial-kernel-context.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-kernel-context.git
 	branch = test
 [submodule "tg-rcore-tutorial-kernel-alloc"]
 	path = tg-rcore-tutorial-kernel-alloc
-	url = git@github.com:rcore-os/tg-rcore-tutorial-kernel-alloc.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-kernel-alloc.git
 	branch = test
 [submodule "tg-rcore-tutorial-easy-fs"]
 	path = tg-rcore-tutorial-easy-fs
-	url = git@github.com:rcore-os/tg-rcore-tutorial-easy-fs.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-easy-fs.git
 	branch = test
 [submodule "tg-rcore-tutorial-checker"]
 	path = tg-rcore-tutorial-checker
-	url = git@github.com:rcore-os/tg-rcore-tutorial-checker.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-checker.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch8"]
 	path = tg-rcore-tutorial-ch8
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch8.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch8.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch7"]
 	path = tg-rcore-tutorial-ch7
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch7.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch7.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch6"]
 	path = tg-rcore-tutorial-ch6
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch6.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch6.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch5"]
 	path = tg-rcore-tutorial-ch5
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch5.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch5.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch4"]
 	path = tg-rcore-tutorial-ch4
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch4.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch4.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch3"]
 	path = tg-rcore-tutorial-ch3
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch3.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch3.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch2"]
 	path = tg-rcore-tutorial-ch2
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch2.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch2.git
 	branch = test
 [submodule "tg-rcore-tutorial-ch1"]
 	path = tg-rcore-tutorial-ch1
-	url = git@github.com:rcore-os/tg-rcore-tutorial-ch1.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-ch1.git
 	branch = test
 [submodule "tg-rcore-tutorial-console"]
 	path = tg-rcore-tutorial-console
-	url = git@github.com:rcore-os/tg-rcore-tutorial-console.git
+	url = https://github.com/rcore-os/tg-rcore-tutorial-console.git
 	branch = test
