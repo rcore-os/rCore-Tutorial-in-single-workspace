@@ -18,7 +18,7 @@ required=(
   "[LEC2-LAB1] kp=sbi_vs_syscall"
   "[LEC2-LAB1] kp=control_flow path=_start->rust_main->shutdown(false)"
   "[LEC2-LAB1] kp=panic_contract"
-  "[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_demangle"
+  "[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_line_params"
   "[BACKTRACE] #0 fp="
   "[BACKTRACE]   fn="
   "[BACKTRACE] #1 fp="
@@ -26,6 +26,8 @@ required=(
   "print_backtrace"
   "bt_depth"
   "rust_main"
+  "at src/main.rs:"
+  "at src/stackwalk.rs:"
   "[BACKTRACE] end=ra_null_bottom_of_chain"
 )
 

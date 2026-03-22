@@ -24,20 +24,12 @@
 // 非 RISC-V64 架构允许死代码（用于 cargo publish --dry-run 在主机上通过编译）
 #![cfg_attr(not(target_arch = "riscv64"), allow(dead_code))]
 
-#[cfg(all(target_arch = "riscv64", feature = "dwarf-symbols"))]
-core::arch::global_asm!(include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/asm/dwarf_ptrs.S"
-)));
-
 // 引入 SBI 调用库，提供 console_putchar（输出字符）和 shutdown（关机）功能
 // 启用 nobios 特性后，tg_sbi 内建了 M-mode 启动代码，无需外部 SBI 固件
 use tg_sbi::{console_putchar, shutdown};
 
 #[cfg(target_arch = "riscv64")]
 mod heap;
-#[cfg(all(target_arch = "riscv64", feature = "dwarf-symbols"))]
-mod dwarf;
 #[cfg(target_arch = "riscv64")]
 mod lec2_lab1;
 #[cfg(target_arch = "riscv64")]
@@ -46,22 +38,29 @@ mod stackwalk;
 mod symtab_resolve;
 
 /// 嵌套调用以形成多帧，便于 `stackwalk` 打印动态调用关系（教学演示）。
+/// 各层携带不同基本类型的参数，展示 backtrace 中的形参名显示能力。
 #[cfg(target_arch = "riscv64")]
 #[inline(never)]
-fn bt_depth3() {
+fn bt_depth3(msg: &str, flag: bool) {
+    // 防止参数被优化掉
+    core::hint::black_box(msg);
+    core::hint::black_box(flag);
     stackwalk::print_backtrace();
 }
 
 #[cfg(target_arch = "riscv64")]
 #[inline(never)]
-fn bt_depth2() {
-    bt_depth3();
+fn bt_depth2(count: u32, label: &str) {
+    core::hint::black_box(count);
+    bt_depth3(label, count > 0);
 }
 
 #[cfg(target_arch = "riscv64")]
 #[inline(never)]
-fn bt_depth1() {
-    bt_depth2();
+fn bt_depth1(id: usize, name: &str, value: i64) {
+    core::hint::black_box(id);
+    core::hint::black_box(value);
+    bt_depth2(id as u32, name);
 }
 
 /// S 态程序入口点。
@@ -103,8 +102,6 @@ extern "C" fn rust_main() -> ! {
     heap::init();
     #[cfg(target_arch = "riscv64")]
     symtab_resolve::init();
-    #[cfg(all(target_arch = "riscv64", feature = "dwarf-symbols"))]
-    dwarf::init();
 
     for c in b"Hello, world!\n" {
         console_putchar(*c);
@@ -112,7 +109,7 @@ extern "C" fn rust_main() -> ! {
     #[cfg(target_arch = "riscv64")]
     lec2_lab1::emit_all_observables();
     #[cfg(target_arch = "riscv64")]
-    bt_depth1();
+    bt_depth1(42, "hello_os", -1);
     shutdown(false) // false 表示正常关机
 }
 

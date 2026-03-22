@@ -79,14 +79,9 @@ fn read_frame_pointer() -> usize {
     fp
 }
 
-/// 打印当前线程从 `s0` 出发的调用栈；每帧带 demangled `fn=`，可选 DWARF `sym=`。
+/// 打印当前线程从 `s0` 出发的调用栈；每帧显示 `fn=name(params) at file:line`。
 pub fn print_backtrace() {
-    #[cfg(feature = "dwarf-symbols")]
-    put_bytes(
-        b"[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_demangle plus_addr2line_if_ready\n",
-    );
-    #[cfg(not(feature = "dwarf-symbols"))]
-    put_bytes(b"[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_demangle same_layout_as_axbacktrace\n");
+    put_bytes(b"[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_line_params\n");
 
     let mut fp = read_frame_pointer();
     let mut depth = 0usize;
@@ -123,15 +118,6 @@ pub fn print_backtrace() {
         put_bytes(b"\n");
 
         crate::symtab_resolve::print_fn_for_ra(frame.ip);
-
-        #[cfg(feature = "dwarf-symbols")]
-        {
-            if crate::dwarf::is_ready() {
-                crate::dwarf::print_location_for_ra(frame.ip);
-            } else {
-                put_bytes(b"[BACKTRACE]   sym=<dwarf_not_ready>\n");
-            }
-        }
 
         if let Some(limit) = fp.checked_add(8 * 1024 * 1024)
             && frame.fp >= limit

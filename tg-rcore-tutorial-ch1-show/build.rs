@@ -1,18 +1,16 @@
-//! 构建脚本：为 RISC-V64 目标自动生成链接脚本，并从上次构建产物的
-//! `.symtab` 中提取函数符号，嵌入为 `const` 数组供运行时栈回溯解析。
+//! 构建脚本：生成链接脚本，并从上一次构建产物中提取：
 //!
-//! 链接脚本控制程序各段在内存中的布局，确保：
-//! - M-mode 代码（tg-sbi）从 0x80000000 开始
-//! - S-mode 代码（_start 入口）从 0x80200000 开始
-//! - （可选）堆区 `__heap_start` / `__heap_end` 供 `#[global_allocator]`
-//! - （可选）`.debug_*` 收集进 PT_LOAD，供运行时 `addr2line` 读取
+//! 1. ELF `.symtab` 函数符号（地址 + mangled name）
+//! 2. DWARF 行号表（每条指令地址 → 源文件 + 行号）
+//! 3. 函数形参名（`DW_TAG_formal_parameter` / `DW_AT_name`）
+//!
+//! 结果嵌入为 `const` 数组，供运行时栈回溯逐帧显示
+//! `fn=name(params) at file:line`。
 
 fn main() {
     use std::{env, fs, path::PathBuf};
 
-    // 仅在交叉编译到 RISC-V64 时生成链接脚本
     if env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default() == "riscv64" {
-        // 供 `src/lec2_lab1.rs` 在串口打印固定布局锚点（与 README / lec2 幻灯对照）
         println!("cargo:rustc-env=LAB_M_BASE=0x80000000");
         println!("cargo:rustc-env=LAB_S_BASE=0x80200000");
         let triple = env::var("TARGET").unwrap_or_else(|_| "riscv64gc-unknown-none-elf".into());
@@ -21,39 +19,34 @@ fn main() {
         let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
         let ld = out_dir.join("linker.ld");
         fs::write(&ld, LINKER_SCRIPT).unwrap();
-        // 告诉 rustc 使用此链接脚本
         println!("cargo:rustc-link-arg=-T{}", ld.display());
 
-        // --- 从上一次构建产物中提取函数符号 ---
-        // OUT_DIR 通常为 target/<triple>/<profile>/build/<pkg>-<hash>/out
-        // 上溯 3 级得到 target/<triple>/<profile>/
+        // OUT_DIR ≈ target/<triple>/<profile>/build/<pkg>-<hash>/out
         let profile_dir = out_dir.ancestors().nth(3).unwrap().to_path_buf();
         let pkg_name = env::var("CARGO_PKG_NAME").unwrap();
         let prev_binary = profile_dir.join(&pkg_name);
 
-        // 当上次产物出现/变化时重新执行 build.rs（首次构建产物不存在→空表）
         println!("cargo:rerun-if-changed=build.rs");
         println!("cargo:rerun-if-changed={}", prev_binary.display());
 
-        let syms = extract_func_symbols(&prev_binary);
-        write_func_syms_rs(&syms, &out_dir.join("func_syms_generated.rs"));
+        let data = std::fs::read(&prev_binary).unwrap_or_default();
+        let syms = extract_func_symbols(&data);
+        let dwarf = extract_dwarf_info(&data);
+
+        write_generated_rs(
+            &syms,
+            &dwarf,
+            &out_dir.join("func_syms_generated.rs"),
+        );
     }
 }
 
-// ---------------------------------------------------------------------------
-// ELF64 symbol extraction (runs on build host, reads previous RISC-V binary)
-// ---------------------------------------------------------------------------
+// ===== ELF64 symbol extraction (raw byte parsing) =====
 
-/// Try to extract FUNC symbols from a previously built ELF64-LE binary.
-fn extract_func_symbols(path: &std::path::Path) -> Vec<(u64, u64, String)> {
-    let data = match std::fs::read(path) {
-        Ok(d) => d,
-        Err(_) => return Vec::new(),
-    };
+fn extract_func_symbols(data: &[u8]) -> Vec<(u64, u64, String)> {
     if data.len() < 64 || &data[0..4] != b"\x7fELF" || data[4] != 2 || data[5] != 1 {
         return Vec::new();
     }
-
     let u16le = |off: usize| u16::from_le_bytes(data[off..off + 2].try_into().unwrap());
     let u32le = |off: usize| u32::from_le_bytes(data[off..off + 4].try_into().unwrap());
     let u64le = |off: usize| u64::from_le_bytes(data[off..off + 8].try_into().unwrap());
@@ -61,7 +54,6 @@ fn extract_func_symbols(path: &std::path::Path) -> Vec<(u64, u64, String)> {
     let e_shoff = u64le(40) as usize;
     let e_shentsize = u16le(58) as usize;
     let e_shnum = u16le(60) as usize;
-
     if e_shoff == 0 || e_shnum == 0 || e_shentsize < 64 {
         return Vec::new();
     }
@@ -69,7 +61,6 @@ fn extract_func_symbols(path: &std::path::Path) -> Vec<(u64, u64, String)> {
         return Vec::new();
     }
 
-    // Find SHT_SYMTAB (type 2)
     let mut symtab_sh = None;
     for i in 0..e_shnum {
         let sh = e_shoff + i * e_shentsize;
@@ -82,7 +73,6 @@ fn extract_func_symbols(path: &std::path::Path) -> Vec<(u64, u64, String)> {
         Some(s) => s,
         None => return Vec::new(),
     };
-
     let sym_off = u64le(sh + 24) as usize;
     let sym_size = u64le(sh + 32) as usize;
     let sym_link = u32le(sh + 40) as usize;
@@ -90,24 +80,19 @@ fn extract_func_symbols(path: &std::path::Path) -> Vec<(u64, u64, String)> {
         let e = u64le(sh + 56) as usize;
         if e > 0 { e } else { 24 }
     };
-
     if sym_link >= e_shnum {
         return Vec::new();
     }
-
     let strtab_sh = e_shoff + sym_link * e_shentsize;
     let str_off = u64le(strtab_sh + 24) as usize;
     let str_size = u64le(strtab_sh + 32) as usize;
-
     if sym_off + sym_size > data.len() || str_off + str_size > data.len() {
         return Vec::new();
     }
-
     let sym_data = &data[sym_off..sym_off + sym_size];
     let str_data = &data[str_off..str_off + str_size];
     let n = sym_data.len() / sym_entsize;
     let mut result = Vec::new();
-
     for i in 0..n {
         let off = i * sym_entsize;
         if off + 24 > sym_data.len() {
@@ -117,14 +102,12 @@ fn extract_func_symbols(path: &std::path::Path) -> Vec<(u64, u64, String)> {
         let st_info = sym_data[off + 4];
         let st_value = u64::from_le_bytes(sym_data[off + 8..off + 16].try_into().unwrap());
         let st_size = u64::from_le_bytes(sym_data[off + 16..off + 24].try_into().unwrap());
-
         if (st_info & 0xf) != 2 {
-            continue; // not STT_FUNC
+            continue;
         }
         if st_name == 0 || st_value < 0x80200000 || st_value >= 0x81000000 {
             continue;
         }
-
         let name_start = st_name as usize;
         if name_start >= str_data.len() {
             continue;
@@ -138,40 +121,274 @@ fn extract_func_symbols(path: &std::path::Path) -> Vec<(u64, u64, String)> {
             Ok(s) if !s.is_empty() => s.to_string(),
             _ => continue,
         };
-
         result.push((st_value, st_size, name));
     }
-
     result.sort_by_key(|(addr, _, _)| *addr);
     result
 }
 
-/// Generate `func_syms_generated.rs` with a sorted const array of (addr, size, name).
-fn write_func_syms_rs(syms: &[(u64, u64, String)], out: &std::path::Path) {
-    use std::fmt::Write;
+// ===== DWARF line table + parameter extraction (via addr2line / gimli) =====
 
-    let mut content = String::with_capacity(syms.len() * 100 + 256);
-    writeln!(content, "// Auto-generated by build.rs — do not edit").unwrap();
-    writeln!(content, "// {count} function symbol(s) extracted from previous build", count = syms.len()).unwrap();
-    writeln!(content, "const FUNC_SYMS: &[(u64, u64, &str)] = &[").unwrap();
-    for (addr, size, name) in syms {
-        let escaped = name.replace('\\', "\\\\").replace('"', "\\\"");
-        writeln!(content, "    (0x{addr:x}, {size}, \"{escaped}\"),").unwrap();
+const TEXT_BASE: u64 = 0x80200000;
+const TEXT_LIMIT: u64 = 0x81000000;
+
+struct DwarfInfo {
+    line_table: Vec<(u32, u16, u32)>,
+    file_paths: Vec<String>,
+    func_params: std::collections::HashMap<u64, Vec<String>>,
+}
+
+fn extract_dwarf_info(data: &[u8]) -> DwarfInfo {
+    use addr2line::gimli;
+    use object::{Object, ObjectSection};
+
+    let empty = DwarfInfo {
+        line_table: Vec::new(),
+        file_paths: Vec::new(),
+        func_params: std::collections::HashMap::new(),
+    };
+    if data.len() < 64 {
+        return empty;
     }
-    writeln!(content, "];").unwrap();
 
-    // Only write when content actually changed to avoid unnecessary recompilation
-    let existing = std::fs::read_to_string(out).unwrap_or_default();
-    if content != existing {
-        std::fs::write(out, &content).unwrap();
+    let object = match object::File::parse(data) {
+        Ok(o) => o,
+        Err(_) => return empty,
+    };
+
+    let endian = if object.is_little_endian() {
+        gimli::RunTimeEndian::Little
+    } else {
+        gimli::RunTimeEndian::Big
+    };
+
+    let dwarf = match gimli::Dwarf::load(|id| -> Result<_, gimli::Error> {
+        let sec = object
+            .section_by_name(id.name())
+            .and_then(|s| s.data().ok())
+            .unwrap_or(&[]);
+        Ok(gimli::EndianSlice::new(sec, endian))
+    }) {
+        Ok(d) => d,
+        Err(_) => return empty,
+    };
+
+    // Extract function parameters first (borrows dwarf)
+    let func_params = extract_func_params(&dwarf);
+
+    // Create addr2line Context (takes ownership of dwarf)
+    let ctx = match addr2line::Context::from_dwarf(dwarf) {
+        Ok(c) => c,
+        Err(_) => {
+            return DwarfInfo {
+                func_params,
+                ..empty
+            }
+        }
+    };
+
+    // --- line table ---
+    let text_end = object
+        .section_by_name(".text")
+        .map(|s| s.address() + s.size())
+        .unwrap_or(TEXT_LIMIT)
+        .min(TEXT_LIMIT);
+
+    let mut line_entries: Vec<(u32, u16, u32)> = Vec::new();
+    let mut file_paths: Vec<String> = Vec::new();
+    let mut file_map = std::collections::HashMap::<String, u16>::new();
+    let mut prev_file_idx: u16 = u16::MAX;
+    let mut prev_line: u32 = u32::MAX;
+
+    let mut addr = TEXT_BASE;
+    while addr < text_end {
+        if let Ok(Some(loc)) = ctx.find_location(addr) {
+            let file = loc.file.unwrap_or("??");
+            let line = loc.line.unwrap_or(0);
+            if line != 0 {
+                let display_path = simplify_path(file);
+                let file_idx = *file_map.entry(display_path.clone()).or_insert_with(|| {
+                    let idx = file_paths.len() as u16;
+                    file_paths.push(display_path);
+                    idx
+                });
+                if file_idx != prev_file_idx || line != prev_line {
+                    let off = (addr - TEXT_BASE) as u32;
+                    line_entries.push((off, file_idx, line));
+                    prev_file_idx = file_idx;
+                    prev_line = line;
+                }
+            }
+        }
+        addr += 2;
+    }
+
+    DwarfInfo {
+        line_table: line_entries,
+        file_paths,
+        func_params,
     }
 }
 
-/// 链接脚本内容。
-///
-/// 不显式声明 `PHDRS`，由 `rust-lld` 自动合并 `PT_LOAD`。
-///
-/// 注意：链接脚本是字节字符串，不能包含非 ASCII 字符。
+fn extract_func_params(
+    dwarf: &addr2line::gimli::Dwarf<
+        addr2line::gimli::EndianSlice<'_, addr2line::gimli::RunTimeEndian>,
+    >,
+) -> std::collections::HashMap<u64, Vec<String>> {
+    use addr2line::gimli;
+
+    let mut result = std::collections::HashMap::new();
+
+    let mut units = dwarf.units();
+    while let Ok(Some(header)) = units.next() {
+        let unit = match dwarf.unit(header) {
+            Ok(u) => u,
+            Err(_) => continue,
+        };
+
+        let mut entries = unit.entries();
+        let mut current_func: Option<u64> = None;
+        let mut current_params: Vec<String> = Vec::new();
+        let mut depth: isize = 0;
+        let mut func_depth: isize = -1;
+
+        while let Ok(Some((delta, entry))) = entries.next_dfs() {
+            depth += delta;
+
+            if current_func.is_some() && depth <= func_depth {
+                if let Some(addr) = current_func.take() {
+                    if !current_params.is_empty() {
+                        result.insert(addr, std::mem::take(&mut current_params));
+                    }
+                }
+                func_depth = -1;
+            }
+
+            match entry.tag() {
+                gimli::DW_TAG_subprogram => {
+                    let addr = entry
+                        .attr_value(gimli::DW_AT_low_pc)
+                        .ok()
+                        .flatten()
+                        .and_then(|v| match v {
+                            gimli::AttributeValue::Addr(a) => Some(a),
+                            _ => None,
+                        });
+                    if let Some(a) = addr {
+                        if a >= TEXT_BASE && a < TEXT_LIMIT {
+                            current_func = Some(a);
+                            current_params.clear();
+                            func_depth = depth;
+                        }
+                    }
+                }
+                gimli::DW_TAG_formal_parameter
+                    if current_func.is_some() && depth == func_depth + 1 =>
+                {
+                    if let Ok(Some(attr)) = entry.attr(gimli::DW_AT_name) {
+                        if let Ok(name) = dwarf.attr_string(&unit, attr.value()) {
+                            if let Ok(s) = name.to_string() {
+                                let s = s.to_string();
+                                if !s.is_empty() && !s.starts_with("__") && s != "self" {
+                                    current_params.push(s);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(addr) = current_func {
+            if !current_params.is_empty() {
+                result.insert(addr, current_params);
+            }
+        }
+    }
+    result
+}
+
+/// Strip build-dir prefixes to produce short display paths like `src/main.rs`.
+fn simplify_path(full: &str) -> String {
+    // Try to find "src/" and take from there
+    if let Some(pos) = full.find("/src/") {
+        return full[pos + 1..].to_string();
+    }
+    if full.starts_with("src/") {
+        return full.to_string();
+    }
+    // For library crates, show just the filename
+    if let Some(pos) = full.rfind('/') {
+        return full[pos + 1..].to_string();
+    }
+    full.to_string()
+}
+
+// ===== Code generation =====
+
+fn write_generated_rs(
+    syms: &[(u64, u64, String)],
+    dwarf: &DwarfInfo,
+    out: &std::path::Path,
+) {
+    use std::fmt::Write;
+
+    let mut c = String::with_capacity(
+        syms.len() * 100 + dwarf.line_table.len() * 30 + dwarf.file_paths.len() * 60 + 1024,
+    );
+
+    writeln!(c, "// Auto-generated by build.rs \u{2014} do not edit").unwrap();
+    writeln!(
+        c,
+        "// {} syms, {} line entries, {} files",
+        syms.len(),
+        dwarf.line_table.len(),
+        dwarf.file_paths.len()
+    )
+    .unwrap();
+
+    // --- FUNC_SYMS ---
+    writeln!(c, "const FUNC_SYMS: &[(u64, u64, &str)] = &[").unwrap();
+    for (addr, size, name) in syms {
+        let esc = name.replace('\\', "\\\\").replace('"', "\\\"");
+        writeln!(c, "    (0x{addr:x}, {size}, \"{esc}\"),").unwrap();
+    }
+    writeln!(c, "];").unwrap();
+
+    // --- LINE_TABLE ---
+    writeln!(c, "const LINE_TABLE: &[(u32, u16, u32)] = &[").unwrap();
+    for (off, fi, ln) in &dwarf.line_table {
+        writeln!(c, "    ({off}, {fi}, {ln}),").unwrap();
+    }
+    writeln!(c, "];").unwrap();
+
+    // --- LINE_FILES ---
+    writeln!(c, "const LINE_FILES: &[&str] = &[").unwrap();
+    for f in &dwarf.file_paths {
+        let esc = f.replace('\\', "\\\\").replace('"', "\\\"");
+        writeln!(c, "    \"{esc}\",").unwrap();
+    }
+    writeln!(c, "];").unwrap();
+
+    // --- FUNC_PARAMS: (func_addr, "p1,p2,...") ---
+    writeln!(c, "const FUNC_PARAMS: &[(u64, &str)] = &[").unwrap();
+    let mut param_entries: Vec<_> = dwarf.func_params.iter().collect();
+    param_entries.sort_by_key(|(a, _)| *a);
+    for (addr, params) in &param_entries {
+        let joined = params.join(",");
+        let esc = joined.replace('\\', "\\\\").replace('"', "\\\"");
+        writeln!(c, "    (0x{addr:x}, \"{esc}\"),").unwrap();
+    }
+    writeln!(c, "];").unwrap();
+
+    let existing = std::fs::read_to_string(out).unwrap_or_default();
+    if c != existing {
+        std::fs::write(out, &c).unwrap();
+    }
+}
+
+// ===== Linker script =====
+
 const LINKER_SCRIPT: &[u8] = b"
 OUTPUT_ARCH(riscv)
 ENTRY(_m_start)
@@ -179,7 +396,6 @@ ENTRY(_m_start)
 M_BASE_ADDRESS = 0x80000000;
 S_BASE_ADDRESS = 0x80200000;
 
-/* 4 MiB heap for addr2line / alloc (must match src/heap.rs HEAP_SIZE if changed) */
 HEAP_SIZE = 0x1000000;
 
 SECTIONS {
@@ -195,45 +411,9 @@ SECTIONS {
         *(.text .text.*)
     }
 
-    /*
-     * DWARF: merge into SHF_ALLOC .rodata. Standalone .debug_* gets VMA=0 and no PT_LOAD on rust-lld.
-     * Symbol ranges use asm/dwarf_ptrs.S absolute .dword relocs (not PCREL to .text).
-     */
     .rodata : {
         *(.rodata .rodata.*)
         *(.srodata .srodata.*)
-
-        . = ALIGN(8);
-        PROVIDE(__start_debug_abbrev = .);
-        KEEP(*(.debug_abbrev))
-        PROVIDE(__stop_debug_abbrev = .);
-        PROVIDE(__start_debug_addr = .);
-        KEEP(*(.debug_addr))
-        PROVIDE(__stop_debug_addr = .);
-        PROVIDE(__start_debug_aranges = .);
-        KEEP(*(.debug_aranges))
-        PROVIDE(__stop_debug_aranges = .);
-        PROVIDE(__start_debug_info = .);
-        KEEP(*(.debug_info))
-        PROVIDE(__stop_debug_info = .);
-        PROVIDE(__start_debug_line = .);
-        KEEP(*(.debug_line))
-        PROVIDE(__stop_debug_line = .);
-        PROVIDE(__start_debug_line_str = .);
-        KEEP(*(.debug_line_str))
-        PROVIDE(__stop_debug_line_str = .);
-        PROVIDE(__start_debug_ranges = .);
-        KEEP(*(.debug_ranges .debug_ranges.*))
-        PROVIDE(__stop_debug_ranges = .);
-        PROVIDE(__start_debug_rnglists = .);
-        KEEP(*(.debug_rnglists .debug_rnglists.*))
-        PROVIDE(__stop_debug_rnglists = .);
-        PROVIDE(__start_debug_str = .);
-        KEEP(*(.debug_str))
-        PROVIDE(__stop_debug_str = .);
-        PROVIDE(__start_debug_str_offsets = .);
-        KEEP(*(.debug_str_offsets))
-        PROVIDE(__stop_debug_str_offsets = .);
     }
     .data : {
         *(.data .data.*)
