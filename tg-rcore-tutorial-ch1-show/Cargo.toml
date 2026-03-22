@@ -1,0 +1,22 @@
+[package]
+name = "tg-rcore-tutorial-ch1-show"
+description = "Chapter 1 of rCore Tutorial: A minimal bare-metal application running in RISC-V S-mode."
+version = "0.4.8"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial-ch1"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial-ch1/tree/test"
+documentation = "https://docs.rs/tg-rcore-tutorial-ch1"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "bare-metal"]
+categories = ["no-std", "embedded"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+tg-sbi = { package = "tg-rcore-tutorial-sbi", path = "../tg-rcore-tutorial-sbi", version = "0.4.8", features = ["nobios"] }
