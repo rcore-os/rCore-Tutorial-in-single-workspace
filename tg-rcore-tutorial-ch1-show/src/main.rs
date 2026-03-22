@@ -63,6 +63,24 @@ fn bt_depth1(id: usize, name: &str, value: i64) {
     bt_depth2(id as u32, name);
 }
 
+/// 模拟数组越界访问——Rust 自动插入的边界检查会触发 panic。
+#[cfg(target_arch = "riscv64")]
+#[inline(never)]
+fn buggy_access(data: &[u8], index: usize) {
+    core::hint::black_box(data);
+    core::hint::black_box(index);
+    let _val = data[index];
+}
+
+/// 错误触发入口：构造一个短数组，用越界下标访问以触发 panic。
+#[cfg(target_arch = "riscv64")]
+#[inline(never)]
+fn trigger_error(kind: &str, n: usize) {
+    core::hint::black_box(kind);
+    let arr = [10u8, 20, 30];
+    buggy_access(&arr, n);
+}
+
 /// S 态程序入口点。
 ///
 /// 这是一个裸函数（naked function），放置在 `.text.entry` 段，
@@ -110,15 +128,33 @@ extern "C" fn rust_main() -> ! {
     lec2_lab1::emit_all_observables();
     #[cfg(target_arch = "riscv64")]
     bt_depth1(42, "hello_os", -1);
-    shutdown(false) // false 表示正常关机
+
+    #[cfg(target_arch = "riscv64")]
+    trigger_error("oob", 10);
+
+    shutdown(false)
 }
 
 /// panic 处理函数。
 ///
-/// `#![no_std]` 环境下必须自行实现。发生 panic 时以异常状态关机。
+/// `#![no_std]` 环境下必须自行实现。先打印 `PanicInfo`（消息 + 源码位置），
+/// 再通过 backtrace 展示完整调用链，最后以异常状态关机。
 #[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    shutdown(true) // true 表示异常关机
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    use core::fmt::Write;
+    struct W;
+    impl core::fmt::Write for W {
+        fn write_str(&mut self, s: &str) -> core::fmt::Result {
+            for b in s.bytes() {
+                console_putchar(b);
+            }
+            Ok(())
+        }
+    }
+    let _ = write!(W, "\n[PANIC] {info}\n");
+    #[cfg(target_arch = "riscv64")]
+    stackwalk::print_backtrace();
+    shutdown(true)
 }
 
 /// 非 RISC-V64 架构的占位模块。

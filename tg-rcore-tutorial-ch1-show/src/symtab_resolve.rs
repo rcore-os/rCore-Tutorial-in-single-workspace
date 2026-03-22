@@ -43,11 +43,14 @@ fn lookup_sym(ra: u64) -> Option<(u64, u64, &'static str)> {
     if FUNC_SYMS.is_empty() {
         return None;
     }
+    // ra 是返回地址，指向 call 的下一条指令，可能恰好越过函数边界；
+    // 减 1 使其落回实际的 call 指令所在函数（与 lookup_line 减 2 同理）。
+    let effective = ra.saturating_sub(1);
     let mut lo = 0usize;
     let mut hi = FUNC_SYMS.len();
     while lo < hi {
         let mid = lo + (hi - lo) / 2;
-        if FUNC_SYMS[mid].0 <= ra {
+        if FUNC_SYMS[mid].0 <= effective {
             lo = mid + 1;
         } else {
             hi = mid;
@@ -57,7 +60,7 @@ fn lookup_sym(ra: u64) -> Option<(u64, u64, &'static str)> {
         return None;
     }
     let (addr, size, name) = FUNC_SYMS[lo - 1];
-    if size != 0 && ra >= addr.saturating_add(size) {
+    if size != 0 && effective >= addr.saturating_add(size) {
         return None;
     }
     Some((addr, size, name))

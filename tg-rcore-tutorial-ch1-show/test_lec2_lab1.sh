@@ -4,7 +4,8 @@ set -euo pipefail
 
 # build.rs 从上次产物提取 .symtab 函数符号；预构建一次确保符号表非空
 cargo build 2>&1 >/dev/null
-OUTPUT=$(cargo run 2>&1)
+# 程序以 panic 结束，QEMU 返回非零码；用 || true 捕获全部输出
+OUTPUT=$(cargo run 2>&1) || true
 
 required=(
   "Hello, world!"
@@ -34,6 +35,14 @@ required=(
   "count=42"
   "flag=true"
   "[BACKTRACE] end=ra_null_bottom_of_chain"
+
+  # ---- panic 路径 backtrace 验证 ----
+  "[PANIC]"
+  "index out of bounds"
+  "buggy_access"
+  "trigger_error"
+  "index=10"
+  'kind="oob"'
 )
 
 missing=()
