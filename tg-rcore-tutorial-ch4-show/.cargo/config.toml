@@ -1,0 +1,26 @@
+# 默认编译目标：RISC-V 64 位裸机平台
+# 使 cargo build 自动进行交叉编译，无需每次指定 --target
+[build]
+target = "riscv64gc-unknown-none-elf"
+
+# QEMU 运行器配置
+# cargo run 时自动调用此命令执行编译产物
+# 等价于：qemu-system-riscv64 -machine virt -nographic -bios none -kernel <编译产物>
+[target.riscv64gc-unknown-none-elf]
+rustflags = ["-C", "force-frame-pointers=yes", "-C", "split-debuginfo=off"]
+runner = [
+    "qemu-system-riscv64",
+    "-machine", "virt",       # 使用 QEMU virt 虚拟平台
+    "-nographic",             # 无图形界面，输出重定向到终端
+    "-bios", "none",          # 不加载外部 BIOS/SBI 固件（tg-sbi 内建）
+    "-kernel",                # 后接 ELF 可执行文件路径（由 cargo 自动填充）
+]
+
+# tg-user 用户态库的配置，由 build.rs 读取
+# TG_USER_CRATE   : cargo clone 时使用的 crates.io 包名
+# TG_USER_LOCAL_DIR: 本地缓存目录名（位于 chN/ 下）
+# TG_USER_VERSION : 目标版本号
+[env]
+TG_USER_CRATE     = "tg-rcore-tutorial-user"
+TG_USER_LOCAL_DIR = "tg-rcore-tutorial-user"
+TG_USER_VERSION   = "0.4.8"
