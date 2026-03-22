@@ -2,7 +2,7 @@
 //!
 //! 裸机无 `std`；沿 **RISC-V `s0`（帧指针）** 链回溯，打印 **`fp` 与 `ra`**，
 //! 并对每一帧打印 **`.symtab` + `rustc_demangle` 的 Rust 函数路径**（源码级符号，见 [`crate::symtab_resolve`]）。
-//! 启用 Cargo feature **`dwarf-symbols`** 时，在 DWARF 就绪后额外尝试 **`addr2line` 行号**（可选）。
+//! 行号与形参值由 **`build.rs` 从上一版 ELF 提取并嵌入** `func_syms_generated.rs`，运行时查表（非宿主机 `addr2line`）。
 //!
 //! **编译要求**：`.cargo/config.toml` 中为 `riscv64gc-unknown-none-elf` 设置
 //! `-C force-frame-pointers=yes`，否则 LLVM 可能省略帧指针链，回溯会不完整或为空。

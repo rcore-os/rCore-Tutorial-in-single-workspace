@@ -1,6 +1,8 @@
-# 第一章：应用程序与基本执行环境
+# 第一章：应用程序与基本执行环境（`tg-rcore-tutorial-ch1-show`）
 
-本章实现了一个最简单的 RISC-V S 态裸机程序（tg-rcore-tutorial-ch1），展示操作系统的最小执行环境。程序在 QEMU 模拟的 RISC-V 64 硬件上运行，不依赖 OpenSBI 或 RustSBI，通过 `-bios none` 模式直接启动，打印 `Hello, world!` 后关机。
+本目录 **crate 名**：`tg-rcore-tutorial-ch1-show`，与教材/ crates.io 上的 **`tg-rcore-tutorial-ch1`** 为同一章内容；本仓库在裸机最小示例之上增加了 **第二讲可观测标签**、**帧指针栈回溯**、**构建期嵌入的符号/行号/形参解析**（`build.rs` + `symtab_resolve`）以及 **GDB 启动链演示脚本**（`scripts/`、`gdb/`、`docs/`）。程序在 QEMU 模拟的 RISC-V 64 硬件上运行，不依赖 OpenSBI 或 RustSBI，通过 `-bios none` 模式直接启动；运行时会打印 `Hello, world!`、若干 `[LEC2-LAB1]` 与 `[BACKTRACE]` 行，最后关机。
+
+**工具链**：见仓库内 [`rust-toolchain.toml`](rust-toolchain.toml)（默认 `stable` + 目标 `riscv64gc-unknown-none-elf`）。**修订记录**：若本目录已纳入 Git，可在仓库根目录执行 `git log -- <本目录相对路径>` 查看历史；子目录是否被跟踪取决于你的仓库是否包含 `tg-rcore-tutorial/` 及 `.gitignore` 规则。
 
 通过本章的学习和实践，你将理解：
 
@@ -12,7 +14,7 @@
 
 ## 练习任务（以教代学，学以致用）：
 
-- 学：读本文件，了解相关OS知识，在某个开发环境（在线或本地）中正确编译运行rcore-tutorial-ch1
+- 学：读本文件，了解相关OS知识，在某个开发环境（在线或本地）中正确编译运行 **`tg-rcore-tutorial-ch1-show`**
 - 教：分析并改进rcore-tutorial-ch1的文档和代码，让自己更高效地完成本章学习。
 - 用：基于rcore-tutorial-ch1的源代码，用gpu framebuffer 显示以代码中的数组表示的七巧板图形信息，形成七巧板构成的“O”和“S”图案。[demo](https://github.com/rcore-os/tg-rcore-tutorial-game-demo/blob/main/ch1-tangram.png)
 
@@ -23,18 +25,27 @@
 ```
 tg-rcore-tutorial-ch1-show/
 ├── .cargo/
-│   └── config.toml     # 交叉编译、QEMU runner、force-frame-pointers、split-debuginfo
-├── asm/
-│   └── dwarf_ptrs.S    # （可选）DWARF 段起止地址写入 .data，供 addr2line 初始化
-├── build.rs            # 链接脚本：M/S 布局、堆、.debug_* 并入可加载 .rodata
-├── Cargo.toml          # 项目配置与依赖（feature dwarf-symbols）
-├── README.md           # 本文档
+│   └── config.toml     # 交叉编译、QEMU runner、force-frame-pointers、split-debuginfo=off
+├── asm/                # 预留目录（当前无汇编源文件）
+├── build.rs            # 链接脚本 + 从「上一版」ELF 提取符号/DWARF 生成 func_syms_generated.rs
+├── Cargo.toml          # 依赖 path 版 tg-rcore-tutorial-sbi、rustc-demangle
+├── rust-toolchain.toml # stable + riscv64gc-unknown-none-elf
+├── gdb/
+│   └── boot.gdb        # GDB 连接 QEMU stub、断点 _m_start / _start（课堂演示）
+├── scripts/
+│   ├── launch-qemu-gdb.sh  # QEMU -s -S + 打印 GDB 用法
+│   └── gdb_bootstage.py    # （可选）riscv-none-elf-gdb-py3 的 bootstage 命令
+├── docs/
+│   └── boot-chain-gdb.md   # ROM→SBI→内核 的 GDB 操作说明
+├── test.sh               # 基线：输出含 Hello, world!
+├── test_lec2_lab1.sh     # 第二讲：检查 [LEC2-LAB1] 与 [BACKTRACE] 等
+├── README.md             # 本文档
 └── src/
-    ├── main.rs         # 入口、rust_main、演示调用链 bt_depth*
-    ├── heap.rs         # bump GlobalAlloc（dwarf-symbols 时启用）
-    ├── dwarf.rs        # （可选）addr2line Context 与符号行输出
-    ├── lec2_lab1.rs    # 第二讲可观测标签（[LEC2-LAB1]）
-    └── stackwalk.rs    # 帧指针栈回溯（[BACKTRACE]，对齐 axbacktrace 布局）
+    ├── main.rs           # _start、rust_main、panic、演示 bt_depth* 与越界 panic
+    ├── heap.rs           # bump GlobalAlloc（链接脚本中的 HEAP 区域；rust_main 内 init）
+    ├── symtab_resolve.rs # 运行时查表：函数名/行号/形参（数据来自 build.rs 生成代码）
+    ├── lec2_lab1.rs      # 第二讲可观测标签（[LEC2-LAB1]）
+    └── stackwalk.rs      # 帧指针栈回溯（[BACKTRACE]，对齐 axbacktrace 布局）
 ```
 
 <a id="source-nav"></a>
@@ -43,20 +54,21 @@ tg-rcore-tutorial-ch1-show/
 
 [返回根文档导航总表](../README.md#chapters-source-nav-map)
 
-建议把本章源码阅读聚焦在一个文件：`src/main.rs`。
+建议阅读顺序：先 **`src/main.rs`**（控制流），再 **`src/stackwalk.rs`** + **`src/symtab_resolve.rs`**（回溯与符号化如何实现）。
 
 | 阅读顺序 | 位置 | 重点问题 |
 |---|---|---|
 | 1 | `_start` | 为什么裸机入口要手动设栈，且不能依赖标准运行时？ |
-| 2 | `rust_main` | 最小执行环境中，`console_putchar` 和 `shutdown` 如何构成完整闭环？ |
-| 3 | `panic_handler` | `#![no_std]` 下发生异常时，系统如何收口与退出？ |
-| 4 | `stackwalk::print_backtrace`、`bt_depth1`…`bt_depth3` | 帧指针 `s0` 如何形成链表？`ra` 与「调用点」的关系？ |
+| 2 | `rust_main` | 最小执行环境中，`console_putchar` 和 `shutdown` 如何构成完整闭环？`heap::init` / `symtab_resolve::init` 为何在打印前调用？ |
+| 3 | `lec2_lab1` | `[LEC2-LAB1]` 各行与课堂知识点如何对应？ |
+| 4 | `stackwalk` / `symtab_resolve` | 帧指针 `s0` 如何形成链表？`ra` 如何映射到「函数名 + 行号 + 形参」？ |
+| 5 | `panic_handler` | `#![no_std]` 下发生异常时，系统如何收口与退出？ |
 
 配套建议：阅读 `tg-rcore-tutorial-sbi/src/lib.rs` 中的 SBI 调用封装，理解 `console_putchar`/`shutdown` 的底层调用路径。
 
 ## DoD 验收标准（本章完成判据）
 
-- [ ] 能在 `tg-rcore-tutorial-ch1` 目录执行 `cargo run`，看到 `Hello, world!` 并正常关机退出
+- [ ] 能在 **`tg-rcore-tutorial-ch1-show`** 目录执行 `cargo run`，看到 `Hello, world!` 并正常关机退出
 - [ ] 能解释 `#![no_std]` 与 `#![no_main]` 在裸机实验中的必要性
 - [ ] 能从 `src/main.rs` 说明 `_start -> rust_main -> panic_handler` 的控制流
 - [ ] 能说明 `tg-rcore-tutorial-sbi` 在本章承担的最小职责（输出字符与关机）
@@ -65,31 +77,21 @@ tg-rcore-tutorial-ch1-show/
 
 ## 函数调用栈回溯（参考 axbacktrace）
 
-本实验在**无 `std`、无全局分配器**的前提下，实现**仅地址**的栈回溯，教学上对齐工作区 [`axbacktrace`](https://github.com/Starry-OS/axbacktrace) 的核心机制：
+本实验在**无 `std`** 的前提下，沿帧指针链做栈回溯，并在串口输出 **函数名、源文件行号、形参值**；教学上对齐工作区 [`axbacktrace`](https://github.com/Starry-OS/axbacktrace) 的 **遍历布局**，符号化路径则采用 **`build.rs` 构建期嵌入**（非内核内动态加载 DWARF）。
 
 | 要点 | 说明 |
 |------|------|
 | 帧指针 | RISC-V 使用 **`s0`（`x8`）** 作为帧指针；`.cargo/config.toml` 中 **`rustflags = ["-C", "force-frame-pointers=yes"]`**，与 axbacktrace 依赖的 LLVM 行为一致。 |
 | 栈上布局 | 在帧指针 `fp` **下方** 16 字节处为 `{上一帧 fp, 返回地址 ra}`（与 `axbacktrace::Frame` 一致）；因 `s0` 可能非 8 字节对齐，实现上使用 **`read_unaligned`** 读取。 |
-| 输出 | 串口打印 `[BACKTRACE] #N fp=… ra=…`。默认不链入 `addr2line`；可选 **`--features dwarf-symbols`**：全局堆 + 将 `.debug_*` 并入可加载段后对 `ra` 尝试符号/行号（见下文「可选：dwarf-symbols」）。无该 feature 时符号化请在宿主机对 ELF 执行 `llvm-addr2line` / `addr2line`。 |
+| 符号与行号 | **`build.rs`** 在链接前读取 **同 profile 下「上一版」ELF**（`target/.../tg-rcore-tutorial-ch1-show`），解析 `.symtab` 与 DWARF，生成 **`OUT_DIR/func_syms_generated.rs`**，内含 `FUNC_SYMS`、行号表、形参位置等；**`src/symtab_resolve.rs`** 在运行时查表并打印。 |
+| 堆 | **`src/heap.rs`** 提供 bump **`#[global_allocator]`** 与 `HEAP_SIZE`（与 `build.rs` 链接脚本一致，当前 **16 MiB**），供后续扩展或 `alloc` 使用；`rust_main` 开头会 **`heap::init()`**。 |
 | 演示调用链 | `rust_main` → `bt_depth1` → `bt_depth2` → `bt_depth3` → `print_backtrace`，`#[inline(never)]` 避免被内联掉，便于在回溯里看到多层 `ra`。 |
+
+**两次构建与符号表**：首次全新构建时，尚不存在「上一版」ELF，`func_syms_generated.rs` 可能为空；再执行一次 **`cargo build`** / **`cargo run`**，第二次构建会拾取第一次产物，回溯中的函数名/行号/形参才会充实。若仍异常，请确认未 **`strip`** 调试信息，且 `.cargo/config.toml` 保持 **`split-debuginfo=off`**，以便 `build.rs` 能解析 DWARF。
 
 **自测**：`bash test_lec2_lab1.sh` 会检查 `[BACKTRACE]` 关键行；若回溯为空，请确认未去掉 `force-frame-pointers`。
 
-### 可选：`dwarf-symbols`（堆 + 运行时 addr2line）
-
-启用方式：`cargo run --features dwarf-symbols`（或 `cargo build --features dwarf-symbols`）。该 feature 会：
-
-- 在链接脚本中保留 **`__heap_start` / `__heap_end`** 与 bump **`#[global_allocator]`**（`src/heap.rs`，大小与 `build.rs` 中 `HEAP_SIZE` 一致，当前为 **16 MiB**），供 `addr2line::Context::from_sections` 分配。
-- 将 **`.debug_*` 并入带 `SHF_ALLOC` 的 `.rodata`**，使其进入 **PT_LOAD**；否则 rust-lld 可能把独立 `.debug_*` 放在 **VMA=0** 且不参与加载，内核内无法读 DWARF。验收：`llvm-readelf -l target/riscv64gc-unknown-none-elf/debug/tg-rcore-tutorial-ch1-show`，应存在 **R** 只读 LOAD 段覆盖含 DWARF 的 **`.rodata`**（体积明显增大）。
-- 通过 **`asm/dwarf_ptrs.S`** 把各 `__start_*` / `__stop_*` 以 **64 位绝对重定位**写入 `.data`，避免 Rust 侧引用远端调试符号时触发 **`R_RISCV_PCREL_HI20` 越界**。
-- `.cargo/config.toml` 中增加 **`-C split-debuginfo=off`**，避免骨架 CU + 外部 `.dwo` 路径在裸机内无法加载而导致 addr2line 空结果。
-
-**注意**：当前 rustc/LLVM 面向 `riscv64gc-unknown-none-elf` 产出的 DWARF，在合并进镜像后，`addr2line` 的 **编译单元地址范围索引**未必总能命中每一个 `ra`；宿主机上 **`gdb -batch -ex 'info line *<addr>'`** 也可能显示 *No line number information*，而符号表仍能通过函数边界解析。串口上若见 **`[BACKTRACE]   sym=<no_addr2line_match> ra=0x...`**，表示已初始化 Context 但该地址未匹配到 DWARF 查询结果，属已知限制；需要稳定行号时仍可用主机 **`llvm-addr2line -e <ELF> <addr>`**（要求 ELF 仍带命名调试节，或自行从带符号表的工具链解析）。
-
-**勿 strip**：发布或拷贝 ELF 时不要剥离调试段，否则运行时 DWARF 为空。
-
-**自测**：`bash test_dwarf.sh`（依赖 `dwarf-symbols` 构建）。
+**宿主机补充**：若需在主机上对某一 `ra` 做单次解析，仍可使用 **`llvm-addr2line -e <ELF> <addr>`**（与内核内嵌表无关，便于对照验证）。
 
 ## 第二讲（lec2）知识点 × Lab1 可观测对照（LabUnit 语义）
 
@@ -118,9 +120,21 @@ tg-rcore-tutorial-ch1-show/
 | 裸机入口与手动设栈 | `src/main.rs` 的 `_start` | `cargo run` 可启动且无运行时依赖报错 |
 | SBI 最小服务调用 | `src/main.rs` 的 `rust_main`；`tg-rcore-tutorial-sbi/src/lib.rs` | 看到串口输出后正常关机 |
 | 无标准库异常处理 | `src/main.rs` 的 `panic_handler` | 人为触发 panic 时可打印信息并异常关机 |
-| 调用栈 / 帧指针回溯 | `src/stackwalk.rs`；`bt_depth1`…`bt_depth3` | 串口出现 `[BACKTRACE] #N`，`bash test_lec2_lab1.sh` 通过 |
+| 调用栈 / 帧指针回溯 / 符号化 | `src/stackwalk.rs`、`src/symtab_resolve.rs`；`build.rs` | 串口出现 `[BACKTRACE]` 与符号行；`bash test_lec2_lab1.sh` 通过（建议连续构建两次以填充嵌入表） |
 
 遇到构建/运行异常可先查看根文档的“高频错误速查表”。
+
+### 用 GDB 观察启动链（ROM → M 态 SBI → S 态 `_start`）
+
+在 **不改动** 日常 `cargo run` 的前提下，可用脚本启动带 GDB stub 的 QEMU，单步观察复位向量、`0x80000000` 的 `_m_start` 与 `0x80200000` 的 `_start`。操作步骤与地址说明见 **[docs/boot-chain-gdb.md](docs/boot-chain-gdb.md)**。
+
+```bash
+# 终端 A（crate 根目录）
+bash scripts/launch-qemu-gdb.sh
+
+# 终端 B（crate 根目录）
+riscv-none-elf-gdb -x gdb/boot.gdb
+```
 
 ## 一、环境准备
 
@@ -148,7 +162,7 @@ cargo --version    # 应显示 cargo 1.xx.x
 
 ### 1.2 添加 RISC-V 64 编译目标
 
-由于 tg-rcore-tutorial-ch1 是面向 RISC-V 64 裸机平台的程序，需要添加对应的编译目标：
+由于本 crate 面向 RISC-V 64 裸机平台，需要添加对应的编译目标：
 
 ```bash
 rustup target add riscv64gc-unknown-none-elf
@@ -162,7 +176,7 @@ rustup target add riscv64gc-unknown-none-elf
 
 ### 1.3 安装 QEMU 模拟器
 
-tg-rcore-tutorial-ch1 在 QEMU 模拟的 RISC-V 64 虚拟机上运行，需要安装 `qemu-system-riscv64`（建议版本 >= 7.0）。
+本程序在 QEMU 模拟的 RISC-V 64 虚拟机上运行，需要安装 `qemu-system-riscv64`（建议版本 >= 7.0）。
 
 **Ubuntu / Debian：**
 
@@ -184,24 +198,21 @@ qemu-system-riscv64 --version
 ```
 
 ### 1.4 获取源代码
-**方式一**
-只获取本实验
-```bash
-cargo clone tg-rcore-tutorial-ch1
-cd tg-rcore-tutorial-ch1
-```
-获取所有8个实验和所依赖的tg-* crates.
-**方式二**
+
+本实验 crate 名为 **`tg-rcore-tutorial-ch1-show`**。若使用官方 monorepo，请在克隆后进入对应子目录，例如：
+
 ```bash
 git clone https://github.com/rcore-os/tg-rcore-tutorial.git
-cd tg-rcore-tutorial/ch1
+cd tg-rcore-tutorial/tg-rcore-tutorial-ch1-show
 ```
+
+（若你使用的是仅发布 **`tg-rcore-tutorial-ch1`** 的仓库布局，请以该仓库 README 为准；与本 `ch1-show` 目录结构可能略有差异。）
 
 ## 二、编译与运行
 
 ### 2.1 编译
 
-在 `tg-rcore-tutorial-ch1` 目录下执行：
+在 **`tg-rcore-tutorial-ch1-show`** 目录下执行：
 
 ```bash
 cargo build
@@ -214,9 +225,9 @@ cargo build
 target = "riscv64gc-unknown-none-elf"
 ```
 
-编译过程中，`build.rs` 构建脚本会自动检测目标架构，为 RISC-V 64 生成链接脚本（linker.ld），控制程序的内存布局。
+编译过程中，`build.rs` 构建脚本会：为 RISC-V 64 生成链接脚本（`OUT_DIR/linker.ld`）；并向 **同 profile 下上一版 ELF** 提取符号与 DWARF，生成 `func_syms_generated.rs`（详见上文「两次构建与符号表」）。
 
-编译成功后，可执行文件位于 `target/riscv64gc-unknown-none-elf/debug/tg-rcore-tutorial-ch1`。
+编译成功后，可执行文件位于 **`target/riscv64gc-unknown-none-elf/debug/tg-rcore-tutorial-ch1-show`**。
 
 ### 2.2 运行
 
@@ -231,7 +242,7 @@ qemu-system-riscv64 \
     -machine virt \
     -nographic \
     -bios none \
-    -kernel target/riscv64gc-unknown-none-elf/debug/tg-rcore-tutorial-ch1
+    -kernel target/riscv64gc-unknown-none-elf/debug/tg-rcore-tutorial-ch1-show
 ```
 
 **QEMU 参数说明：**
@@ -240,22 +251,18 @@ qemu-system-riscv64 \
 |------|------|
 | `-machine virt` | 使用 QEMU 的 `virt` 虚拟平台，这是一个通用的 RISC-V 虚拟机 |
 | `-nographic` | 无图形界面，所有输出通过串口重定向到终端 |
-| `-bios none` | 不加载任何 BIOS/SBI 固件，tg-rcore-tutorial-ch1 自带 M-mode 启动代码 |
+| `-bios none` | 不加载外部 BIOS/SBI 镜像；M-mode 启动代码由依赖 **`tg-rcore-tutorial-sbi`**（`nobios`）链入同一 ELF |
 | `-kernel <文件>` | 将 ELF 可执行文件加载到内存中作为内核启动 |
 
 ### 2.3 预期输出
 
-```
-Hello, world!
-```
-
-输出一行 `Hello, world!` 后，QEMU 自动退出。这是因为程序通过 SBI 调用执行了关机操作。
+串口会先出现 **`Hello, world!`**，随后是若干 **`[LEC2-LAB1] kp=...`** 行、**`[BACKTRACE]`** 回溯，以及因**故意越界访问**触发的 **`[PANIC]`** 与再次回溯，最后通过 SBI 关机，QEMU 退出。基线检查可运行 **`bash test.sh`**（仅匹配 Hello）；第二讲全量观测用 **`bash test_lec2_lab1.sh`**。
 
 ---
 
 ## 三、操作系统核心概念
 
-以下内容帮助你理解 tg-rcore-tutorial-ch1 代码背后的操作系统原理。
+以下内容帮助你理解 **`tg-rcore-tutorial-ch1-show`** 代码背后的操作系统原理。
 
 ### 3.1 应用程序执行环境
 
@@ -284,13 +291,13 @@ Hello, world!
 
 当我们在 Linux 上执行 `println!("Hello, world!")` 时，实际经历了：`println!` → Rust 标准库 → libc 的 `write()` → Linux 内核 `sys_write` 系统调用 → 串口/终端驱动 → 硬件显示。
 
-**tg-rcore-tutorial-ch1 做了什么？** 它跳过了标准库和操作系统内核，直接在裸机上通过 SBI 接口输出字符。这就是"最小执行环境"的含义。
+**本 crate 做了什么？** 它跳过了标准库和操作系统内核，直接在裸机上通过 SBI 接口输出字符。这就是「最小执行环境」的含义。
 
 ### 3.2 移除标准库依赖
 
 要让程序在裸机上运行，首先需要摆脱对操作系统的依赖。Rust 标准库 `std` 依赖操作系统提供的系统调用（如文件 I/O、内存分配、线程等），在没有操作系统的裸机上无法使用。
 
-tg-rcore-tutorial-ch1 在 `src/main.rs` 的开头使用了两个关键的属性标记：
+本程序在 `src/main.rs` 的开头使用了两个关键的属性标记：
 
 **`#![no_std]` —— 不使用标准库**
 
@@ -302,12 +309,15 @@ tg-rcore-tutorial-ch1 在 `src/main.rs` 的开头使用了两个关键的属性�
 
 **`#[panic_handler]` —— 自定义 panic 处理**
 
-标准库提供了 panic 时打印错误信息并终止程序的功能。使用 `#![no_std]` 后，需要自己实现 panic 处理函数。tg-rcore-tutorial-ch1 中的实现是直接调用 SBI 关机：
+标准库提供了 panic 时打印错误信息并终止程序的功能。使用 `#![no_std]` 后，需要自己实现 panic 处理函数。本示例中的实现会打印 `PanicInfo`、调用栈，再以异常状态关机：
 
-```rust
+```text
 #[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    shutdown(true)  // 以异常状态关机
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    // 1) 通过 console_putchar 打印 PanicInfo
+    // 2) stackwalk::print_backtrace() 打印 [BACKTRACE]
+    // 3) shutdown(true) 异常关机
+    // 完整代码见 src/main.rs
 }
 ```
 
@@ -319,7 +329,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 
 理解程序如何在裸机上启动，是操作系统学习的重要一步。
 
-tg-rcore-tutorial-ch1 采用 **nobios 模式**（`-bios none`），不依赖外部 SBI 固件，而是在 `tg-rcore-tutorial-sbi` 库中自带了一个最小的 M-mode 启动代码。启动流程如下：
+本 crate 采用 **nobios 模式**（`-bios none`），不依赖外部 SBI 固件镜像，而是在 **`tg-rcore-tutorial-sbi`** 库中自带最小的 M-mode 启动代码。启动流程如下：
 
 ```
 QEMU 加电
@@ -332,12 +342,12 @@ PC = 0x1000（QEMU 内置引导代码）
     │  ── 在 M-mode 下初始化硬件环境
     │  ── 设置中断委托、PMP 等
     ▼
-跳转到 0x80200000（S-mode 入口，tg-rcore-tutorial-ch1 的 _start）
+跳转到 0x80200000（S-mode 入口，本 crate 的 `_start`）
     │  ── 设置栈指针 sp
     ▼
 跳转到 rust_main()
-    │  ── 打印 "Hello, world!"
-    │  ── 调用 SBI shutdown 关机
+    │  ── 打印 "Hello, world!"、`[LEC2-LAB1]`、演示 `[BACKTRACE]`
+    │  ── 故意越界触发 panic → panic_handler → 再次回溯 → shutdown
     ▼
 QEMU 退出
 ```
@@ -417,27 +427,30 @@ RISC-V 定义了三个特权级（Privilege Level），从高到低：
 
 SBI 是 RISC-V 的标准规范，定义了 S-mode 软件（操作系统）向 M-mode 固件请求服务的接口。可以把 SBI 理解为"操作系统的操作系统"——它为操作系统提供最基本的硬件抽象服务。
 
-tg-rcore-tutorial-ch1 通过 `use tg_sbi::{console_putchar, shutdown}` 引入了两个 SBI 服务：
+本程序通过 `use tg_sbi::{console_putchar, shutdown}` 引入了两个 SBI 服务：
 
 | 函数 | 说明 |
 |------|------|
 | `console_putchar(c)` | 向控制台输出一个字符（通过串口） |
 | `shutdown(fail)` | 关闭虚拟机（`fail=false` 正常关机，`fail=true` 异常关机） |
 
-`rust_main` 的实现非常简洁——逐字符输出 "Hello, world!\n"，然后关机：
+`rust_main` 在最小输出之外还包含 **初始化堆与符号表**、**第二讲标签**、**回溯演示**与 **故意触发的 panic**（因此通常**不会**执行到末尾的 `shutdown(false)`，而是由 `panic_handler` 以 `shutdown(true)` 结束）。核心结构如下（完整代码见 `src/main.rs`）：
 
 ```rust
 extern "C" fn rust_main() -> ! {
-    for c in b"Hello, world!\n" {
-        console_putchar(*c);
-    }
-    shutdown(false) // false 表示正常关机
+    heap::init();
+    symtab_resolve::init();
+    for c in b"Hello, world!\n" { console_putchar(*c); }
+    lec2_lab1::emit_all_observables();
+    bt_depth1(42, "hello_os", -1); // 内部最终会 print_backtrace
+    trigger_error("oob", 10);      // 越界 → panic
+    shutdown(false)                 // 通常不可达
 }
 ```
 
 **nobios 模式的特殊之处**
 
-传统方案（如 rCore-Tutorial 旧版）使用外部 SBI 固件（如 RustSBI），需要将 SBI 固件和内核分别加载。tg-rcore-tutorial-ch1 采用 `tg-rcore-tutorial-sbi` 的 `nobios` 特性，将 M-mode 启动代码直接编译进同一个 ELF 文件中，因此可以用 `-bios none -kernel` 的方式一步加载，简化了启动流程。
+传统方案常使用外部 SBI 固件（如 RustSBI），需分别加载固件与内核。本仓库采用 **`tg-rcore-tutorial-sbi` 的 `nobios` 特性**，将 M-mode 启动代码链入同一 ELF，因此可用 `-bios none -kernel` 一步加载。
 
 ---
 
@@ -450,6 +463,7 @@ extern "C" fn rust_main() -> ! {
 target = "riscv64gc-unknown-none-elf"
 
 [target.riscv64gc-unknown-none-elf]
+rustflags = ["-C", "force-frame-pointers=yes", "-C", "split-debuginfo=off"]
 runner = [
     "qemu-system-riscv64",
     "-machine", "virt",
@@ -459,83 +473,52 @@ runner = [
 ]
 ```
 
-- `[build] target`：设置默认编译目标为 RISC-V 64 裸机平台，每次 `cargo build` 自动交叉编译
-- `[target...] runner`：设置运行器为 QEMU，`cargo run` 时自动在 QEMU 中执行编译产物
+- `[build] target`：默认交叉编译到 `riscv64gc-unknown-none-elf`
+- **`rustflags`**：强制帧指针（栈回溯）+ 单块 DWARF（供 `build.rs` 解析）
+- **`runner`**：`cargo run` 时由 QEMU 直接加载 ELF
 
 ### 4.2 `Cargo.toml` —— 项目配置
 
+与教材 crate 相比，本仓库 **crate 名为 `tg-rcore-tutorial-ch1-show`**，并增加 **`rustc-demangle`**；**`tg-rcore-tutorial-sbi`** 通常以 **path** 依赖指向同工作区（与 crates.io 版本号对齐，见文件内 `version` 字段）。
+
 ```toml
 [package]
-name = "tg-rcore-tutorial-ch1"
+name = "tg-rcore-tutorial-ch1-show"
+version = "0.4.8"
 edition = "2024"
-# ...
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
 
 [dependencies]
-tg-rcore-tutorial-sbi = { version = "0.1.0-preview.1", features = ["nobios"] }
+rustc-demangle = { version = "0.1", default-features = false }
+tg-sbi = { package = "tg-rcore-tutorial-sbi", path = "../tg-rcore-tutorial-sbi", version = "0.4.8", features = ["nobios"] }
+
+[build-dependencies]
+addr2line = "0.24"
+object = { version = "0.36", default-features = false, features = ["read", "elf", "std"] }
 ```
 
 关键配置：
-- `edition = "2024"`：使用 Rust 2024 edition，要求 unsafe 属性使用 `unsafe(...)` 包装
-- `panic = "abort"`：panic 时直接终止，不进行栈展开（unwinding），减少裸机程序的复杂度
-- `tg-rcore-tutorial-sbi` 依赖启用了 `nobios` 特性，使其内建 M-mode 启动代码
+- `edition = "2024"`：unsafe 相关属性使用 `unsafe(...)` 包装
+- `panic = "abort"`：不进行栈展开
+- **`build-dependencies`**：`build.rs` 解析 ELF/DWARF 所需
 
 ### 4.3 `build.rs` —— 构建脚本
 
-```rust
-fn main() {
-    use std::{env, fs, path::PathBuf};
+除写入 **`LINKER_SCRIPT`**（`M_BASE_ADDRESS` / `S_BASE_ADDRESS`、堆、`LAB_*` 环境注入）外，还会在 **`riscv64`** 目标上：
 
-    if env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default() == "riscv64" {
-        let ld = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("linker.ld");
-        fs::write(&ld, LINKER_SCRIPT).unwrap();
-        println!("cargo:rustc-link-arg=-T{}", ld.display());
-    }
-}
-```
+1. 读取 **上一版** 构建产物 ELF（`target/.../tg-rcore-tutorial-ch1-show`），解析 **`.symtab`** 与 **DWARF**；
+2. 生成 **`OUT_DIR/func_syms_generated.rs`**，供 `symtab_resolve` 在运行时查表；
+3. 通过 `cargo:rustc-env` 注入 **`LAB_M_BASE`**、**`LAB_S_BASE`**、**`LAB_TARGET_TRIPLE`** 等，供 `lec2_lab1` 等模块打印可观测标签。
 
-构建脚本在**编译之前**自动执行：
-1. 检测目标架构是否为 `riscv64`
-2. 如果是，将内嵌的链接脚本写入 `OUT_DIR/linker.ld`
-3. 通过 `cargo:rustc-link-arg` 指示链接器使用该脚本
+因此「仅写链接脚本」的极简 `build.rs` 已不足以描述当前行为；完整逻辑见仓库内源文件。
 
-链接脚本定义了两个关键地址：
-- `M_BASE_ADDRESS = 0x80000000`：M-mode 代码起始地址
-- `S_BASE_ADDRESS = 0x80200000`：S-mode 代码起始地址（`_start` 所在位置）
+### 4.4 `src/main.rs` 与相关模块 —— 程序结构（概要）
 
-### 4.4 `src/main.rs` —— 程序源码
-
-整个程序由五部分组成：
-
-**模块文档与属性标记（第 1-19 行）：**
-- 模块级文档注释（`//!`）概述本章关键概念
-- `#![no_std]`：不使用标准库
-- `#![no_main]`：不使用标准入口
-- `cfg_attr`：在 RISC-V 64 上启用严格警告，其他架构允许死代码（用于 `cargo publish --dry-run` 在主机上通过编译）
-
-**SBI 引入（第 21-23 行）：**
-- `use tg_sbi::{console_putchar, shutdown}` 明确引入所需的两个 SBI 函数
-
-**入口函数 `_start`（第 34-53 行）：**
-- 仅在 `riscv64` 架构下编译（`#[cfg(target_arch = "riscv64")]`）
-- 裸函数，放置在 `.text.entry` 段，链接脚本将其安排在 `0x80200000`
-- edition 2024 要求使用 `#[unsafe(no_mangle)]`、`#[unsafe(link_section = "...")]` 语法
-- 分配 4 KiB 栈空间，设置 `sp` 后跳转到 `rust_main`
-
-**主函数 `rust_main`（第 59-64 行）：**
-- 逐字节调用 `console_putchar` 输出 "Hello, world!\n"
-- 调用 `shutdown(false)` 正常关机
-
-**panic 处理（第 69-72 行）：**
-- 发生 panic 时调用 `shutdown(true)` 以异常方式关机
-
-**非 RISC-V 占位模块 `stub`（第 78-95 行）：**
-- 提供 `main`、`__libc_start_main` 等符号，使得在非 RISC-V 平台上也能通过编译（用于 `cargo publish --dry-run` 验证）
+- **属性与 `no_std` / `no_main`**：与典型裸机章节一致。
+- **子模块（仅 `riscv64`）**：`heap`、`lec2_lab1`、`stackwalk`、`symtab_resolve`。
+- **`_start`**：裸函数，`.text.entry`，跳转 `rust_main`。
+- **`rust_main`**：`heap::init()`、`symtab_resolve::init()` → 打印 Hello → **`lec2_lab1::emit_all_observables()`** → 演示调用链 **`bt_depth1`…`bt_depth3`** → **故意越界 `trigger_error` 触发 panic** → `shutdown(false)`（若未 panic 才会执行到最后；当前流程会在 panic 路径结束）。
+- **`panic_handler`**：打印 `PanicInfo` → **`stackwalk::print_backtrace()`** → `shutdown(true)`。
+- **`stub`（非 RISC-V）**：便于主机上 `cargo check` / `cargo publish --dry-run`。
 
 ---
 
@@ -545,8 +528,9 @@ fn main() {
 
 1. **理解了执行环境**：应用程序依赖多层执行环境（标准库 → 操作系统 → 硬件），`Hello, world!` 的背后并不简单
 2. **摆脱了标准库**：通过 `#![no_std]` 和 `#![no_main]`，让 Rust 程序不再依赖操作系统
-3. **掌握了裸机启动流程**：从 QEMU 加电到 M-mode 初始化，再到 S-mode 的 `_start` 入口
+3. **掌握了裸机启动流程**：从 QEMU 加电到 M-mode 初始化，再到 S-mode 的 `_start` 入口；可用 **`docs/boot-chain-gdb.md`** 与脚本在 GDB 中单步对照
 4. **认识了 RISC-V 特权级和 SBI**：M-mode / S-mode / U-mode 的层次关系，以及 `ecall` 指令如何跨越特权级
+5. **（本 `ch1-show` 增强）** 第二讲可观测标签、`build.rs` 嵌入的符号/行号/形参解析与帧指针回溯，形成可复现的「概念—证据—源码」链
 
 这是操作系统内核开发的第一步——在后续章节中，我们将在这个最小执行环境的基础上，逐步添加批处理、多道程序、内存管理、进程调度等操作系统核心功能。
 
@@ -571,7 +555,9 @@ fn main() {
 
 | 依赖 | 说明 |
 |------|------|
-| `tg-rcore-tutorial-sbi` | SBI 调用封装库，支持 nobios 模式，内建 M-mode 启动代码 |
+| `tg-rcore-tutorial-sbi`（crate 名 `tg-sbi`） | SBI 调用封装；`features = ["nobios"]` 内建 M-mode 启动代码 |
+| `rustc-demangle` | 将 `.symtab` 中的修饰名还原为 Rust 路径，供 `symtab_resolve` 输出 |
+| `addr2line` / `object`（build-dependencies） | `build.rs` 解析 ELF 与 DWARF，生成 `func_syms_generated.rs` |
 
 ---
 
@@ -581,7 +567,7 @@ fn main() {
 
 | 操作系统内核 | 所涉及核心知识点 | 主要完成功能 | 所依赖的组件 |
 |:-----|:------------|:---------|:---------------|
-| **tg-rcore-tutorial-ch1** | 应用程序执行环境<br>裸机编程（Bare-metal）<br>SBI（Supervisor Binary Interface）<br>RISC-V 特权级（M/S-mode）<br>链接脚本（Linker Script）<br>内存布局（Memory Layout）<br>Panic 处理 | 最小 S-mode 裸机程序<br>QEMU 直接启动（无 OpenSBI）<br>打印 "Hello, world!" 并关机<br>演示最基本的 OS 执行环境 | tg-rcore-tutorial-sbi |
+| **tg-rcore-tutorial-ch1**（**本目录 `ch1-show` 为其教学增强版**） | 应用程序执行环境<br>裸机编程（Bare-metal）<br>SBI（Supervisor Binary Interface）<br>RISC-V 特权级（M/S-mode）<br>链接脚本（Linker Script）<br>内存布局（Memory Layout）<br>Panic 处理 | 最小 S-mode 裸机程序<br>QEMU 直接启动（无 OpenSBI）<br>打印 "Hello, world!" 并关机<br>演示最基本的 OS 执行环境 | tg-rcore-tutorial-sbi |
 | **tg-rcore-tutorial-ch2** | 批处理系统（Batch Processing）<br>特权级切换（U-mode ↔ S-mode）<br>Trap 处理（ecall / 异常）<br>上下文保存与恢复<br>系统调用（write / exit）<br>用户态 / 内核态<br>`sret` 返回指令 | 批处理操作系统<br>顺序加载运行多个用户程序<br>特权级切换和 Trap 处理框架<br>实现 write / exit 系统调用 | tg-rcore-tutorial-sbi<br>tg-rcore-tutorial-linker<br>tg-rcore-tutorial-console<br>tg-rcore-tutorial-kernel-context<br>tg-rcore-tutorial-syscall |
 | **tg-rcore-tutorial-ch3** | 多道程序（Multiprogramming）<br>任务控制块（TCB）<br>协作式调度（yield）<br>抢占式调度（Preemptive）<br>时钟中断（Clock Interrupt）<br>时间片轮转（Time Slice）<br>任务切换（Task Switch）<br>任务状态（Ready/Running/Finished）<br>clock_gettime 系统调用 | 多道程序与分时多任务<br>多程序同时驻留内存<br>协作式 + 抢占式调度<br>时钟中断与时间管理 | tg-rcore-tutorial-sbi<br>tg-rcore-tutorial-linker<br>tg-rcore-tutorial-console<br>tg-rcore-tutorial-kernel-context<br>tg-rcore-tutorial-syscall |
 | **tg-rcore-tutorial-ch4** | 虚拟内存（Virtual Memory）<br>Sv39 三级页表（Page Table）<br>地址空间隔离（Address Space）<br>页表项（PTE）与标志位<br>地址转换（VA → PA）<br>异界传送门（MultislotPortal）<br>ELF 加载与解析<br>堆管理（sbrk）<br>恒等映射（Identity Mapping）<br>内存保护（Memory Protection）<br>satp CSR | 引入 Sv39 虚拟内存<br>每个用户进程独立地址空间<br>跨地址空间上下文切换<br>进程隔离和内存保护 | tg-rcore-tutorial-sbi<br>tg-rcore-tutorial-linker<br>tg-rcore-tutorial-console<br>tg-rcore-tutorial-kernel-context<br>tg-rcore-tutorial-kernel-alloc<br>tg-rcore-tutorial-kernel-vm<br>tg-rcore-tutorial-syscall |
