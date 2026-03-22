@@ -1,0 +1,40 @@
+[package]
+name = "tg-rcore-tutorial-ch2-show"
+description = "Chapter 2 of rCore Tutorial: Batch processing system with privilege levels and trap handling."
+version = "0.4.8"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial-ch2"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial-ch2/tree/test"
+documentation = "https://docs.rs/tg-rcore-tutorial-ch2"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "batch-system"]
+categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+#    ".cargo/config.toml",
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+riscv = "0.10.1"
+rustc-demangle = { version = "0.1", default-features = false }
+
+tg-sbi = { package = "tg-rcore-tutorial-sbi", path = "../tg-rcore-tutorial-sbi", version = "0.4.8", features = ["nobios"] }
+tg-linker = { package = "tg-rcore-tutorial-linker", path = "../tg-rcore-tutorial-linker", version = "0.4.8" }
+tg-console = { package = "tg-rcore-tutorial-console", path = "../tg-rcore-tutorial-console", version = "0.4.8" }
+tg-kernel-context = { package = "tg-rcore-tutorial-kernel-context", path = "../tg-rcore-tutorial-kernel-context", version = "0.4.8" }
+tg-syscall = { package = "tg-rcore-tutorial-syscall", path = "../tg-rcore-tutorial-syscall", version = "0.4.8", features = ["kernel"] }
+
+[build-dependencies]
+tg-linker = { package = "tg-rcore-tutorial-linker", path = "../tg-rcore-tutorial-linker", version = "0.4.8" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+addr2line = "0.24"
+object = { version = "0.36", default-features = false, features = ["read", "elf", "std"] }
