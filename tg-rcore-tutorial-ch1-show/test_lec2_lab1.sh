@@ -2,6 +2,8 @@
 # 第二讲（lec2）× Lab1：可观测标签全量验收（对齐 LabUnit observables / 01-kp-lec2-ch1.md）
 set -euo pipefail
 
+# build.rs 从上次产物提取 .symtab 函数符号；预构建一次确保符号表非空
+cargo build 2>&1 >/dev/null
 OUTPUT=$(cargo run 2>&1)
 
 required=(
@@ -16,9 +18,14 @@ required=(
   "[LEC2-LAB1] kp=sbi_vs_syscall"
   "[LEC2-LAB1] kp=control_flow path=_start->rust_main->shutdown(false)"
   "[LEC2-LAB1] kp=panic_contract"
-  "[BACKTRACE] note=fp_unwind_riscv64_s0_same_layout_as_axbacktrace"
+  "[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_demangle"
   "[BACKTRACE] #0 fp="
+  "[BACKTRACE]   fn="
   "[BACKTRACE] #1 fp="
+  "[BACKTRACE]   fn="
+  "print_backtrace"
+  "bt_depth"
+  "rust_main"
   "[BACKTRACE] end=ra_null_bottom_of_chain"
 )
 

@@ -8,7 +8,9 @@ target = "riscv64gc-unknown-none-elf"
 # 等价于：qemu-system-riscv64 -machine virt -nographic -bios none -kernel <编译产物>
 # 与 axbacktrace 一致：强制保留帧指针链（RISC-V 使用 s0），否则栈回溯不可靠。
 [target.riscv64gc-unknown-none-elf]
-rustflags = ["-C", "force-frame-pointers=yes"]
+# split-debuginfo=off: monolithic DWARF in the ELF so addr2line does not depend on
+# skeleton CUs + external .dwo (skip_all_loads would yield empty find_frames on bare metal).
+rustflags = ["-C", "force-frame-pointers=yes", "-C", "split-debuginfo=off"]
 runner = [
     "qemu-system-riscv64",
     "-machine", "virt",       # 使用 QEMU virt 虚拟平台

@@ -23,12 +23,16 @@
 ```
 tg-rcore-tutorial-ch1-show/
 ├── .cargo/
-│   └── config.toml     # 交叉编译、QEMU runner、force-frame-pointers（栈回溯）
-├── build.rs            # 构建脚本：自动生成链接脚本
-├── Cargo.toml          # 项目配置与依赖
+│   └── config.toml     # 交叉编译、QEMU runner、force-frame-pointers、split-debuginfo
+├── asm/
+│   └── dwarf_ptrs.S    # （可选）DWARF 段起止地址写入 .data，供 addr2line 初始化
+├── build.rs            # 链接脚本：M/S 布局、堆、.debug_* 并入可加载 .rodata
+├── Cargo.toml          # 项目配置与依赖（feature dwarf-symbols）
 ├── README.md           # 本文档
 └── src/
     ├── main.rs         # 入口、rust_main、演示调用链 bt_depth*
+    ├── heap.rs         # bump GlobalAlloc（dwarf-symbols 时启用）
+    ├── dwarf.rs        # （可选）addr2line Context 与符号行输出
     ├── lec2_lab1.rs    # 第二讲可观测标签（[LEC2-LAB1]）
     └── stackwalk.rs    # 帧指针栈回溯（[BACKTRACE]，对齐 axbacktrace 布局）
 ```
@@ -67,10 +71,25 @@ tg-rcore-tutorial-ch1-show/
 |------|------|
 | 帧指针 | RISC-V 使用 **`s0`（`x8`）** 作为帧指针；`.cargo/config.toml` 中 **`rustflags = ["-C", "force-frame-pointers=yes"]`**，与 axbacktrace 依赖的 LLVM 行为一致。 |
 | 栈上布局 | 在帧指针 `fp` **下方** 16 字节处为 `{上一帧 fp, 返回地址 ra}`（与 `axbacktrace::Frame` 一致）；因 `s0` 可能非 8 字节对齐，实现上使用 **`read_unaligned`** 读取。 |
-| 输出 | 串口打印 `[BACKTRACE] #N fp=… ra=…`；**不**内置 DWARF/`addr2line`（需内核加载调试段且依赖 `alloc`），符号化请在宿主机对 ELF 执行 `addr2line -e target/.../tg-rcore-tutorial-ch1-show <ra>`。 |
+| 输出 | 串口打印 `[BACKTRACE] #N fp=… ra=…`。默认不链入 `addr2line`；可选 **`--features dwarf-symbols`**：全局堆 + 将 `.debug_*` 并入可加载段后对 `ra` 尝试符号/行号（见下文「可选：dwarf-symbols」）。无该 feature 时符号化请在宿主机对 ELF 执行 `llvm-addr2line` / `addr2line`。 |
 | 演示调用链 | `rust_main` → `bt_depth1` → `bt_depth2` → `bt_depth3` → `print_backtrace`，`#[inline(never)]` 避免被内联掉，便于在回溯里看到多层 `ra`。 |
 
 **自测**：`bash test_lec2_lab1.sh` 会检查 `[BACKTRACE]` 关键行；若回溯为空，请确认未去掉 `force-frame-pointers`。
+
+### 可选：`dwarf-symbols`（堆 + 运行时 addr2line）
+
+启用方式：`cargo run --features dwarf-symbols`（或 `cargo build --features dwarf-symbols`）。该 feature 会：
+
+- 在链接脚本中保留 **`__heap_start` / `__heap_end`** 与 bump **`#[global_allocator]`**（`src/heap.rs`，大小与 `build.rs` 中 `HEAP_SIZE` 一致，当前为 **16 MiB**），供 `addr2line::Context::from_sections` 分配。
+- 将 **`.debug_*` 并入带 `SHF_ALLOC` 的 `.rodata`**，使其进入 **PT_LOAD**；否则 rust-lld 可能把独立 `.debug_*` 放在 **VMA=0** 且不参与加载，内核内无法读 DWARF。验收：`llvm-readelf -l target/riscv64gc-unknown-none-elf/debug/tg-rcore-tutorial-ch1-show`，应存在 **R** 只读 LOAD 段覆盖含 DWARF 的 **`.rodata`**（体积明显增大）。
+- 通过 **`asm/dwarf_ptrs.S`** 把各 `__start_*` / `__stop_*` 以 **64 位绝对重定位**写入 `.data`，避免 Rust 侧引用远端调试符号时触发 **`R_RISCV_PCREL_HI20` 越界**。
+- `.cargo/config.toml` 中增加 **`-C split-debuginfo=off`**，避免骨架 CU + 外部 `.dwo` 路径在裸机内无法加载而导致 addr2line 空结果。
+
+**注意**：当前 rustc/LLVM 面向 `riscv64gc-unknown-none-elf` 产出的 DWARF，在合并进镜像后，`addr2line` 的 **编译单元地址范围索引**未必总能命中每一个 `ra`；宿主机上 **`gdb -batch -ex 'info line *<addr>'`** 也可能显示 *No line number information*，而符号表仍能通过函数边界解析。串口上若见 **`[BACKTRACE]   sym=<no_addr2line_match> ra=0x...`**，表示已初始化 Context 但该地址未匹配到 DWARF 查询结果，属已知限制；需要稳定行号时仍可用主机 **`llvm-addr2line -e <ELF> <addr>`**（要求 ELF 仍带命名调试节，或自行从带符号表的工具链解析）。
+
+**勿 strip**：发布或拷贝 ELF 时不要剥离调试段，否则运行时 DWARF 为空。
+
+**自测**：`bash test_dwarf.sh`（依赖 `dwarf-symbols` 构建）。
 
 ## 第二讲（lec2）知识点 × Lab1 可观测对照（LabUnit 语义）
 

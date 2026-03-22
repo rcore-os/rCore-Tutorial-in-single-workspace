@@ -1,8 +1,8 @@
 //! 基于帧指针的栈回溯（布局与遍历逻辑对齐工作区中的 `axbacktrace` crate）。
 //!
-//! 裸机无 `std`、无全局分配器，因此不做 DWARF 符号解析；仅沿 **RISC-V `s0`（帧指针）** 链回溯，
-//! 打印每一帧的 **`fp`（上一帧指针）与 `ra`（返回地址 / `ip`）**，便于对照反汇编或
-//! `llvm-addr2line` / `riscv64-unknown-elf-addr2line` 在宿主机上解析函数名。
+//! 裸机无 `std`；沿 **RISC-V `s0`（帧指针）** 链回溯，打印 **`fp` 与 `ra`**，
+//! 并对每一帧打印 **`.symtab` + `rustc_demangle` 的 Rust 函数路径**（源码级符号，见 [`crate::symtab_resolve`]）。
+//! 启用 Cargo feature **`dwarf-symbols`** 时，在 DWARF 就绪后额外尝试 **`addr2line` 行号**（可选）。
 //!
 //! **编译要求**：`.cargo/config.toml` 中为 `riscv64gc-unknown-none-elf` 设置
 //! `-C force-frame-pointers=yes`，否则 LLVM 可能省略帧指针链，回溯会不完整或为空。
@@ -44,8 +44,8 @@ impl Frame {
 /// 过宽会降低误跟随指针的风险；过窄可能截断合法尾帧。教学场景下取一段连续 RAM 即可。
 const IP_RANGE: core::ops::Range<usize> = 0x8020_0000..0x8100_0000;
 
-/// 栈指针 `fp`（实则为 `s0`）应落在此区间（QEMU `virt` 上内核镜像附近栈）。
-const FP_RANGE: core::ops::Range<usize> = 0x8010_0000..0x8040_0000;
+/// 帧指针 `s0` 应落在此区间（与 `lec2_lab1` 打印的 `sp` 同一片 RAM：`.bss` 上栈，约 `0x806xxxxx`）。
+const FP_RANGE: core::ops::Range<usize> = 0x8020_0000..0x8800_0000;
 
 const MAX_DEPTH: usize = 48;
 
@@ -79,11 +79,14 @@ fn read_frame_pointer() -> usize {
     fp
 }
 
-/// 打印当前线程从 `s0` 出发的调用栈（仅地址；无符号解析）。
+/// 打印当前线程从 `s0` 出发的调用栈；每帧带 demangled `fn=`，可选 DWARF `sym=`。
 pub fn print_backtrace() {
+    #[cfg(feature = "dwarf-symbols")]
     put_bytes(
-        b"[BACKTRACE] note=fp_unwind_riscv64_s0_same_layout_as_axbacktrace no_dwarf_symbols\n",
+        b"[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_demangle plus_addr2line_if_ready\n",
     );
+    #[cfg(not(feature = "dwarf-symbols"))]
+    put_bytes(b"[BACKTRACE] note=fp_unwind_riscv64_s0_symtab_demangle same_layout_as_axbacktrace\n");
 
     let mut fp = read_frame_pointer();
     let mut depth = 0usize;
@@ -118,6 +121,17 @@ pub fn print_backtrace() {
         put_bytes(b" ra=");
         put_usize_hex(frame.ip);
         put_bytes(b"\n");
+
+        crate::symtab_resolve::print_fn_for_ra(frame.ip);
+
+        #[cfg(feature = "dwarf-symbols")]
+        {
+            if crate::dwarf::is_ready() {
+                crate::dwarf::print_location_for_ra(frame.ip);
+            } else {
+                put_bytes(b"[BACKTRACE]   sym=<dwarf_not_ready>\n");
+            }
+        }
 
         if let Some(limit) = fp.checked_add(8 * 1024 * 1024)
             && frame.fp >= limit

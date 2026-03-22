@@ -24,14 +24,26 @@
 // 非 RISC-V64 架构允许死代码（用于 cargo publish --dry-run 在主机上通过编译）
 #![cfg_attr(not(target_arch = "riscv64"), allow(dead_code))]
 
+#[cfg(all(target_arch = "riscv64", feature = "dwarf-symbols"))]
+core::arch::global_asm!(include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/asm/dwarf_ptrs.S"
+)));
+
 // 引入 SBI 调用库，提供 console_putchar（输出字符）和 shutdown（关机）功能
 // 启用 nobios 特性后，tg_sbi 内建了 M-mode 启动代码，无需外部 SBI 固件
 use tg_sbi::{console_putchar, shutdown};
 
 #[cfg(target_arch = "riscv64")]
+mod heap;
+#[cfg(all(target_arch = "riscv64", feature = "dwarf-symbols"))]
+mod dwarf;
+#[cfg(target_arch = "riscv64")]
 mod lec2_lab1;
 #[cfg(target_arch = "riscv64")]
 mod stackwalk;
+#[cfg(target_arch = "riscv64")]
+mod symtab_resolve;
 
 /// 嵌套调用以形成多帧，便于 `stackwalk` 打印动态调用关系（教学演示）。
 #[cfg(target_arch = "riscv64")]
@@ -87,6 +99,13 @@ unsafe extern "C" fn _start() -> ! {
 /// 通过 SBI 的 `console_putchar` 逐字节输出字符串，
 /// 然后调用 `shutdown` 正常关机退出 QEMU。
 extern "C" fn rust_main() -> ! {
+    #[cfg(target_arch = "riscv64")]
+    heap::init();
+    #[cfg(target_arch = "riscv64")]
+    symtab_resolve::init();
+    #[cfg(all(target_arch = "riscv64", feature = "dwarf-symbols"))]
+    dwarf::init();
+
     for c in b"Hello, world!\n" {
         console_putchar(*c);
     }
