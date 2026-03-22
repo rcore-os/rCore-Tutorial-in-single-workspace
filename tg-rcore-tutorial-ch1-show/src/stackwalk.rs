@@ -117,7 +117,7 @@ pub fn print_backtrace() {
         put_usize_hex(frame.ip);
         put_bytes(b"\n");
 
-        crate::symtab_resolve::print_fn_for_ra(frame.ip);
+        crate::symtab_resolve::print_fn_for_ra(frame.ip, frame.fp);
 
         if let Some(limit) = fp.checked_add(8 * 1024 * 1024)
             && frame.fp >= limit

@@ -28,6 +28,11 @@ required=(
   "rust_main"
   "at src/main.rs:"
   "at src/stackwalk.rs:"
+  "id=42"
+  'name="hello_os"'
+  "value=-1"
+  "count=42"
+  "flag=true"
   "[BACKTRACE] end=ra_null_bottom_of_chain"
 )
 

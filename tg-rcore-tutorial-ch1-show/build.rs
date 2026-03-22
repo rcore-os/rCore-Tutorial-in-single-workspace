@@ -2,10 +2,10 @@
 //!
 //! 1. ELF `.symtab` 函数符号（地址 + mangled name）
 //! 2. DWARF 行号表（每条指令地址 → 源文件 + 行号）
-//! 3. 函数形参名（`DW_TAG_formal_parameter` / `DW_AT_name`）
+//! 3. 函数形参的栈偏移 + 类型（`DW_AT_location` + `DW_AT_type`）
 //!
 //! 结果嵌入为 `const` 数组，供运行时栈回溯逐帧显示
-//! `fn=name(params) at file:line`。
+//! `fn=name(param=value, ...) at file:line`。
 
 fn main() {
     use std::{env, fs, path::PathBuf};
@@ -132,10 +132,19 @@ fn extract_func_symbols(data: &[u8]) -> Vec<(u64, u64, String)> {
 const TEXT_BASE: u64 = 0x80200000;
 const TEXT_LIMIT: u64 = 0x81000000;
 
+struct ParamLoc {
+    func_addr: u64,
+    name: String,
+    fbreg_offset: i16,
+    byte_size: u8,
+    /// 0=unsigned, 1=signed, 2=bool, 3=str_ref, 4=raw_hex
+    kind: u8,
+}
+
 struct DwarfInfo {
     line_table: Vec<(u32, u16, u32)>,
     file_paths: Vec<String>,
-    func_params: std::collections::HashMap<u64, Vec<String>>,
+    param_locs: Vec<ParamLoc>,
 }
 
 fn extract_dwarf_info(data: &[u8]) -> DwarfInfo {
@@ -145,7 +154,7 @@ fn extract_dwarf_info(data: &[u8]) -> DwarfInfo {
     let empty = DwarfInfo {
         line_table: Vec::new(),
         file_paths: Vec::new(),
-        func_params: std::collections::HashMap::new(),
+        param_locs: Vec::new(),
     };
     if data.len() < 64 {
         return empty;
@@ -173,15 +182,13 @@ fn extract_dwarf_info(data: &[u8]) -> DwarfInfo {
         Err(_) => return empty,
     };
 
-    // Extract function parameters first (borrows dwarf)
-    let func_params = extract_func_params(&dwarf);
+    let param_locs = extract_param_locs(&dwarf);
 
-    // Create addr2line Context (takes ownership of dwarf)
     let ctx = match addr2line::Context::from_dwarf(dwarf) {
         Ok(c) => c,
         Err(_) => {
             return DwarfInfo {
-                func_params,
+                param_locs,
                 ..empty
             }
         }
@@ -226,18 +233,18 @@ fn extract_dwarf_info(data: &[u8]) -> DwarfInfo {
     DwarfInfo {
         line_table: line_entries,
         file_paths,
-        func_params,
+        param_locs,
     }
 }
 
-fn extract_func_params(
-    dwarf: &addr2line::gimli::Dwarf<
-        addr2line::gimli::EndianSlice<'_, addr2line::gimli::RunTimeEndian>,
-    >,
-) -> std::collections::HashMap<u64, Vec<String>> {
+// ===== DWARF parameter location + type extraction =====
+
+type DwarfSlice<'a> = addr2line::gimli::EndianSlice<'a, addr2line::gimli::RunTimeEndian>;
+
+fn extract_param_locs(dwarf: &addr2line::gimli::Dwarf<DwarfSlice<'_>>) -> Vec<ParamLoc> {
     use addr2line::gimli;
 
-    let mut result = std::collections::HashMap::new();
+    let mut result = Vec::new();
 
     let mut units = dwarf.units();
     while let Ok(Some(header)) = units.next() {
@@ -248,7 +255,6 @@ fn extract_func_params(
 
         let mut entries = unit.entries();
         let mut current_func: Option<u64> = None;
-        let mut current_params: Vec<String> = Vec::new();
         let mut depth: isize = 0;
         let mut func_depth: isize = -1;
 
@@ -256,11 +262,7 @@ fn extract_func_params(
             depth += delta;
 
             if current_func.is_some() && depth <= func_depth {
-                if let Some(addr) = current_func.take() {
-                    if !current_params.is_empty() {
-                        result.insert(addr, std::mem::take(&mut current_params));
-                    }
-                }
+                current_func = None;
                 func_depth = -1;
             }
 
@@ -277,7 +279,6 @@ fn extract_func_params(
                     if let Some(a) = addr {
                         if a >= TEXT_BASE && a < TEXT_LIMIT {
                             current_func = Some(a);
-                            current_params.clear();
                             func_depth = depth;
                         }
                     }
@@ -285,27 +286,149 @@ fn extract_func_params(
                 gimli::DW_TAG_formal_parameter
                     if current_func.is_some() && depth == func_depth + 1 =>
                 {
-                    if let Ok(Some(attr)) = entry.attr(gimli::DW_AT_name) {
-                        if let Ok(name) = dwarf.attr_string(&unit, attr.value()) {
-                            if let Ok(s) = name.to_string() {
-                                let s = s.to_string();
-                                if !s.is_empty() && !s.starts_with("__") && s != "self" {
-                                    current_params.push(s);
-                                }
-                            }
-                        }
+                    let func_addr = current_func.unwrap();
+
+                    let name = entry
+                        .attr(gimli::DW_AT_name)
+                        .ok()
+                        .flatten()
+                        .and_then(|a| dwarf.attr_string(&unit, a.value()).ok())
+                        .and_then(|s| s.to_string().ok().map(|x| x.to_string()))
+                        .unwrap_or_default();
+                    if name.is_empty() || name.starts_with("__") || name == "self" {
+                        continue;
                     }
+
+                    let fbreg_offset = entry
+                        .attr_value(gimli::DW_AT_location)
+                        .ok()
+                        .flatten()
+                        .and_then(|v| match v {
+                            gimli::AttributeValue::Exprloc(expr) => {
+                                parse_fbreg_offset(expr.0.slice())
+                            }
+                            _ => None,
+                        });
+                    let fbreg_offset = match fbreg_offset {
+                        Some(off) if off >= i16::MIN as i64 && off <= i16::MAX as i64 => {
+                            off as i16
+                        }
+                        _ => continue,
+                    };
+
+                    let (byte_size, kind) = entry
+                        .attr_value(gimli::DW_AT_type)
+                        .ok()
+                        .flatten()
+                        .and_then(|v| match v {
+                            gimli::AttributeValue::UnitRef(offset) => {
+                                resolve_type(&unit, dwarf, offset)
+                            }
+                            _ => None,
+                        })
+                        .unwrap_or((8, 4));
+
+                    result.push(ParamLoc {
+                        func_addr,
+                        name,
+                        fbreg_offset,
+                        byte_size,
+                        kind,
+                    });
                 }
                 _ => {}
             }
         }
-        if let Some(addr) = current_func {
-            if !current_params.is_empty() {
-                result.insert(addr, current_params);
+    }
+    result.sort_by(|a, b| a.func_addr.cmp(&b.func_addr).then(a.fbreg_offset.cmp(&b.fbreg_offset)));
+    result
+}
+
+/// Parse a `DW_OP_fbreg(N)` DWARF expression. Returns the SLEB128-decoded offset N.
+fn parse_fbreg_offset(bytes: &[u8]) -> Option<i64> {
+    if bytes.is_empty() || bytes[0] != 0x91 {
+        return None;
+    }
+    let mut result: i64 = 0;
+    let mut shift: u32 = 0;
+    for &byte in &bytes[1..] {
+        result |= ((byte & 0x7f) as i64) << shift;
+        shift += 7;
+        if byte & 0x80 == 0 {
+            if shift < 64 && (byte & 0x40) != 0 {
+                result |= !0i64 << shift;
             }
+            return Some(result);
         }
     }
-    result
+    None
+}
+
+/// Resolve a DWARF type DIE to (byte_size, kind).
+fn resolve_type(
+    unit: &addr2line::gimli::Unit<DwarfSlice<'_>>,
+    dwarf: &addr2line::gimli::Dwarf<DwarfSlice<'_>>,
+    offset: addr2line::gimli::UnitOffset<usize>,
+) -> Option<(u8, u8)> {
+    use addr2line::gimli;
+
+    let mut cursor = match unit.entries_at_offset(offset) {
+        Ok(c) => c,
+        Err(_) => return None,
+    };
+    match cursor.next_entry() {
+        Ok(Some(())) => {}
+        _ => return None,
+    }
+    let entry = cursor.current()?;
+
+    match entry.tag() {
+        gimli::DW_TAG_base_type => {
+            let byte_size = entry
+                .attr_value(gimli::DW_AT_byte_size)
+                .ok()
+                .flatten()
+                .and_then(|v: gimli::AttributeValue<DwarfSlice<'_>>| v.udata_value())
+                .unwrap_or(8) as u8;
+            let kind = entry
+                .attr_value(gimli::DW_AT_encoding)
+                .ok()
+                .flatten()
+                .and_then(|v: gimli::AttributeValue<DwarfSlice<'_>>| match v {
+                    gimli::AttributeValue::Encoding(e) => Some(e),
+                    _ => None,
+                })
+                .map(|e| match e {
+                    gimli::DW_ATE_boolean => 2u8,
+                    gimli::DW_ATE_signed | gimli::DW_ATE_signed_char => 1,
+                    _ => 0,
+                })
+                .unwrap_or(0);
+            Some((byte_size, kind))
+        }
+        gimli::DW_TAG_structure_type => {
+            let name = entry
+                .attr(gimli::DW_AT_name)
+                .ok()
+                .flatten()
+                .and_then(|a: gimli::Attribute<DwarfSlice<'_>>| {
+                    dwarf.attr_string(unit, a.value()).ok()
+                })
+                .and_then(|s: DwarfSlice<'_>| s.to_string().ok().map(|x| x.to_string()));
+            if name.as_deref() == Some("&str") {
+                Some((16, 3))
+            } else {
+                let byte_size = entry
+                    .attr_value(gimli::DW_AT_byte_size)
+                    .ok()
+                    .flatten()
+                    .and_then(|v: gimli::AttributeValue<DwarfSlice<'_>>| v.udata_value())
+                    .unwrap_or(8) as u8;
+                Some((byte_size, 4))
+            }
+        }
+        _ => Some((8, 4)),
+    }
 }
 
 /// Strip build-dir prefixes to produce short display paths like `src/main.rs`.
@@ -370,14 +493,21 @@ fn write_generated_rs(
     }
     writeln!(c, "];").unwrap();
 
-    // --- FUNC_PARAMS: (func_addr, "p1,p2,...") ---
-    writeln!(c, "const FUNC_PARAMS: &[(u64, &str)] = &[").unwrap();
-    let mut param_entries: Vec<_> = dwarf.func_params.iter().collect();
-    param_entries.sort_by_key(|(a, _)| *a);
-    for (addr, params) in &param_entries {
-        let joined = params.join(",");
-        let esc = joined.replace('\\', "\\\\").replace('"', "\\\"");
-        writeln!(c, "    (0x{addr:x}, \"{esc}\"),").unwrap();
+    // --- FUNC_PARAM_LOCS: (func_addr, name, fbreg_offset, byte_size, kind) ---
+    // kind: 0=unsigned 1=signed 2=bool 3=str_ref 4=raw_hex
+    writeln!(
+        c,
+        "const FUNC_PARAM_LOCS: &[(u64, &str, i16, u8, u8)] = &["
+    )
+    .unwrap();
+    for p in &dwarf.param_locs {
+        let esc = p.name.replace('\\', "\\\\").replace('"', "\\\"");
+        writeln!(
+            c,
+            "    (0x{:x}, \"{esc}\", {}, {}, {}),",
+            p.func_addr, p.fbreg_offset, p.byte_size, p.kind
+        )
+        .unwrap();
     }
     writeln!(c, "];").unwrap();
 
