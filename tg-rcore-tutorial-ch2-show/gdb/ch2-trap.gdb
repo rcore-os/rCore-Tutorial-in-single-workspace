@@ -29,3 +29,9 @@ break handle_syscall
 # 可选（需 riscv-none-elf-gdb-py3）:
 #   source scripts/gdb_trap_stage.py
 #   trapstage
+#
+# 批处理 / 系统调用 教学演示（自动化脚本）:
+#   source scripts/gdb_batch_os_tour.py
+#   batch_os_intro
+#   batch_os_tour
+# 或: bash scripts/demo-batch-os-gdb.sh
