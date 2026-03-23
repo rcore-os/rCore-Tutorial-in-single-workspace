@@ -41,3 +41,9 @@ break schedule
 #   show_csrs         -- 显示关键 CSR（含 satp 解析）
 #   show_satp         -- 单独查看 satp（模式 + root_ppn）
 #   watch_priv_switch -- 在 execute_naked 处设断点观察特权级切换
+#
+# 内核/用户地址空间与 satp 切换（自动化演示）：
+#   source scripts/gdb_address_space_tour.py
+#   addr_space_intro
+#   addr_space_tour
+# 或: bash scripts/demo-address-space-gdb.sh
