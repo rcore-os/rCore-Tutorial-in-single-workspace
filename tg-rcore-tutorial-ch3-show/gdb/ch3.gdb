@@ -37,3 +37,10 @@ break rust_main
 #   ch3stage          -- 显示当前所处阶段
 #   show_csrs         -- 显示关键 CSR
 #   watch_priv_switch -- 在 sret 处设断点观察特权级切换
+#
+# 时钟中断（源码）+ 任务切换（自动化演示）：
+#   source scripts/gdb_timer_task_tour.py
+#   timer_task_intro
+#   timer_task_tour
+#   timer_break_if_any   # 可选：仅断在 emit_timer_interrupt（部分环境可能不命中）
+# 或: bash scripts/demo-timer-task-gdb.sh
