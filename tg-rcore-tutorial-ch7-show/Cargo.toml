@@ -1,0 +1,50 @@
+[package]
+name = "tg-rcore-tutorial-ch7-show"
+description = "Chapter 7 show: IPC (pipe) + signals with lec10 observability, backtrace, and GDB demos."
+version = "0.4.8"
+edition = "2024"
+authors = ["YdrMaster <ydrml@hotmail.com>","Yifan Wang<w-yf22@mails.tsinghua.edu.cn>","Yu Chen <yuchen@tsinghua.edu.cn>"]
+repository = "https://github.com/rcore-os/tg-rcore-tutorial-ch7"
+homepage = "https://github.com/rcore-os/tg-rcore-tutorial-ch7/tree/test"
+documentation = "https://docs.rs/tg-rcore-tutorial-ch7"
+license = "GPL-3.0"
+readme = "README.md"
+keywords = ["rcore", "tutorial", "no-std", "riscv", "ipc"]
+categories = ["no-std", "embedded"]
+exclude = [
+    "tg-user/**",
+#    ".cargo/config.toml",
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[dependencies]
+virtio-drivers = "0.1.0"
+xmas-elf = "0.8.0"
+riscv = "0.10.1"
+spin = "0.9"
+rustc-demangle = { version = "0.1", default-features = false }
+
+tg-sbi = { package = "tg-rcore-tutorial-sbi", path = "../tg-rcore-tutorial-sbi", version = "0.4.8", features = ["nobios"] }
+tg-linker = { package = "tg-rcore-tutorial-linker", path = "../tg-rcore-tutorial-linker", version = "0.4.8" }
+tg-console = { package = "tg-rcore-tutorial-console", path = "../tg-rcore-tutorial-console", version = "0.4.8" }
+tg-kernel-context = { package = "tg-rcore-tutorial-kernel-context", path = "../tg-rcore-tutorial-kernel-context", version = "0.4.8", features = ["foreign"] }
+tg-kernel-alloc = { package = "tg-rcore-tutorial-kernel-alloc", path = "../tg-rcore-tutorial-kernel-alloc", version = "0.4.8" }
+tg-kernel-vm = { package = "tg-rcore-tutorial-kernel-vm", path = "../tg-rcore-tutorial-kernel-vm", version = "0.4.8" }
+tg-syscall = { package = "tg-rcore-tutorial-syscall", path = "../tg-rcore-tutorial-syscall", version = "0.4.8", features = ["kernel"] }
+tg-task-manage = { package = "tg-rcore-tutorial-task-manage", path = "../tg-rcore-tutorial-task-manage", version = "0.4.8", features = ["proc"] }
+tg-easy-fs = { package = "tg-rcore-tutorial-easy-fs", path = "../tg-rcore-tutorial-easy-fs", version = "0.4.8" }
+tg-signal = { package = "tg-rcore-tutorial-signal", path = "../tg-rcore-tutorial-signal", version = "0.4.8" }
+tg-signal-impl = { package = "tg-rcore-tutorial-signal-impl", path = "../tg-rcore-tutorial-signal-impl", version = "0.4.8" }
+
+[build-dependencies]
+tg-linker = { package = "tg-rcore-tutorial-linker", path = "../tg-rcore-tutorial-linker", version = "0.4.8" }
+tg-easy-fs = { package = "tg-rcore-tutorial-easy-fs", path = "../tg-rcore-tutorial-easy-fs", version = "0.4.8" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+addr2line = "0.24"
+object = { version = "0.36", default-features = false, features = ["read", "elf", "std"] }
