@@ -1,0 +1,29 @@
+# 默认编译目标：RISC-V 64 位裸机平台
+[build]
+target = "riscv64gc-unknown-none-elf"
+
+# QEMU 运行器配置
+# cargo run 时自动调用此命令执行编译产物
+# 与前几章不同：本章需要挂载 fs.img 磁盘镜像作为 VirtIO 块设备
+[target.riscv64gc-unknown-none-elf]
+rustflags = ["-C", "force-frame-pointers=yes", "-C", "split-debuginfo=off"]
+runner = [
+    "qemu-system-riscv64",
+    "-machine", "virt",           # 使用 QEMU virt 虚拟平台
+    "-nographic",                 # 无图形界面，输出重定向到终端
+    "-bios", "none",              # 不加载外部 BIOS（tg-sbi 内建）
+    "-drive", "file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0",
+                                  # 挂载 easy-fs 磁盘镜像
+    "-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
+                                  # 创建 VirtIO 块设备，绑定到 MMIO 总线
+    "-kernel",                    # 后接内核 ELF 文件路径（由 cargo 自动填充）
+]
+
+# tg-user 用户态库的配置，由 build.rs 读取
+# TG_USER_CRATE   : cargo clone 时使用的 crates.io 包名
+# TG_USER_LOCAL_DIR: 本地缓存目录名（位于 chN/ 下）
+# TG_USER_VERSION : 目标版本号
+[env]
+TG_USER_CRATE     = "tg-rcore-tutorial-user"
+TG_USER_LOCAL_DIR = "tg-rcore-tutorial-user"
+TG_USER_VERSION   = "0.4.8"
