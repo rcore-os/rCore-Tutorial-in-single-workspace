@@ -1,0 +1,24 @@
+# 交叉编译目标：RISC-V 64 位裸机（ch8-show：帧指针回溯 + 完整 DWARF）
+[build]
+target = "riscv64gc-unknown-none-elf"
+
+[target.riscv64gc-unknown-none-elf]
+rustflags = ["-C", "force-frame-pointers=yes", "-C", "split-debuginfo=off"]
+runner = [
+    "qemu-system-riscv64",
+    "-machine",
+    "virt",
+    "-nographic",
+    "-bios",
+    "none",
+    "-drive",
+    "file=target/riscv64gc-unknown-none-elf/debug/fs.img,if=none,format=raw,id=x0",
+    "-device",
+    "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0",
+    "-kernel",
+]
+
+[env]
+TG_USER_CRATE     = "tg-rcore-tutorial-user"
+TG_USER_LOCAL_DIR = "tg-rcore-tutorial-user"
+TG_USER_VERSION   = "0.4.8"
