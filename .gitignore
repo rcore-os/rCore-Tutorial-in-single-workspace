@@ -20,6 +20,9 @@ Thumbs.db
 **/*.rs.bk
 Cargo.lock
 
+# Test user apps
+**/tg-rcore-tutorial-user
+
 # Temporary files
 *.tmp
 *.log
