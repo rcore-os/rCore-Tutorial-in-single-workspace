@@ -221,6 +221,67 @@ Expected patterns: 4, Not expected: 1
 Test PASSED: 5/5
 ✓ ch2 基础测试通过
 
+### 2.5 使用 GDB 与 QEMU 协同调试
+
+先在一个终端里启动 QEMU，并让 CPU 在复位后暂停，同时打开 GDB stub：
+
+```bash
+./scripts/launch-qemu-gdb.sh
+```
+
+再在另一个终端里连接 GDB，并执行预置的调试脚本：
+
+```bash
+riscv64-unknown-elf-gdb -q -x scripts/ch2-debug.gdb
+```
+
+这个脚本会自动完成三件事：
+
+1. 在 `tg_rcore_tutorial_ch2::rust_main` 设置断点并停住
+2. 打印关键全局符号：
+   - `apps`：用户程序元数据表
+   - `tg_rcore_tutorial_ch2::_start::STACK`：内核启动栈
+3. 在 `tg_rcore_tutorial_ch2::handle_syscall` 再次断下，并用 `bt` 显示调用栈
+
+一次实际调试中，可以看到类似结果：
+
+```text
+Breakpoint 1, tg_rcore_tutorial_ch2::rust_main () at src/main.rs:80
+#0  tg_rcore_tutorial_ch2::rust_main () at src/main.rs:80
+
+--- global: apps metadata ---
+$1 = 0x8020e000
+$2 = 0x80400000
+0x8020e000: 0x0000000080400000  0x0000000000000000
+0x8020e010: 0x0000000000000008  0x000000008020e060
+...
+
+--- global: boot stack ---
+Symbol "tg_rcore_tutorial_ch2::_start::STACK" is static storage at address 0x80254000.
+
+Breakpoint 2, tg_rcore_tutorial_ch2::handle_syscall (...) at src/main.rs:176
+#0  tg_rcore_tutorial_ch2::handle_syscall (...) at src/main.rs:176
+#1  0x00000000802005d6 in tg_rcore_tutorial_ch2::rust_main () at src/main.rs:122
+```
+
+如果想手动调试，也可以直接使用下面这组命令：
+
+```gdb
+target remote :1234
+break tg_rcore_tutorial_ch2::rust_main
+continue
+bt
+set language c
+print/x (void*)&apps
+x/11gx (void*)&apps
+set language auto
+info address tg_rcore_tutorial_ch2::_start::STACK
+break tg_rcore_tutorial_ch2::handle_syscall
+continue
+bt
+print/x *ctx
+```
+
 ---
 
 ## 三、操作系统核心概念
